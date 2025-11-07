@@ -37,7 +37,13 @@ allprojects {
 
         google()
         mavenCentral()
-        jcenter()
         maven { url "https://www.jitpack.io" }
+        jcenter()
+    }
+
+    configurations.all {
+        resolutionStrategy {
+            force 'me.relex:photodraweeview:2.1.0'
+        }
     }
 }
