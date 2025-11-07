@@ -77,7 +77,7 @@ jobs:
         run: cd android && ./gradlew clean
 
       - name: Build Debug APK
-        run: cd android && ./gradlew assembleDebug --stacktrace --no-daemon
+        run: cd android && ./gradlew assembleDebug --stacktrace --no-daemon --refresh-dependencies
 
       - name: Build Release APK
         run: cd android && ./gradlew assembleRelease --stacktrace --no-daemon
