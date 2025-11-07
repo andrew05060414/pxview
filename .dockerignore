@@ -1,0 +1,35 @@
+# Node modules will be installed in container
+node_modules/
+
+# Build outputs
+android/app/build/
+android/build/
+build-output/
+
+# iOS (not needed for Android builds)
+ios/
+*.xcodeproj
+*.xcworkspace
+
+# Git
+.git/
+.github/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+
+# Misc
+.env
+.env.local
