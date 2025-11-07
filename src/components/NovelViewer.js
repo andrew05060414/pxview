@@ -5,6 +5,7 @@ import { Text } from 'react-native-paper';
 import PXTabView from './PXTabView';
 import { MODAL_TYPES } from '../common/constants';
 import { globalStyleVariables } from '../styles';
+import NovelImage from './NovelImage';
 
 const styles = StyleSheet.create({
   container: {
@@ -69,6 +70,16 @@ class NovelViewer extends Component {
         >
           {defaultRenderer(node.children, parent)}
         </Text>
+      );
+    }
+    if (node.name === 'pixivimage') {
+      const { illustid, page } = node.attribs;
+      return (
+        <NovelImage
+          key={index}
+          illustId={illustid}
+          pageNumber={parseInt(page, 10)}
+        />
       );
     }
     // other nodes render by default renderer

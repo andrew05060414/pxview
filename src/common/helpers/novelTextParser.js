@@ -35,6 +35,10 @@ const parseNovelText = (novelText) => {
           }
         });
         text += '</a>';
+      } else if (p.name === 'pixivimage') {
+        // Handle embedded images in novels
+        const pageNum = p.pageNumber !== undefined ? p.pageNumber : 0;
+        text += `<pixivimage illustid='${p.illustId}' page='${pageNum}'></pixivimage>`;
       } else if (p.name === 'newpage') {
         items.push(text);
         text = '';
