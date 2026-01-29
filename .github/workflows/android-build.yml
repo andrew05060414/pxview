@@ -32,6 +32,45 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Create dummy google-services.json
+        run: |
+          cat > android/app/google-services.json << 'EOF'
+          {
+            "project_info": {
+              "project_number": "123456789",
+              "project_id": "pxview-dummy",
+              "storage_bucket": "pxview-dummy.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:123456789:android:abc123def456",
+                  "android_client_info": {
+                    "package_name": "com.utopia.pxviewr"
+                  }
+                },
+                "oauth_client": [
+                  {
+                    "client_id": "123456789-abcdefghijklmnop.apps.googleusercontent.com",
+                    "client_type": 3
+                  }
+                ],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDummyKeyForBuildPurposes123456789"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v2
 
