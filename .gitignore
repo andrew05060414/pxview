@@ -65,3 +65,5 @@ flow-typed
 # CocoaPods
 /ios/Pods/
 GoogleService-Info.plist
+.pnpm-store/*
+.worktrees/
