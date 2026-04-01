@@ -38,16 +38,16 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| READ-01 | Unmapped | Pending |
-| READ-02 | Unmapped | Pending |
-| READ-03 | Unmapped | Pending |
-| READ-04 | Unmapped | Pending |
-| READ-05 | Unmapped | Pending |
+| READ-01 | Phase 1 | Pending |
+| READ-02 | Phase 2 | Pending |
+| READ-03 | Phase 2 | Pending |
+| READ-04 | Phase 2 | Pending |
+| READ-05 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 5 total
-- Mapped to phases: 0
-- Unmapped: 5 ⚠️
+- Mapped to phases: 5
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-01*
