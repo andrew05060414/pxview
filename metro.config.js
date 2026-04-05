@@ -4,6 +4,13 @@
  *
  * @format
  */
+let createExclusionList;
+try {
+  createExclusionList = require('metro-config/src/defaults/exclusionList');
+} catch (error) {
+  createExclusionList = require('metro-config/src/defaults/blacklist');
+}
+
 module.exports = {
   transformer: {
     getTransformOptions: async () => ({
@@ -12,5 +19,10 @@ module.exports = {
         inlineRequires: false,
       },
     }),
+  },
+  resolver: {
+    blacklistRE: createExclusionList([
+      /.*\/\.worktrees\/.*/,
+    ]),
   },
 };
