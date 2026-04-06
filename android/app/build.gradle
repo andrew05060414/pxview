@@ -83,8 +83,6 @@ import com.google.gson.GsonBuilder
 project.ext.react = [
     enableHermes: false,  // clean and rebuild if changing
     bundleInDebug: true,
-    nodeExecutableAndArgs: ["C:/Users/Andrew/AppData/Roaming/nvm/v14.21.3/node.exe"],
-    extraPackagerArgs: ["--max-workers", "1"],
 ]
 
 apply from: "../../node_modules/react-native/react.gradle"
@@ -187,6 +185,11 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             signingConfig signingConfigs.release
         }
+    }
+    // NDK 26+ removed legacy toolchain prefixes; tell AGP to skip stripping
+    // so the native libs still ship in the APK without invoking the missing toolchain.
+    packagingOptions {
+        doNotStrip "**/*.so"
     }
     
     // applicationVariants are e.g. debug, release
