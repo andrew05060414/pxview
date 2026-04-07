@@ -25,6 +25,12 @@ See: `.planning/PROJECT.md` (updated 2026-04-01)
 
 `$gsd-discuss-phase 1`
 
+## Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260407-jqk | Fix NovelInlineImage white border by fetching intrinsic image dimensions when metadata lacks width/height | 2026-04-07 | 16e788d | [260407-jqk-fix-novelinlineimage-white-border-by-fet](.planning/quick/260407-jqk-fix-novelinlineimage-white-border-by-fet/) |
+
 ## Notes
 
 - This is a brownfield React Native maintenance track, not a greenfield product build.
