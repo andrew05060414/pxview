@@ -458,6 +458,228 @@ describe('NovelInlineImage', () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
+  it('calls Image.getSize when embedded url is present but metadata has no width/height, and renders with fetched ratio', async () => {
+    const getSize = jest.spyOn(require('react-native').Image, 'getSize');
+
+    let getSizeSuccess;
+    getSize.mockImplementationOnce((url, success) => {
+      getSizeSuccess = success;
+    });
+
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115550"
+          imageKind="uploadedimage"
+          embeddedImages={{
+            24115550: {
+              // No width/height fields — API provides URLs only
+              urls: { original: 'https://example.com/portrait.jpg' },
+            },
+          }}
+        />,
+      );
+    });
+
+    // Should still be loading (Image.getSize not yet resolved)
+    expect(JSON.stringify(tree.toJSON())).toContain('Loading image...');
+    expect(getSize).toHaveBeenCalledWith(
+      'https://example.com/portrait.jpg',
+      expect.any(Function),
+      expect.any(Function),
+    );
+
+    // Resolve getSize with portrait dimensions (400x800 => ratio 0.5)
+    await act(async () => {
+      getSizeSuccess(400, 800);
+    });
+
+    const imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/portrait.jpg');
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ aspectRatio: 0.5 }),
+      ]),
+    );
+    expect(illustDetail).not.toHaveBeenCalled();
+  });
+
+  it('falls back to aspectRatio 1 when Image.getSize errors', async () => {
+    const getSize = jest.spyOn(require('react-native').Image, 'getSize');
+
+    let getSizeError;
+    getSize.mockImplementationOnce((url, _success, error) => {
+      getSizeError = error;
+    });
+
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115550"
+          imageKind="uploadedimage"
+          embeddedImages={{
+            24115550: {
+              urls: { original: 'https://example.com/portrait.jpg' },
+            },
+          }}
+        />,
+      );
+    });
+
+    expect(getSize).toHaveBeenCalled();
+
+    await act(async () => {
+      getSizeError(new Error('network error'));
+    });
+
+    const imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/portrait.jpg');
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ aspectRatio: 1 }),
+      ]),
+    );
+    expect(illustDetail).not.toHaveBeenCalled();
+  });
+
+  it('ignores getSize result after unmount', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const getSize = jest.spyOn(require('react-native').Image, 'getSize');
+
+    let getSizeSuccess;
+    getSize.mockImplementationOnce((url, success) => {
+      getSizeSuccess = success;
+    });
+
+    const tree = renderer.create(
+      <NovelInlineImage
+        imageId="24115550"
+        imageKind="uploadedimage"
+        embeddedImages={{
+          24115550: {
+            urls: { original: 'https://example.com/portrait.jpg' },
+          },
+        }}
+      />,
+    );
+
+    tree.unmount();
+
+    await act(async () => {
+      getSizeSuccess(400, 800);
+    });
+
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('ignores getSize result after imageId changes (stale request guard)', async () => {
+    const getSize = jest.spyOn(require('react-native').Image, 'getSize');
+
+    let firstGetSizeSuccess;
+    let secondGetSizeSuccess;
+    getSize
+      .mockImplementationOnce((url, success) => {
+        firstGetSizeSuccess = success;
+      })
+      .mockImplementationOnce((url, success) => {
+        secondGetSizeSuccess = success;
+      });
+
+    const embeddedImages1 = {
+      24115550: { urls: { original: 'https://example.com/first.jpg' } },
+    };
+    const embeddedImages2 = {
+      24115551: { urls: { original: 'https://example.com/second.jpg' } },
+    };
+
+    const tree = renderer.create(
+      <NovelInlineImage
+        imageId="24115550"
+        imageKind="uploadedimage"
+        embeddedImages={embeddedImages1}
+      />,
+    );
+
+    // Update to a new imageId — this triggers componentDidUpdate which resets state
+    // and schedules loadImage via setState callback (async). We need to flush that
+    // before secondGetSizeSuccess is available.
+    await act(async () => {
+      tree.update(
+        <NovelInlineImage
+          imageId="24115551"
+          imageKind="uploadedimage"
+          embeddedImages={embeddedImages2}
+        />,
+      );
+    });
+
+    // Now both getSize calls have been initiated; resolve second (new) request first
+    await act(async () => {
+      secondGetSizeSuccess(200, 400);
+    });
+
+    // Now resolve the stale first request — should be ignored
+    await act(async () => {
+      firstGetSizeSuccess(400, 800);
+    });
+
+    const imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115551',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/second.jpg');
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ aspectRatio: 0.5 }),
+      ]),
+    );
+  });
+
+  it('skips Image.getSize when embedded metadata includes width and height', async () => {
+    const getSize = jest.spyOn(require('react-native').Image, 'getSize');
+
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115550"
+          imageKind="uploadedimage"
+          embeddedImages={{
+            24115550: {
+              width: 400,
+              height: 200,
+              urls: { original: 'https://example.com/uploaded-original.jpg' },
+            },
+          }}
+        />,
+      );
+      await flushPromises();
+    });
+
+    expect(getSize).not.toHaveBeenCalled();
+    const imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ aspectRatio: 2 }),
+      ]),
+    );
+  });
+
   it('shows when a resolved uploaded image url still fails to load', async () => {
     let tree;
     await act(async () => {

@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { Image, StyleSheet, Text } from 'react-native';
 import PXImage from './PXImage';
 import pixiv from '../common/helpers/apiClient';
 import { globalStyleVariables } from '../styles';
@@ -210,13 +210,47 @@ class NovelInlineImage extends Component {
       resolveEmbeddedImageAspectRatio(embeddedImage);
 
     if (embeddedImageUrl) {
-      this.setState({
-        failureReason: null,
-        imageUrl: embeddedImageUrl,
-        isLoading: false,
-        isFailed: false,
-        imageAspectRatio: embeddedImageAspectRatio || this.state.imageAspectRatio,
-      });
+      if (embeddedImageAspectRatio) {
+        // Metadata had real dimensions — fast path, no network needed
+        this.setState({
+          failureReason: null,
+          imageUrl: embeddedImageUrl,
+          isLoading: false,
+          isFailed: false,
+          imageAspectRatio: embeddedImageAspectRatio,
+        });
+      } else {
+        // API returned URLs only — must fetch intrinsic size
+        // Keep isLoading: true so the "Loading image..." placeholder stays visible
+        Image.getSize(
+          embeddedImageUrl,
+          (width, height) => {
+            if (this.unmounted || requestId !== this.requestId) {
+              return;
+            }
+            this.setState({
+              failureReason: null,
+              imageUrl: embeddedImageUrl,
+              isLoading: false,
+              isFailed: false,
+              imageAspectRatio: width && height ? width / height : 1,
+            });
+          },
+          () => {
+            if (this.unmounted || requestId !== this.requestId) {
+              return;
+            }
+            // getSize failed — still show the image at square ratio
+            this.setState({
+              failureReason: null,
+              imageUrl: embeddedImageUrl,
+              isLoading: false,
+              isFailed: false,
+              imageAspectRatio: 1,
+            });
+          },
+        );
+      }
       return;
     }
 
