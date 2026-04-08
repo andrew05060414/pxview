@@ -30,6 +30,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-01)
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260407-jqk | Fix NovelInlineImage white border by fetching intrinsic image dimensions when metadata lacks width/height | 2026-04-07 | 16e788d | [260407-jqk-fix-novelinlineimage-white-border-by-fet](.planning/quick/260407-jqk-fix-novelinlineimage-white-border-by-fet/) |
+| 260407-v7m | Add reading position memory to novel reader — persist and restore last-viewed page per novelId | 2026-04-07 | 42f0d25 | [260407-v7m-add-reading-position-memory-to-novel-rea](.planning/quick/260407-v7m-add-reading-position-memory-to-novel-rea/) |
 
 ## Notes
 
