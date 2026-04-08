@@ -278,6 +278,7 @@ export default function configureStore() {
       'likeButtonSettings',
       'readingSettings',
       'trendingSearchSettings',
+      'readingProgress',
       'entities',
       'auth',
       'i18n',
