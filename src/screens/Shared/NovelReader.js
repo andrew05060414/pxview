@@ -11,6 +11,7 @@ import * as novelTextActionCreators from '../../common/actions/novelText';
 import * as modalActionCreators from '../../common/actions/modal';
 import { makeGetParsedNovelText } from '../../common/selectors';
 import { MODAL_TYPES, READING_DIRECTION_TYPES } from '../../common/constants';
+import { READING_PROGRESS } from '../../common/constants/actionTypes';
 import { globalStyles } from '../../styles';
 
 class NovelReader extends Component {
@@ -47,20 +48,37 @@ class NovelReader extends Component {
   }
 
   componentDidUpdate(prevProps) {
-    const { novelReadingDirection, parsedNovelText } = this.props;
+    const {
+      novelReadingDirection,
+      parsedNovelText,
+      savedPageIndex,
+    } = this.props;
     const { parsedNovelText: prevParsedNovelText } = prevProps;
     if (parsedNovelText && !prevParsedNovelText) {
-      this.setState({
-        index:
+      let index;
+      if (
+        savedPageIndex != null &&
+        savedPageIndex > 0 &&
+        savedPageIndex < parsedNovelText.length
+      ) {
+        index = savedPageIndex;
+      } else {
+        index =
           novelReadingDirection === READING_DIRECTION_TYPES.RIGHT_TO_LEFT
             ? parsedNovelText.length - 1
-            : 0,
-      });
+            : 0;
+      }
+      this.setState({ index });
     }
   }
 
   handleOnIndexChange = (index) => {
+    const { novelId, dispatch } = this.props;
     this.setState({ index });
+    dispatch({
+      type: READING_PROGRESS.SET,
+      payload: { novelId, pageIndex: index },
+    });
   };
 
   handleOnPressPageLink = (page) => {
@@ -147,7 +165,12 @@ export default withTheme(
     () => {
       const getParsedNovelText = makeGetParsedNovelText();
       return (state, props) => {
-        const { novelText, novelSettings, readingSettings } = state;
+        const {
+          novelText,
+          novelSettings,
+          readingSettings,
+          readingProgress,
+        } = state;
         const parsedNovelText = getParsedNovelText(state, props);
         const novelId = props.novelId || props.route.params.novelId;
         return {
@@ -156,6 +179,10 @@ export default withTheme(
           parsedNovelText,
           novelSettings,
           novelReadingDirection: readingSettings.novelReadingDirection,
+          savedPageIndex:
+            readingProgress[novelId] != null
+              ? readingProgress[novelId].pageIndex
+              : null,
         };
       };
     },
