@@ -116,7 +116,9 @@ const resolveIllustImageUrl = (illust, pageNumber) => {
 
   if (illust.meta_pages && illust.meta_pages.length) {
     const pageIndex =
-      pageNumber && pageNumber > 0 ? Math.min(pageNumber - 1, illust.meta_pages.length - 1) : 0;
+      pageNumber && pageNumber > 0
+        ? Math.min(pageNumber - 1, illust.meta_pages.length - 1)
+        : 0;
     const page = illust.meta_pages[pageIndex];
     if (page && page.image_urls) {
       return (
@@ -128,10 +130,7 @@ const resolveIllustImageUrl = (illust, pageNumber) => {
     }
   }
 
-  if (
-    illust.meta_single_page &&
-    illust.meta_single_page.original_image_url
-  ) {
+  if (illust.meta_single_page && illust.meta_single_page.original_image_url) {
     return illust.meta_single_page.original_image_url;
   }
 
@@ -206,8 +205,9 @@ class NovelInlineImage extends Component {
 
     const embeddedImage = findEmbeddedImageById(embeddedImages, imageId);
     const embeddedImageUrl = resolveEmbeddedImageUrl(embeddedImage);
-    const embeddedImageAspectRatio =
-      resolveEmbeddedImageAspectRatio(embeddedImage);
+    const embeddedImageAspectRatio = resolveEmbeddedImageAspectRatio(
+      embeddedImage,
+    );
 
     if (embeddedImageUrl) {
       if (embeddedImageAspectRatio) {
@@ -220,10 +220,11 @@ class NovelInlineImage extends Component {
           imageAspectRatio: embeddedImageAspectRatio,
         });
       } else {
-        // API returned URLs only — must fetch intrinsic size
+        // API returned URLs only — must fetch intrinsic size with Referer header
         // Keep isLoading: true so the "Loading image..." placeholder stays visible
-        Image.getSize(
+        Image.getSizeWithHeaders(
           embeddedImageUrl,
+          { referer: 'http://www.pixiv.net' },
           (width, height) => {
             if (this.unmounted || requestId !== this.requestId) {
               return;
@@ -240,13 +241,13 @@ class NovelInlineImage extends Component {
             if (this.unmounted || requestId !== this.requestId) {
               return;
             }
-            // getSize failed — still show the image at square ratio
+            // getSize failed — show image and measure via onLoad fallback
             this.setState({
               failureReason: null,
               imageUrl: embeddedImageUrl,
               isLoading: false,
               isFailed: false,
-              imageAspectRatio: 1,
+              imageAspectRatio: null,
             });
           },
         );
@@ -304,6 +305,19 @@ class NovelInlineImage extends Component {
     });
   };
 
+  handleImageLoad = (event) => {
+    const { imageAspectRatio } = this.state;
+    if (imageAspectRatio !== null) {
+      return;
+    }
+    const source = event && event.nativeEvent && event.nativeEvent.source;
+    if (source && source.width && source.height) {
+      this.setState({ imageAspectRatio: source.width / source.height });
+    } else {
+      this.setState({ imageAspectRatio: 1 });
+    }
+  };
+
   renderContent() {
     const { debugInfo, maxWidth } = this.props;
     const imageId = getImageIdFromProps(this.props);
@@ -345,19 +359,20 @@ class NovelInlineImage extends Component {
       );
     }
 
+    const imageWidth = maxWidth || globalStyleVariables.WINDOW_WIDTH - 20;
+    const imageStyle =
+      imageAspectRatio !== null
+        ? { width: imageWidth, aspectRatio: imageAspectRatio }
+        : { width: imageWidth, height: imageWidth };
+
     return (
       <PXImage
         accessibilityLabel={`novel-inline-image-${imageId}`}
         uri={imageUrl}
         resizeMode="contain"
         onError={this.handleImageError}
-        style={[
-          styles.image,
-          {
-            width: maxWidth || globalStyleVariables.WINDOW_WIDTH - 20,
-            aspectRatio: imageAspectRatio,
-          },
-        ]}
+        onLoad={this.handleImageLoad}
+        style={[styles.image, imageStyle]}
       />
     );
   }
