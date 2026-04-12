@@ -182,10 +182,7 @@ export const chunkHtmlPreservingTags = (
         protectedDepth -= 1;
       }
 
-      if (
-        !protectedDepth &&
-        current.length >= maxLength
-      ) {
+      if (!protectedDepth && current.length >= maxLength) {
         flushCurrent();
       }
       return;
@@ -216,6 +213,129 @@ export const chunkHtmlPreservingTags = (
   flushCurrent();
   return chunks;
 };
+
+const SCROLL_TRACK_WIDTH = 28;
+const SCROLL_THUMB_MIN = 30;
+const SCROLL_THUMB_WIDTH = 6;
+const SCROLL_THUMB_RIGHT = 2;
+
+class NovelPage extends Component {
+  constructor(props) {
+    super(props);
+    this.scrollRef = React.createRef();
+    this.dragStartScrollY = 0;
+    this.dragStartPageY = 0;
+    this.state = {
+      scrollY: 0,
+      contentHeight: 0,
+      containerHeight: 0,
+    };
+  }
+
+  getScrollable() {
+    const { contentHeight, containerHeight } = this.state;
+    return Math.max(0, contentHeight - containerHeight);
+  }
+
+  getThumbHeight() {
+    const { contentHeight, containerHeight } = this.state;
+    if (!contentHeight || contentHeight <= containerHeight)
+      return containerHeight;
+    return Math.max(
+      SCROLL_THUMB_MIN,
+      (containerHeight / contentHeight) * containerHeight,
+    );
+  }
+
+  getThumbTop() {
+    const { scrollY, containerHeight } = this.state;
+    const scrollableRange = this.getScrollable();
+    const thumbH = this.getThumbHeight();
+    if (!scrollableRange) return 0;
+    const raw = (scrollY / scrollableRange) * (containerHeight - thumbH);
+    return Math.max(0, Math.min(raw, containerHeight - thumbH));
+  }
+
+  handleResponderGrant = (e) => {
+    const { scrollY } = this.state;
+    this.dragStartScrollY = scrollY;
+    this.dragStartPageY = e.nativeEvent.pageY;
+  };
+
+  handleResponderMove = (e) => {
+    const scrollableRange = this.getScrollable();
+    if (!scrollableRange) return;
+    const { containerHeight } = this.state;
+    const thumbH = this.getThumbHeight();
+    const dy = e.nativeEvent.pageY - this.dragStartPageY;
+    const trackRange = containerHeight - thumbH;
+    const scrollDelta = (dy / trackRange) * scrollableRange;
+    const nextY = Math.max(
+      0,
+      Math.min(this.dragStartScrollY + scrollDelta, scrollableRange),
+    );
+    if (this.scrollRef.current) {
+      this.scrollRef.current.scrollTo({ y: nextY, animated: false });
+    }
+    this.setState({ scrollY: nextY });
+  };
+
+  render() {
+    const { children } = this.props;
+    const { containerHeight } = this.state;
+    const scrollableRange = this.getScrollable();
+    const showThumb = scrollableRange > 10;
+    const thumbHeight = this.getThumbHeight();
+    const thumbTop = this.getThumbTop();
+
+    return (
+      <View style={{ flex: 1 }}>
+        <ScrollView
+          ref={this.scrollRef}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={(e) =>
+            this.setState({ scrollY: e.nativeEvent.contentOffset.y })
+          }
+          onContentSizeChange={(w, h) => this.setState({ contentHeight: h })}
+          onLayout={(e) =>
+            this.setState({ containerHeight: e.nativeEvent.layout.height })
+          }
+        >
+          {children}
+        </ScrollView>
+
+        {showThumb && containerHeight > 0 && (
+          <View
+            pointerEvents="box-none"
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: SCROLL_TRACK_WIDTH,
+            }}
+          >
+            <View
+              style={{
+                position: 'absolute',
+                right: SCROLL_THUMB_RIGHT,
+                width: SCROLL_THUMB_WIDTH,
+                height: thumbHeight,
+                top: thumbTop,
+                backgroundColor: 'rgba(0,0,0,0.35)',
+                borderRadius: 3,
+              }}
+              onStartShouldSetResponder={() => true}
+              onResponderGrant={this.handleResponderGrant}
+              onResponderMove={this.handleResponderMove}
+            />
+          </View>
+        )}
+      </View>
+    );
+  }
+}
 
 class NovelViewer extends Component {
   constructor(props) {
@@ -277,49 +397,52 @@ class NovelViewer extends Component {
       );
     }
 
-    const renderedChildren = node.children.reduce((children, child, childIndex) => {
-      const childKey = `${index}-${childIndex}`;
+    const renderedChildren = node.children.reduce(
+      (children, child, childIndex) => {
+        const childKey = `${index}-${childIndex}`;
 
-      if (child.type === 'text') {
-        children.push(decodeHtmlText(child.data));
+        if (child.type === 'text') {
+          children.push(decodeHtmlText(child.data));
+          return children;
+        }
+
+        const renderedChild =
+          this.handleRenderNode(
+            child,
+            childKey,
+            node.children,
+            node,
+            defaultRenderer,
+          ) || defaultRenderer([child], node);
+
+        React.Children.toArray(renderedChild).forEach(
+          (renderedEntry, renderedEntryIndex) => {
+            const renderedKey = `${childKey}-${renderedEntryIndex}`;
+
+            if (
+              typeof renderedEntry === 'string' ||
+              typeof renderedEntry === 'number'
+            ) {
+              children.push(renderedEntry);
+              return;
+            }
+
+            if (!React.isValidElement(renderedEntry)) {
+              return;
+            }
+
+            children.push(
+              React.cloneElement(renderedEntry, {
+                key: renderedEntry.key || renderedKey,
+              }),
+            );
+          },
+        );
+
         return children;
-      }
-
-      const renderedChild =
-        this.handleRenderNode(
-          child,
-          childKey,
-          node.children,
-          node,
-          defaultRenderer,
-        ) || defaultRenderer([child], node);
-
-      React.Children.toArray(renderedChild).forEach(
-        (renderedEntry, renderedEntryIndex) => {
-          const renderedKey = `${childKey}-${renderedEntryIndex}`;
-
-          if (
-            typeof renderedEntry === 'string' ||
-            typeof renderedEntry === 'number'
-          ) {
-            children.push(renderedEntry);
-            return;
-          }
-
-          if (!React.isValidElement(renderedEntry)) {
-            return;
-          }
-
-          children.push(
-            React.cloneElement(renderedEntry, {
-              key: renderedEntry.key || renderedKey,
-            }),
-          );
-        },
-      );
-
-      return children;
-    }, []);
+      },
+      [],
+    );
 
     return (
       <Text key={index} style={textStyle} {...restTextProps}>
@@ -329,13 +452,9 @@ class NovelViewer extends Component {
   };
 
   renderChapterNode = (node, index, parent, defaultRenderer) =>
-    this.renderInlineSafeTextContainer(
-      node,
-      index,
-      parent,
-      defaultRenderer,
-      { style: styles.novelChapter },
-    );
+    this.renderInlineSafeTextContainer(node, index, parent, defaultRenderer, {
+      style: styles.novelChapter,
+    });
 
   renderAnchorNode = (node, index, parent, defaultRenderer) => {
     const { href } = node.attribs || {};
@@ -415,7 +534,7 @@ class NovelViewer extends Component {
     // render text by chunks to prevent over text limit while preserving HTML tags
     return (
       <View style={styles.container}>
-        <ScrollView>
+        <NovelPage>
           {pagedItem.map((t, i) => (
             <HtmlView
               key={`${novelId}-${index}-${i}`} // eslint-disable-line react/no-array-index-key
@@ -425,7 +544,7 @@ class NovelViewer extends Component {
               TextComponent={this.renderHtmlViewTextComponent}
             />
           ))}
-        </ScrollView>
+        </NovelPage>
       </View>
     );
   };
