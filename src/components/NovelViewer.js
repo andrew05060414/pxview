@@ -1,5 +1,13 @@
 import React, { Component } from 'react';
-import { View, StyleSheet, ScrollView, Linking } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Linking,
+  TouchableOpacity,
+  Modal,
+  Dimensions,
+} from 'react-native';
 import HtmlView from 'react-native-htmlview';
 import entities from 'entities';
 import { Text } from 'react-native-paper';
@@ -214,21 +222,27 @@ export const chunkHtmlPreservingTags = (
   return chunks;
 };
 
-const SCROLL_TRACK_WIDTH = 28;
-const SCROLL_THUMB_MIN = 30;
-const SCROLL_THUMB_WIDTH = 6;
-const SCROLL_THUMB_RIGHT = 2;
+// --- Modal slider constants ---
+const MODAL_TRACK_WIDTH = 4;
+const MODAL_THUMB_W = 28;
+const MODAL_THUMB_H = 60;
+const MODAL_SLIDER_WIDTH = 100;
+const MODAL_SLIDER_RIGHT_PAD = 20;
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 class NovelPage extends Component {
   constructor(props) {
     super(props);
     this.scrollRef = React.createRef();
-    this.dragStartScrollY = 0;
-    this.dragStartPageY = 0;
+    this.modalDragStartY = 0;
+    this.modalDragStartScrollY = 0;
+    this.isModalDragging = false;
     this.state = {
       scrollY: 0,
       contentHeight: 0,
       containerHeight: 0,
+      modalOpen: false,
+      modalDragging: false,
     };
   }
 
@@ -237,42 +251,61 @@ class NovelPage extends Component {
     return Math.max(0, contentHeight - containerHeight);
   }
 
-  getThumbHeight() {
-    const { contentHeight, containerHeight } = this.state;
-    if (!contentHeight || contentHeight <= containerHeight)
-      return containerHeight;
-    return Math.max(
-      SCROLL_THUMB_MIN,
-      (containerHeight / contentHeight) * containerHeight,
-    );
-  }
-
-  getThumbTop() {
-    const { scrollY, containerHeight } = this.state;
-    const scrollableRange = this.getScrollable();
-    const thumbH = this.getThumbHeight();
-    if (!scrollableRange) return 0;
-    const raw = (scrollY / scrollableRange) * (containerHeight - thumbH);
-    return Math.max(0, Math.min(raw, containerHeight - thumbH));
-  }
-
-  handleResponderGrant = (e) => {
+  getRatio() {
     const { scrollY } = this.state;
-    this.dragStartScrollY = scrollY;
-    this.dragStartPageY = e.nativeEvent.pageY;
+    const scrollable = this.getScrollable();
+    if (!scrollable) return 0;
+    return Math.max(0, Math.min(1, scrollY / scrollable));
+  }
+
+  handleScroll = (e) => {
+    this.setState({ scrollY: e.nativeEvent.contentOffset.y });
   };
 
-  handleResponderMove = (e) => {
-    const scrollableRange = this.getScrollable();
-    if (!scrollableRange) return;
-    const { containerHeight } = this.state;
-    const thumbH = this.getThumbHeight();
-    const dy = e.nativeEvent.pageY - this.dragStartPageY;
-    const trackRange = containerHeight - thumbH;
-    const scrollDelta = (dy / trackRange) * scrollableRange;
+  // --- Modal navigation ---
+  openModal = () => {
+    this.setState({ modalOpen: true });
+  };
+
+  closeModal = () => {
+    this.isModalDragging = false;
+    this.setState({ modalOpen: false, modalDragging: false });
+  };
+
+  getModalTrackHeight() {
+    return SCREEN_HEIGHT - 200;
+  }
+
+  getModalThumbTop() {
+    const ratio = this.getRatio();
+    const trackH = this.getModalTrackHeight();
+    return ratio * (trackH - MODAL_THUMB_H);
+  }
+
+  handleModalGrant = (e) => {
+    this.isModalDragging = true;
+    this.setState({ modalDragging: true });
+    // Stop momentum
+    const { scrollY } = this.state;
+    if (this.scrollRef.current) {
+      this.scrollRef.current.scrollTo({ y: scrollY, animated: false });
+    }
+    this.modalDragStartScrollY = scrollY;
+    this.modalDragStartY = e.nativeEvent.pageY;
+  };
+
+  handleModalMove = (e) => {
+    if (!this.isModalDragging) return;
+    const scrollable = this.getScrollable();
+    if (!scrollable) return;
+    const trackH = this.getModalTrackHeight();
+    const maxTop = trackH - MODAL_THUMB_H;
+    if (!maxTop) return;
+    const dy = e.nativeEvent.pageY - this.modalDragStartY;
+    const scrollDelta = (dy / maxTop) * scrollable;
     const nextY = Math.max(
       0,
-      Math.min(this.dragStartScrollY + scrollDelta, scrollableRange),
+      Math.min(this.modalDragStartScrollY + scrollDelta, scrollable),
     );
     if (this.scrollRef.current) {
       this.scrollRef.current.scrollTo({ y: nextY, animated: false });
@@ -280,23 +313,144 @@ class NovelPage extends Component {
     this.setState({ scrollY: nextY });
   };
 
+  handleModalRelease = () => {
+    this.isModalDragging = false;
+    this.setState({ modalDragging: false });
+  };
+
+  getSliderSide() {
+    const { sliderSide } = this.props;
+    return sliderSide === 'left' ? 'left' : 'right';
+  }
+
+  getPercentageSide() {
+    const { sliderPercentageSide, sliderSide } = this.props;
+    if (sliderPercentageSide === 'left' || sliderPercentageSide === 'right') {
+      return sliderPercentageSide;
+    }
+    return sliderSide === 'left' ? 'left' : 'right';
+  }
+
+  renderPercentPill() {
+    const scrollable = this.getScrollable();
+    if (scrollable <= 10) return null;
+    const pct = (this.getRatio() * 100).toFixed(1);
+    const side = this.getPercentageSide();
+    const pos = side === 'left' ? { left: 14 } : { right: 14 };
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={this.openModal}
+        style={{
+          position: 'absolute',
+          bottom: 16,
+          ...pos,
+          backgroundColor: 'rgba(30,30,30,0.45)',
+          paddingVertical: 5,
+          paddingHorizontal: 12,
+          borderRadius: 14,
+          zIndex: 80,
+        }}
+      >
+        <Text style={{ color: '#fff', fontSize: 11 }}>{pct}%</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  renderModalNav() {
+    const { modalOpen, modalDragging } = this.state;
+    if (!modalOpen) return null;
+    const trackH = this.getModalTrackHeight();
+    const modalThumbTop = this.getModalThumbTop();
+    const side = this.getSliderSide();
+    const isLeft = side === 'left';
+
+    const sliderArea = (
+      <View
+        style={{
+          width: MODAL_SLIDER_WIDTH,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          paddingRight: isLeft ? 0 : MODAL_SLIDER_RIGHT_PAD,
+          paddingLeft: isLeft ? MODAL_SLIDER_RIGHT_PAD : 0,
+          paddingTop: 100,
+          paddingBottom: 100,
+          alignItems: 'center',
+        }}
+        onStartShouldSetResponder={() => true}
+        onResponderGrant={this.handleModalGrant}
+        onResponderMove={this.handleModalMove}
+        onResponderRelease={this.handleModalRelease}
+      >
+        <View
+          style={{
+            width: MODAL_TRACK_WIDTH,
+            height: trackH,
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            borderRadius: 2,
+          }}
+        >
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: -(MODAL_THUMB_W - MODAL_TRACK_WIDTH) / 2,
+              top: modalThumbTop,
+              width: MODAL_THUMB_W,
+              height: MODAL_THUMB_H,
+              backgroundColor: modalDragging ? '#e0f0ff' : '#ffffff',
+              borderRadius: 14,
+              elevation: 6,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.4,
+              shadowRadius: 8,
+            }}
+          />
+        </View>
+      </View>
+    );
+
+    const closeArea = (
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={this.closeModal}
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>
+          点击退出导航
+        </Text>
+      </TouchableOpacity>
+    );
+
+    return (
+      <Modal
+        transparent
+        visible
+        animationType="fade"
+        onRequestClose={this.closeModal}
+      >
+        <View style={{ flex: 1, flexDirection: 'row' }}>
+          {isLeft ? sliderArea : closeArea}
+          {isLeft ? closeArea : sliderArea}
+        </View>
+      </Modal>
+    );
+  }
+
   render() {
     const { children } = this.props;
-    const { containerHeight } = this.state;
-    const scrollableRange = this.getScrollable();
-    const showThumb = scrollableRange > 10;
-    const thumbHeight = this.getThumbHeight();
-    const thumbTop = this.getThumbTop();
 
     return (
       <View style={{ flex: 1 }}>
         <ScrollView
           ref={this.scrollRef}
-          showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
-          onScroll={(e) =>
-            this.setState({ scrollY: e.nativeEvent.contentOffset.y })
-          }
+          onScroll={this.handleScroll}
           onContentSizeChange={(w, h) => this.setState({ contentHeight: h })}
           onLayout={(e) =>
             this.setState({ containerHeight: e.nativeEvent.layout.height })
@@ -305,33 +459,8 @@ class NovelPage extends Component {
           {children}
         </ScrollView>
 
-        {showThumb && containerHeight > 0 && (
-          <View
-            pointerEvents="box-none"
-            style={{
-              position: 'absolute',
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: SCROLL_TRACK_WIDTH,
-            }}
-          >
-            <View
-              style={{
-                position: 'absolute',
-                right: SCROLL_THUMB_RIGHT,
-                width: SCROLL_THUMB_WIDTH,
-                height: thumbHeight,
-                top: thumbTop,
-                backgroundColor: 'rgba(0,0,0,0.35)',
-                borderRadius: 3,
-              }}
-              onStartShouldSetResponder={() => true}
-              onResponderGrant={this.handleResponderGrant}
-              onResponderMove={this.handleResponderMove}
-            />
-          </View>
-        )}
+        {this.renderPercentPill()}
+        {this.renderModalNav()}
       </View>
     );
   }
@@ -533,8 +662,11 @@ class NovelViewer extends Component {
     const pagedItem = chunkHtmlPreservingTags(item);
     // render text by chunks to prevent over text limit while preserving HTML tags
     return (
-      <View style={styles.container}>
-        <NovelPage>
+      <NovelPage
+        sliderSide={this.props.sliderSide}
+        sliderPercentageSide={this.props.sliderPercentageSide}
+      >
+        <View style={styles.container}>
           {pagedItem.map((t, i) => (
             <HtmlView
               key={`${novelId}-${index}-${i}`} // eslint-disable-line react/no-array-index-key
@@ -544,8 +676,8 @@ class NovelViewer extends Component {
               TextComponent={this.renderHtmlViewTextComponent}
             />
           ))}
-        </NovelPage>
-      </View>
+        </View>
+      </NovelPage>
     );
   };
 

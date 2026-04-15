@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import { View, InteractionManager } from 'react-native';
 import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { withTheme } from 'react-native-paper';
 import NovelViewer from '../../components/NovelViewer';
 import PXHeader from '../../components/PXHeader';
@@ -17,24 +18,22 @@ import { globalStyles } from '../../styles';
 class NovelReader extends Component {
   constructor(props) {
     super(props);
-    const { novelReadingDirection, parsedNovelText } = props;
-    let state;
+    const { novelReadingDirection, parsedNovelText, savedPageIndex } = props;
+    let index = 0;
     if (parsedNovelText) {
-      if (novelReadingDirection === READING_DIRECTION_TYPES.RIGHT_TO_LEFT) {
-        state = {
-          index: parsedNovelText.length - 1,
-        };
-      } else {
-        state = {
-          index: 0,
-        };
+      if (
+        savedPageIndex != null &&
+        savedPageIndex > 0 &&
+        savedPageIndex < parsedNovelText.length
+      ) {
+        index = savedPageIndex;
+      } else if (
+        novelReadingDirection === READING_DIRECTION_TYPES.RIGHT_TO_LEFT
+      ) {
+        index = parsedNovelText.length - 1;
       }
-    } else {
-      state = {
-        index: 0,
-      };
     }
-    this.state = state;
+    this.state = { index };
   }
 
   componentDidMount() {
@@ -153,6 +152,8 @@ class NovelReader extends Component {
             lineHeight={lineHeight}
             onIndexChange={this.handleOnIndexChange}
             onPressPageLink={this.handleOnPressPageLink}
+            sliderSide={this.props.sliderSide}
+            sliderPercentageSide={this.props.sliderPercentageSide}
           />
         )}
       </View>
@@ -179,6 +180,11 @@ export default withTheme(
           parsedNovelText,
           novelSettings,
           novelReadingDirection: readingSettings.novelReadingDirection,
+          sliderSide: readingSettings.sliderSide || 'right',
+          sliderPercentageSide:
+            readingSettings.sliderPercentageSide ||
+            readingSettings.sliderSide ||
+            'right',
           savedPageIndex:
             readingProgress[novelId] != null
               ? readingProgress[novelId].pageIndex
@@ -186,6 +192,12 @@ export default withTheme(
         };
       };
     },
-    { ...novelTextActionCreators, ...modalActionCreators },
+    (dispatch) => ({
+      dispatch,
+      ...bindActionCreators(
+        { ...novelTextActionCreators, ...modalActionCreators },
+        dispatch,
+      ),
+    }),
   )(NovelReader),
 );
