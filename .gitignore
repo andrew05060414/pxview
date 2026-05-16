@@ -67,6 +67,7 @@ flow-typed
 GoogleService-Info.plist
 .pnpm-store/*
 .worktrees/
+.gradle-user-home/*
 
 # React Native Android generated resources (release bundling side effects)
 /android/app/src/main/res/**/node_modules_*
