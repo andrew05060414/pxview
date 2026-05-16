@@ -65,7 +65,8 @@ export default function search(state = getDefaultStateForRankings(), action) {
         [action.payload.rankingMode]: {
           ...state[action.payload.rankingMode],
           loading: false,
-          loaded: true,
+          loaded: false,
+          error: true,
           refreshing: false,
         },
       };

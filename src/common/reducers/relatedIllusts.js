@@ -53,7 +53,8 @@ export default function relatedIllusts(state = {}, action) {
         [action.payload.illustId]: {
           ...state[action.payload.illustId],
           loading: false,
-          loaded: true,
+          loaded: false,
+          error: true,
           refreshing: false,
         },
       };

@@ -32,7 +32,8 @@ export default function newNovels(state = initState, action) {
       return {
         ...state,
         loading: false,
-        loaded: true,
+        loaded: false,
+        error: true,
         refreshing: false,
       };
     default:

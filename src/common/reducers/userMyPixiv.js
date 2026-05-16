@@ -45,8 +45,9 @@ export default function userMyPixiv(state = {}, action) {
         [action.payload.userId]: {
           ...state[action.payload.userId],
           loading: false,
-          loaded: true,
-          refreshing: true,
+          loaded: false,
+          error: true,
+          refreshing: false,
         },
       };
     default:

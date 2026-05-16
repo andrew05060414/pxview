@@ -46,7 +46,8 @@ export default function userMangas(state = {}, action) {
         [action.payload.userId]: {
           ...state[action.payload.userId],
           loading: false,
-          loaded: true,
+          loaded: false,
+          error: true,
           refreshing: false,
         },
       };

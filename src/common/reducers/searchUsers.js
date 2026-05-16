@@ -57,7 +57,8 @@ export default function searchUsers(state = initState, action) {
         [action.payload.navigationStateKey]: {
           ...state[action.payload.navigationStateKey],
           loading: false,
-          loaded: true,
+          loaded: false,
+          error: true,
           refreshing: false,
         },
       };

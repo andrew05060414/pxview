@@ -34,7 +34,8 @@ export default function myPixivNovels(state = initState, action) {
       return {
         ...state,
         loading: false,
-        loaded: true,
+        loaded: false,
+        error: true,
         refreshing: false,
       };
     default:
