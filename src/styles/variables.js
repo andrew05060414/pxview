@@ -20,11 +20,12 @@ export const BACKGROUND_COLOR = '#E9EBEE';
 export const HIGHLIGHT_COLOR = 'green';
 export const MUTE_COLOR = 'red';
 
-export const WINDOW_WIDTH = Math.floor(Dimensions.get('window').width);
-export const WINDOW_HEIGHT = Math.floor(Dimensions.get('window').height);
+export const getWindowWidth = () => Math.floor(Dimensions.get('window').width);
+export const getWindowHeight = () =>
+  Math.floor(Dimensions.get('window').height);
 
 // https://material.io/guidelines/layout/structure.html#structure-app-bar
 export const APPBAR_HEIGHT = Platform.OS === 'ios' ? 44 : 56;
 export const STATUSBAR_HEIGHT = getStatusBarHeight();
-export const DRAWER_WIDTH =
-  WINDOW_WIDTH - (Platform.OS === 'android' ? 56 : 64);
+export const getDrawerWidth = () =>
+  getWindowWidth() - (Platform.OS === 'android' ? 56 : 64);

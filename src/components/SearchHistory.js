@@ -27,7 +27,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   searchHistoryText: {
-    width: globalStyleVariables.WINDOW_WIDTH - 45,
+    width: globalStyleVariables.getWindowWidth() - 45,
   },
 });
 

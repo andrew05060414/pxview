@@ -82,11 +82,11 @@ class IllustItem extends Component {
             marginBottom: 1,
             backgroundColor: DarkTheme.colors.surface,
             width:
-              (globalStyleVariables.WINDOW_WIDTH - parentContainerMargin * 2) /
+              (globalStyleVariables.getWindowWidth() - parentContainerMargin * 2) /
                 numColumns -
               1,
             height:
-              (globalStyleVariables.WINDOW_WIDTH - parentContainerMargin * 2) /
+              (globalStyleVariables.getWindowWidth() - parentContainerMargin * 2) /
                 numColumns -
               1,
           },
@@ -106,12 +106,12 @@ class IllustItem extends Component {
                 {
                   resizeMode: 'cover',
                   width:
-                    (globalStyleVariables.WINDOW_WIDTH -
+                    (globalStyleVariables.getWindowWidth() -
                       parentContainerMargin * 2) /
                       numColumns -
                     imageWidthOffset,
                   height:
-                    (globalStyleVariables.WINDOW_WIDTH -
+                    (globalStyleVariables.getWindowWidth() -
                       parentContainerMargin * 2) /
                       numColumns -
                     imageWidthOffset,

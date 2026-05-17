@@ -24,10 +24,7 @@ const styles = StyleSheet.create({
 class PXBottomSheet extends Component {
   static defaultProps = {
     duration: 300,
-    height:
-      globalStyleVariables.WINDOW_HEIGHT -
-      globalStyleVariables.APPBAR_HEIGHT -
-      globalStyleVariables.STATUSBAR_HEIGHT,
+    height: null,
   };
 
   constructor(props) {
@@ -51,10 +48,14 @@ class PXBottomSheet extends Component {
     const { modalVisible, animatedHeight } = this.state;
     if (visible && !modalVisible) {
       this.setState({ modalVisible: visible });
-      // if want to support orientation
-      // const newHeight = height || (Dimensions.get('window').height - APPBAR_HEIGHT - STATUSBAR_HEIGHT);
+      const resolvedHeight =
+        height != null
+          ? height
+          : globalStyleVariables.getWindowHeight() -
+            globalStyleVariables.APPBAR_HEIGHT -
+            globalStyleVariables.STATUSBAR_HEIGHT;
       Animated.timing(animatedHeight, {
-        toValue: height,
+        toValue: resolvedHeight,
         duration,
         useNativeDriver: false,
       }).start();

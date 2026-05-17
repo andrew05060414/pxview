@@ -9,7 +9,7 @@ import { globalStyleVariables } from '../styles';
 
 const styles = StyleSheet.create({
   avatarContainer: {
-    height: (globalStyleVariables.DRAWER_WIDTH * 9) / 16,
+    height: (globalStyleVariables.getDrawerWidth() * 9) / 16,
     backgroundColor: globalStyleVariables.PRIMARY_COLOR,
     justifyContent: 'center',
     alignItems: 'center',

@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   tagsContainer: {
-    maxHeight: globalStyleVariables.WINDOW_HEIGHT - 300,
+    maxHeight: globalStyleVariables.getWindowHeight() - 300,
   },
   newTagContainer: {
     padding: 10,

@@ -42,14 +42,14 @@ const THUMBNAIL_SIZE = 30;
 const styles = StyleSheet.create({
   content: {
     flex: 1,
-    width: globalStyleVariables.WINDOW_WIDTH,
+    width: globalStyleVariables.getWindowWidth(),
   },
   headerTitleContainer: {
     flex: 1,
     alignItems: Platform.OS === 'android' ? 'flex-start' : 'center',
     ...Platform.select({
       ios: {
-        maxWidth: globalStyleVariables.WINDOW_WIDTH - 150,
+        maxWidth: globalStyleVariables.getWindowWidth() - 150,
       },
     }),
   },

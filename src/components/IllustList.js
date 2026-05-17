@@ -180,9 +180,9 @@ class IllustList extends Component {
             listKey={listKey}
             renderItem={this.renderItem}
             getItemLayout={(data, index) => ({
-              length: globalStyleVariables.WINDOW_WIDTH / ILLUST_COLUMNS,
+              length: globalStyleVariables.getWindowWidth() / ILLUST_COLUMNS,
               offset:
-                (globalStyleVariables.WINDOW_WIDTH / ILLUST_COLUMNS) * index,
+                (globalStyleVariables.getWindowWidth() / ILLUST_COLUMNS) * index,
               index,
             })}
             removeClippedSubviews={Platform.OS === 'android'}

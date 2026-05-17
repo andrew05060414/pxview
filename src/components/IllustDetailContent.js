@@ -21,7 +21,7 @@ import { globalStyleVariables } from '../styles';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    width: globalStyleVariables.WINDOW_WIDTH,
+    width: globalStyleVariables.getWindowWidth(),
   },
   imagePageNumberContainer: {
     top: 10,
@@ -264,7 +264,7 @@ class IllustDetailContent extends Component {
       <PXCacheImageTouchable
         key={item.image_urls.medium}
         uri={item.image_urls.medium}
-        initWidth={globalStyleVariables.WINDOW_HEIGHT}
+        initWidth={globalStyleVariables.getWindowHeight()}
         initHeight={200}
         style={styles.multiImageContainer}
         imageStyle={styles.image}

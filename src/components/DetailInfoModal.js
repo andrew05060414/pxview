@@ -92,7 +92,7 @@ class DetailInfoModal extends Component {
   static defaultProps = {
     duration: 300,
     height: Math.floor(
-      (globalStyleVariables.WINDOW_HEIGHT -
+      (globalStyleVariables.getWindowHeight() -
         globalStyleVariables.APPBAR_HEIGHT -
         globalStyleVariables.STATUSBAR_HEIGHT) *
         0.6,
