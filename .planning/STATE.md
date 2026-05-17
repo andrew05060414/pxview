@@ -30,3 +30,11 @@ See: `.planning/PROJECT.md` (updated 2026-04-01)
 - This is a brownfield React Native maintenance track, not a greenfield product build.
 - Local build/runtime instability is explicitly out of scope for the current roadmap.
 - The first milestone is successful only when inline novel images render in-place without regressing the current reader behavior.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260517-xog | Fix Samsung foldable screen: dynamic Dimensions getters + manifest configChanges | 2026-05-17 | a79d37e | [260517-xog-fix-foldable-screen](.planning/quick/260517-xog-fix-foldable-screen/) |
+
+Last activity: 2026-05-17 - Completed quick task 260517-xog: Fix Samsung foldable screen support
