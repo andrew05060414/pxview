@@ -75,9 +75,9 @@ const TagList = forwardRef(
       let imageStyle = {};
       let tagContainerStyle = {};
       if (index === 0) {
-        const width = globalStyleVariables.WINDOW_WIDTH;
+        const width = globalStyleVariables.getWindowWidth();
         const height =
-          (globalStyleVariables.WINDOW_WIDTH / ILLUST_COLUMNS) * 2 - 1;
+          (globalStyleVariables.getWindowWidth() / ILLUST_COLUMNS) * 2 - 1;
         imageContainerStyle = {
           width,
           height,
@@ -91,8 +91,8 @@ const TagList = forwardRef(
           height,
         };
       } else {
-        const width = globalStyleVariables.WINDOW_WIDTH / ILLUST_COLUMNS - 1;
-        const height = globalStyleVariables.WINDOW_WIDTH / ILLUST_COLUMNS - 1;
+        const width = globalStyleVariables.getWindowWidth() / ILLUST_COLUMNS - 1;
+        const height = globalStyleVariables.getWindowWidth() / ILLUST_COLUMNS - 1;
         imageContainerStyle = {
           marginRight: index % ILLUST_COLUMNS ? 1 : 0,
           width,
@@ -103,8 +103,8 @@ const TagList = forwardRef(
           height,
         };
         tagContainerStyle = {
-          height: globalStyleVariables.WINDOW_WIDTH / 3 - 1,
-          width: globalStyleVariables.WINDOW_WIDTH / 3 - 1,
+          height: globalStyleVariables.getWindowWidth() / 3 - 1,
+          width: globalStyleVariables.getWindowWidth() / 3 - 1,
         };
       }
       return (

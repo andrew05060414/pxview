@@ -13,10 +13,7 @@ import { makeGetIllustRankingItems } from '../../common/selectors';
 import { SCREENS, RANKING_TYPES } from '../../common/constants';
 import { globalStyleVariables } from '../../styles';
 
-const SLIDER_WIDTH = globalStyleVariables.WINDOW_WIDTH;
 const ITEM_HORIZONTAL_PADDING = 5;
-const ITEM_WIDTH =
-  globalStyleVariables.WINDOW_WIDTH / 3 + ITEM_HORIZONTAL_PADDING * 2;
 
 const styles = StyleSheet.create({
   container: {
@@ -28,8 +25,6 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   sliderContainer: {
-    width: ITEM_WIDTH,
-    height: ITEM_WIDTH,
     paddingHorizontal: ITEM_HORIZONTAL_PADDING,
   },
   titleContainer: {
@@ -109,17 +104,26 @@ class RankingHorizontalList extends Component {
     }
   };
 
-  renderItem = ({ item, index }) => (
-    <View style={styles.sliderContainer}>
-      <IllustItem
-        key={item.id}
-        illustId={item.id}
-        index={index}
-        numColumns={3}
-        onPressItem={() => this.handleOnPressItem(item)}
-      />
-    </View>
-  );
+  renderItem = ({ item, index }) => {
+    const itemWidth =
+      globalStyleVariables.getWindowWidth() / 3 + ITEM_HORIZONTAL_PADDING * 2;
+    return (
+      <View
+        style={[
+          styles.sliderContainer,
+          { width: itemWidth, height: itemWidth },
+        ]}
+      >
+        <IllustItem
+          key={item.id}
+          illustId={item.id}
+          index={index}
+          numColumns={3}
+          onPressItem={() => this.handleOnPressItem(item)}
+        />
+      </View>
+    );
+  };
 
   render() {
     const {
@@ -129,6 +133,9 @@ class RankingHorizontalList extends Component {
       i18n,
       theme,
     } = this.props;
+    const sliderWidth = globalStyleVariables.getWindowWidth();
+    const itemWidth =
+      globalStyleVariables.getWindowWidth() / 3 + ITEM_HORIZONTAL_PADDING * 2;
     return (
       <View style={styles.container}>
         <View style={styles.titleContainer}>
@@ -156,8 +163,8 @@ class RankingHorizontalList extends Component {
             }}
             data={items}
             renderItem={this.renderItem}
-            sliderWidth={SLIDER_WIDTH}
-            itemWidth={ITEM_WIDTH}
+            sliderWidth={sliderWidth}
+            itemWidth={itemWidth}
             activeSlideAlignment="start"
             enableMomentum
             decelerationRate={0.9}

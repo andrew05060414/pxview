@@ -32,12 +32,12 @@ class PXCacheImageTouchable extends Component {
   handleOnFoundImageSize = (width, height, url) => {
     if (width && height) {
       const newWidth =
-        width > globalStyleVariables.WINDOW_WIDTH
-          ? globalStyleVariables.WINDOW_WIDTH
+        width > globalStyleVariables.getWindowWidth()
+          ? globalStyleVariables.getWindowWidth()
           : width;
       const newHeight =
-        ((width > globalStyleVariables.WINDOW_WIDTH
-          ? globalStyleVariables.WINDOW_WIDTH
+        ((width > globalStyleVariables.getWindowWidth()
+          ? globalStyleVariables.getWindowWidth()
           : width) *
           height) /
         width;
@@ -77,7 +77,7 @@ class PXCacheImageTouchable extends Component {
         style={[
           style,
           {
-            width: globalStyleVariables.WINDOW_WIDTH,
+            width: globalStyleVariables.getWindowWidth(),
             height,
             backgroundColor: theme.colors.surface,
           },

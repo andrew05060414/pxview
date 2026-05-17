@@ -67,7 +67,7 @@ class UgoiraView extends Component {
     return (
       <View
         style={{
-          width: globalStyleVariables.WINDOW_WIDTH,
+          width: globalStyleVariables.getWindowWidth(),
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',

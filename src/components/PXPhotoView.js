@@ -5,8 +5,8 @@ import { globalStyleVariables } from '../styles';
 
 const styles = StyleSheet.create({
   photo: {
-    width: globalStyleVariables.WINDOW_WIDTH,
-    height: globalStyleVariables.WINDOW_HEIGHT,
+    width: globalStyleVariables.getWindowWidth(),
+    height: globalStyleVariables.getWindowHeight(),
   },
 });
 

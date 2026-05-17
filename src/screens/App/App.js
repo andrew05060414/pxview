@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, StatusBar, Platform } from 'react-native';
+import { View, StyleSheet, StatusBar, Platform, Dimensions } from 'react-native';
 import { useSelector } from 'react-redux';
 import {
   NavigationContainer,
@@ -45,6 +45,7 @@ const getActiveRouteName = (state) => {
 const App = () => {
   const [initialState, setInitialState] = useState();
   const [navigationIsReady, setNavigationIsReady] = useState(false);
+  const [, forceUpdate] = useState(0);
   const rehydrated = useSelector((state) => state.auth.rehydrated);
   const user = useSelector((state) => state.auth.user);
   const initialRouteName = useSelector(
@@ -132,6 +133,19 @@ const App = () => {
       SplashScreen.hide();
     }
   }, [prevRehydrated, rehydrated]);
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', () => {
+      forceUpdate((n) => n + 1);
+    });
+    return () => {
+      if (subscription && typeof subscription.remove === 'function') {
+        subscription.remove();
+      } else {
+        Dimensions.removeEventListener('change', () => {});
+      }
+    };
+  }, []);
 
   const handleOnNavigationStateChange = (state) => {
     const previousRouteName = routeNameRef.current;

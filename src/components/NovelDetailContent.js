@@ -145,7 +145,7 @@ class NovelDetailContent extends Component {
               <PXCacheImageTouchable
                 key={item.image_urls.medium}
                 uri={item.image_urls.medium}
-                initWidth={globalStyleVariables.WINDOW_HEIGHT}
+                initWidth={globalStyleVariables.getWindowHeight()}
                 initHeight={200}
                 imageStyle={styles.image}
                 onPress={this.handleOnPressNovelImage}

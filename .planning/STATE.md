@@ -36,5 +36,6 @@ See: `.planning/PROJECT.md` (updated 2026-04-01)
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260517-nrx | Fix network recovery: auto-refresh errored lists on reconnect | 2026-05-17 | 42beaec | [260517-nrx-fix-network-recovery](.planning/quick/260517-nrx-fix-network-recovery/) |
+| 260517-xog | Fix Samsung foldable screen: dynamic Dimensions getters + manifest configChanges | 2026-05-17 | a79d37e | [260517-xog-fix-foldable-screen](.planning/quick/260517-xog-fix-foldable-screen/) |
 
-Last activity: 2026-05-17 - Completed quick task 260517-nrx: Fix network recovery
+Last activity: 2026-05-17 - Completed quick task 260517-xog: Fix Samsung foldable screen support

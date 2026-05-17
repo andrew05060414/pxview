@@ -5,8 +5,6 @@ import ViewPagerAdapter from 'react-native-tab-view-viewpager-adapter';
 import { useTheme } from 'react-native-paper';
 import { globalStyleVariables } from '../styles';
 
-const initialLayout = { width: Dimensions.get('window').width };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -28,6 +26,7 @@ const PXTabView = ({
   ...restProps
 }) => {
   const theme = useTheme();
+  const initialLayout = { width: Dimensions.get('window').width };
 
   const handleRenderTabBar = (props) => {
     if (renderTabBar) {
