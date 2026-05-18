@@ -117,11 +117,40 @@ Set-Location android
 
 ---
 
+## Signing
+
+**Always use the repo's committed keystore** — NOT `~/.android/debug.keystore` (different machine key, causes signature mismatch on install):
+
+```
+Keystore: android/app/debug.keystore
+Alias:    androiddebugkey
+Password: android
+SHA-256:  FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C
+```
+
+Gradle signing flags:
+```
+-PPXVIEWR_RELEASE_STORE_FILE=D:/Andrew/Code/Andrew/pxview/android/app/debug.keystore
+-PPXVIEWR_RELEASE_STORE_PASSWORD=android
+-PPXVIEWR_RELEASE_KEY_ALIAS=androiddebugkey
+-PPXVIEWR_RELEASE_KEY_PASSWORD=android
+```
+
+**Signature mismatch on install (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`):**
+```powershell
+adb uninstall com.utopia.pxviewr
+adb install android\app\build\outputs\apk\release\app-release.apk
+```
+Uninstall loses app data but is unavoidable when switching signing keys.
+
+---
+
 ## Install & Test on Device
 
 ```powershell
 adb install -r android\app\build\outputs\apk\release\app-release.apk
 ```
+If signature mismatch error: see Signing section above — uninstall first.
 
 **Test checklist after install:**
 
