@@ -25,6 +25,14 @@ See: `.planning/PROJECT.md` (updated 2026-04-01)
 
 `$gsd-discuss-phase 1`
 
+## Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260407-jqk | Fix NovelInlineImage white border by fetching intrinsic image dimensions when metadata lacks width/height | 2026-04-07 | 16e788d | [260407-jqk-fix-novelinlineimage-white-border-by-fet](.planning/quick/260407-jqk-fix-novelinlineimage-white-border-by-fet/) |
+| 260407-v7m | Add reading position memory to novel reader — persist and restore last-viewed page per novelId | 2026-04-07 | 42f0d25 | [260407-v7m-add-reading-position-memory-to-novel-rea](.planning/quick/260407-v7m-add-reading-position-memory-to-novel-rea/) |
+| 260412-gkk | Replace ScrollableScene with draggable NovelPage scroll thumb — removes PanResponder, adds absolutely-positioned draggable indicator | 2026-04-12 | a032fa1 | [260412-gkk-add-draggable-vertical-scroll-indicator-](.planning/quick/260412-gkk-add-draggable-vertical-scroll-indicator-/) |
+
 ## Notes
 
 - This is a brownfield React Native maintenance track, not a greenfield product build.

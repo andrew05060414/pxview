@@ -1,9 +1,9 @@
 apply plugin: "com.android.application"
 apply plugin: 'com.google.gms.google-services'
 apply plugin: 'com.google.firebase.crashlytics'
-apply plugin: 'com.google.firebase.firebase-perf'
 
 import com.android.build.OutputFile
+import com.google.gson.GsonBuilder
 
 /**
  * The react.gradle file registers a task for each build variant (e.g. bundleDebugJsAndAssets
@@ -82,9 +82,30 @@ import com.android.build.OutputFile
 
 project.ext.react = [
     enableHermes: false,  // clean and rebuild if changing
+    bundleInDebug: true,
 ]
 
 apply from: "../../node_modules/react-native/react.gradle"
+
+afterEvaluate {
+    def signingConfigTask = tasks.findByName("signingConfigWriterDebug")
+    if (signingConfigTask != null) {
+        signingConfigTask.actions = []
+        signingConfigTask.doLast {
+            def outputDir = signingConfigTask.outputDirectory.get().asFile
+            outputDir.mkdirs()
+
+            def gson = new GsonBuilder()
+            gson.registerTypeAdapter(
+                File,
+                new com.android.build.gradle.internal.cxx.json.PlainFileGsonTypeAdaptor()
+            )
+
+            def outputFile = new File(outputDir, "signing-config.json")
+            outputFile.write(gson.create().toJson(signingConfigTask.signingConfig), "UTF-8")
+        }
+    }
+}
 
 /**
  * Set this to true to create two separate APKs instead of one:
@@ -165,6 +186,11 @@ android {
             signingConfig signingConfigs.release
         }
     }
+    // NDK 26+ removed legacy toolchain prefixes; tell AGP to skip stripping
+    // so the native libs still ship in the APK without invoking the missing toolchain.
+    packagingOptions {
+        doNotStrip "**/*.so"
+    }
     
     // applicationVariants are e.g. debug, release
     applicationVariants.all { variant ->
@@ -211,9 +237,6 @@ dependencies {
     debugImplementation("com.facebook.flipper:flipper-network-plugin:${FLIPPER_VERSION}") {
         exclude group:'com.facebook.flipper'
         exclude group:'com.squareup.okhttp3', module:'okhttp'
-    }
-    debugImplementation("com.facebook.flipper:flipper-fresco-plugin:${FLIPPER_VERSION}") {
-        exclude group:'com.facebook.flipper'
     }
 
     if (enableHermes) {

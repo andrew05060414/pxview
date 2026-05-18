@@ -73,6 +73,7 @@ import readingSettings from './readingSettings';
 import trendingSearchSettings from './trendingSearchSettings';
 import i18n from './i18n';
 import theme from './theme';
+import readingProgress from './readingProgress';
 import error from './error';
 
 const rootReducer = combineReducers({
@@ -148,6 +149,7 @@ const rootReducer = combineReducers({
   likeButtonSettings,
   readingSettings,
   trendingSearchSettings,
+  readingProgress,
   i18n,
   theme,
   network,

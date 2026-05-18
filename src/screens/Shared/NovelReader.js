@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import { View, InteractionManager } from 'react-native';
 import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { withTheme } from 'react-native-paper';
 import NovelViewer from '../../components/NovelViewer';
 import PXHeader from '../../components/PXHeader';
@@ -11,29 +12,28 @@ import * as novelTextActionCreators from '../../common/actions/novelText';
 import * as modalActionCreators from '../../common/actions/modal';
 import { makeGetParsedNovelText } from '../../common/selectors';
 import { MODAL_TYPES, READING_DIRECTION_TYPES } from '../../common/constants';
+import { READING_PROGRESS } from '../../common/constants/actionTypes';
 import { globalStyles } from '../../styles';
 
 class NovelReader extends Component {
   constructor(props) {
     super(props);
-    const { novelReadingDirection, parsedNovelText } = props;
-    let state;
+    const { novelReadingDirection, parsedNovelText, savedPageIndex } = props;
+    let index = 0;
     if (parsedNovelText) {
-      if (novelReadingDirection === READING_DIRECTION_TYPES.RIGHT_TO_LEFT) {
-        state = {
-          index: parsedNovelText.length - 1,
-        };
-      } else {
-        state = {
-          index: 0,
-        };
+      if (
+        savedPageIndex != null &&
+        savedPageIndex > 0 &&
+        savedPageIndex < parsedNovelText.length
+      ) {
+        index = savedPageIndex;
+      } else if (
+        novelReadingDirection === READING_DIRECTION_TYPES.RIGHT_TO_LEFT
+      ) {
+        index = parsedNovelText.length - 1;
       }
-    } else {
-      state = {
-        index: 0,
-      };
     }
-    this.state = state;
+    this.state = { index };
   }
 
   componentDidMount() {
@@ -47,20 +47,37 @@ class NovelReader extends Component {
   }
 
   componentDidUpdate(prevProps) {
-    const { novelReadingDirection, parsedNovelText } = this.props;
+    const {
+      novelReadingDirection,
+      parsedNovelText,
+      savedPageIndex,
+    } = this.props;
     const { parsedNovelText: prevParsedNovelText } = prevProps;
     if (parsedNovelText && !prevParsedNovelText) {
-      this.setState({
-        index:
+      let index;
+      if (
+        savedPageIndex != null &&
+        savedPageIndex > 0 &&
+        savedPageIndex < parsedNovelText.length
+      ) {
+        index = savedPageIndex;
+      } else {
+        index =
           novelReadingDirection === READING_DIRECTION_TYPES.RIGHT_TO_LEFT
             ? parsedNovelText.length - 1
-            : 0,
-      });
+            : 0;
+      }
+      this.setState({ index });
     }
   }
 
   handleOnIndexChange = (index) => {
+    const { novelId, dispatch } = this.props;
     this.setState({ index });
+    dispatch({
+      type: READING_PROGRESS.SET,
+      payload: { novelId, pageIndex: index },
+    });
   };
 
   handleOnPressPageLink = (page) => {
@@ -128,11 +145,15 @@ class NovelReader extends Component {
           <NovelViewer
             novelId={novelId}
             items={parsedNovelText}
+            debugInfo={novelText && novelText.debugInfo}
+            embeddedImages={novelText && novelText.embeddedImages}
             index={index}
             fontSize={fontSize}
             lineHeight={lineHeight}
             onIndexChange={this.handleOnIndexChange}
             onPressPageLink={this.handleOnPressPageLink}
+            sliderSide={this.props.sliderSide}
+            sliderPercentageSide={this.props.sliderPercentageSide}
           />
         )}
       </View>
@@ -145,7 +166,12 @@ export default withTheme(
     () => {
       const getParsedNovelText = makeGetParsedNovelText();
       return (state, props) => {
-        const { novelText, novelSettings, readingSettings } = state;
+        const {
+          novelText,
+          novelSettings,
+          readingSettings,
+          readingProgress,
+        } = state;
         const parsedNovelText = getParsedNovelText(state, props);
         const novelId = props.novelId || props.route.params.novelId;
         return {
@@ -154,9 +180,24 @@ export default withTheme(
           parsedNovelText,
           novelSettings,
           novelReadingDirection: readingSettings.novelReadingDirection,
+          sliderSide: readingSettings.sliderSide || 'right',
+          sliderPercentageSide:
+            readingSettings.sliderPercentageSide ||
+            readingSettings.sliderSide ||
+            'right',
+          savedPageIndex:
+            readingProgress[novelId] != null
+              ? readingProgress[novelId].pageIndex
+              : null,
         };
       };
     },
-    { ...novelTextActionCreators, ...modalActionCreators },
+    (dispatch) => ({
+      dispatch,
+      ...bindActionCreators(
+        { ...novelTextActionCreators, ...modalActionCreators },
+        dispatch,
+      ),
+    }),
   )(NovelReader),
 );
