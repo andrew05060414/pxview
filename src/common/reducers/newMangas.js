@@ -16,6 +16,7 @@ export default function newMangas(state = initState, action) {
       return {
         ...state,
         loading: true,
+        error: false,
         refreshing: action.payload.refreshing,
       };
     case NEW_MANGAS.SUCCESS:
@@ -23,6 +24,7 @@ export default function newMangas(state = initState, action) {
         ...state,
         loading: false,
         loaded: true,
+        error: false,
         refreshing: false,
         items: [...new Set([...state.items, ...action.payload.items])],
         nextUrl: action.payload.nextUrl,

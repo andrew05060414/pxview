@@ -23,7 +23,7 @@ const styles = StyleSheet.create({
   },
 });
 
-class NovelList extends Component {
+export class NovelList extends Component {
   componentDidMount() {
     const { listKey, loadMoreItems } = this.props;
     if (listKey && loadMoreItems) {
@@ -121,6 +121,7 @@ class NovelList extends Component {
       theme,
       innerRef,
     } = this.props;
+    const isInitialLoading = !loaded && loading;
     return (
       <View
         style={[
@@ -128,9 +129,9 @@ class NovelList extends Component {
           { backgroundColor: theme.colors.background },
         ]}
       >
-        {!loaded && renderHeader && renderHeader()}
-        {(!items || (!loaded && loading)) && <Loader />}
-        {loaded ? (
+        {isInitialLoading && renderHeader && renderHeader()}
+        {isInitialLoading && <Loader />}
+        {!isInitialLoading ? (
           <FlatList
             onLayout={this.handleOnLayout}
             ref={(ref) => {
@@ -142,7 +143,7 @@ class NovelList extends Component {
             data={
               maxItems && items && items.length
                 ? items.slice(0, maxItems)
-                : items
+                : items || []
             }
             keyExtractor={(item) => item.id.toString()}
             renderItem={this.renderItem}

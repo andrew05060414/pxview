@@ -458,11 +458,15 @@ describe('NovelInlineImage', () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
-  it('calls Image.getSize when embedded url is present but metadata has no width/height, and renders with fetched ratio', async () => {
-    const getSize = jest.spyOn(require('react-native').Image, 'getSize');
+  it('calls Image.getSizeWithHeaders when embedded url is present but metadata has no width/height, and renders with fetched ratio', async () => {
+    const getSizeWithHeaders = jest.spyOn(
+      require('react-native').Image,
+      'getSizeWithHeaders',
+    );
 
     let getSizeSuccess;
-    getSize.mockImplementationOnce((url, success) => {
+    getSizeWithHeaders.mockImplementationOnce((url, headers, success) => {
+      expect(headers).toEqual({ referer: 'http://www.pixiv.net' });
       getSizeSuccess = success;
     });
 
@@ -482,10 +486,11 @@ describe('NovelInlineImage', () => {
       );
     });
 
-    // Should still be loading (Image.getSize not yet resolved)
+    // Should still be loading (Image.getSizeWithHeaders not yet resolved)
     expect(JSON.stringify(tree.toJSON())).toContain('Loading image...');
-    expect(getSize).toHaveBeenCalledWith(
+    expect(getSizeWithHeaders).toHaveBeenCalledWith(
       'https://example.com/portrait.jpg',
+      { referer: 'http://www.pixiv.net' },
       expect.any(Function),
       expect.any(Function),
     );
@@ -509,11 +514,14 @@ describe('NovelInlineImage', () => {
     expect(illustDetail).not.toHaveBeenCalled();
   });
 
-  it('falls back to aspectRatio 1 when Image.getSize errors', async () => {
-    const getSize = jest.spyOn(require('react-native').Image, 'getSize');
+  it('falls back to onLoad aspect ratio handling when Image.getSizeWithHeaders errors', async () => {
+    const getSizeWithHeaders = jest.spyOn(
+      require('react-native').Image,
+      'getSizeWithHeaders',
+    );
 
     let getSizeError;
-    getSize.mockImplementationOnce((url, _success, error) => {
+    getSizeWithHeaders.mockImplementationOnce((url, _headers, _success, error) => {
       getSizeError = error;
     });
 
@@ -532,7 +540,7 @@ describe('NovelInlineImage', () => {
       );
     });
 
-    expect(getSize).toHaveBeenCalled();
+    expect(getSizeWithHeaders).toHaveBeenCalled();
 
     await act(async () => {
       getSizeError(new Error('network error'));
@@ -544,7 +552,17 @@ describe('NovelInlineImage', () => {
       'Image',
     );
     expect(imageNode.props.uri).toBe('https://example.com/portrait.jpg');
-    expect(imageNode.props.style).toEqual(
+
+    await act(async () => {
+      imageNode.props.onLoad({ nativeEvent: { source: { width: 100, height: 100 } } });
+    });
+
+    const imageNodeAfterLoad = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNodeAfterLoad.props.style).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ aspectRatio: 1 }),
       ]),
@@ -552,12 +570,15 @@ describe('NovelInlineImage', () => {
     expect(illustDetail).not.toHaveBeenCalled();
   });
 
-  it('ignores getSize result after unmount', async () => {
+  it('ignores getSizeWithHeaders result after unmount', async () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const getSize = jest.spyOn(require('react-native').Image, 'getSize');
+    const getSizeWithHeaders = jest.spyOn(
+      require('react-native').Image,
+      'getSizeWithHeaders',
+    );
 
     let getSizeSuccess;
-    getSize.mockImplementationOnce((url, success) => {
+    getSizeWithHeaders.mockImplementationOnce((url, _headers, success) => {
       getSizeSuccess = success;
     });
 
@@ -582,16 +603,19 @@ describe('NovelInlineImage', () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
-  it('ignores getSize result after imageId changes (stale request guard)', async () => {
-    const getSize = jest.spyOn(require('react-native').Image, 'getSize');
+  it('ignores getSizeWithHeaders result after imageId changes (stale request guard)', async () => {
+    const getSizeWithHeaders = jest.spyOn(
+      require('react-native').Image,
+      'getSizeWithHeaders',
+    );
 
     let firstGetSizeSuccess;
     let secondGetSizeSuccess;
-    getSize
-      .mockImplementationOnce((url, success) => {
+    getSizeWithHeaders
+      .mockImplementationOnce((url, _headers, success) => {
         firstGetSizeSuccess = success;
       })
-      .mockImplementationOnce((url, success) => {
+      .mockImplementationOnce((url, _headers, success) => {
         secondGetSizeSuccess = success;
       });
 
@@ -646,8 +670,11 @@ describe('NovelInlineImage', () => {
     );
   });
 
-  it('skips Image.getSize when embedded metadata includes width and height', async () => {
-    const getSize = jest.spyOn(require('react-native').Image, 'getSize');
+  it('skips Image.getSizeWithHeaders when embedded metadata includes width and height', async () => {
+    const getSizeWithHeaders = jest.spyOn(
+      require('react-native').Image,
+      'getSizeWithHeaders',
+    );
 
     let tree;
     await act(async () => {
@@ -667,7 +694,7 @@ describe('NovelInlineImage', () => {
       await flushPromises();
     });
 
-    expect(getSize).not.toHaveBeenCalled();
+    expect(getSizeWithHeaders).not.toHaveBeenCalled();
     const imageNode = findHostNodeByAccessibilityLabel(
       tree.root,
       'novel-inline-image-24115550',

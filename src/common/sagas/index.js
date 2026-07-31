@@ -63,7 +63,10 @@ import { watchFetchUgoiraMeta } from './ugoiraMeta';
 import { watchFetchMyAccountState } from './myAccountState';
 import { watchEditAccount } from './editAccount';
 import { watchSendVerificationEmail } from './verificationEmail';
-import { watchNetworkRestore } from './networkRestore';
+import {
+  NETWORK_SAGA_OPTIONS,
+  watchNetworkRestore,
+} from './networkRestore';
 
 export default function* rootSaga() {
   yield all([
@@ -132,10 +135,6 @@ export default function* rootSaga() {
     watchEditAccount(),
     watchSendVerificationEmail(),
     watchNetworkRestore(),
-    networkSaga({
-      // pingInterval: 10000,
-      pingOnlyIfOffline: true,
-      // pingServerUrl: 'http://192.168.1.6:4000',
-    }),
+    networkSaga(NETWORK_SAGA_OPTIONS),
   ]);
 }

@@ -18,6 +18,7 @@ export default function recommendedMangas(state = initState, action) {
       return {
         ...state,
         loading: true,
+        error: false,
         refreshing: action.payload.refreshing,
       };
     case RECOMMENDED_MANGAS.SUCCESS:
@@ -25,6 +26,7 @@ export default function recommendedMangas(state = initState, action) {
         ...state,
         loading: false,
         loaded: true,
+        error: false,
         refreshing: false,
         items: [...new Set([...state.items, ...action.payload.items])],
         offset: action.payload.offset,

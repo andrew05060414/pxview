@@ -18,6 +18,7 @@ export default function recommendedNovels(state = initState, action) {
       return {
         ...state,
         loading: true,
+        error: false,
         refreshing: action.payload.refreshing,
         url: action.payload.url,
       };
@@ -26,6 +27,7 @@ export default function recommendedNovels(state = initState, action) {
         ...state,
         loading: false,
         loaded: true,
+        error: false,
         refreshing: false,
         items: [...new Set([...state.items, ...action.payload.items])],
         offset: action.payload.offset,

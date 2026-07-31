@@ -34,6 +34,7 @@ export default function search(state = getDefaultStateForRankings(), action) {
           options: action.payload.options,
           offset: action.payload.offset,
           loading: true,
+          error: false,
           refreshing: action.payload.refreshing,
         },
       };
@@ -44,6 +45,7 @@ export default function search(state = getDefaultStateForRankings(), action) {
           ...state[action.payload.rankingMode],
           loading: false,
           loaded: true,
+          error: false,
           refreshing: false,
           items:
             state[action.payload.rankingMode] &&

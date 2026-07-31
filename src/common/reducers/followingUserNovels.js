@@ -18,6 +18,7 @@ export default function followingUserNovels(state = initState, action) {
       return {
         ...state,
         loading: true,
+        error: false,
         options: action.payload.options,
         refreshing: action.payload.refreshing,
       };
@@ -26,6 +27,7 @@ export default function followingUserNovels(state = initState, action) {
         ...state,
         loading: false,
         loaded: true,
+        error: false,
         refreshing: false,
         items: [...new Set([...state.items, ...action.payload.items])],
         offset: action.payload.offset,

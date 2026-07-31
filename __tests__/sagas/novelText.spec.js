@@ -141,8 +141,18 @@ describe('handleFetchNovelText', () => {
     expect(generator.throw(new Error('ajax failed')).value).toEqual(
       apply(pixiv, pixiv.novelWebview, [novelId, true]),
     );
-    expect(generator.next(webviewRawResponse).value).toEqual(
-      put(fetchNovelTextSuccess('plain text', novelId, {}, expect.any(Object))),
+    const successEffect = generator.next(webviewRawResponse).value;
+    expect(successEffect).toEqual(
+      put({
+        type: 'PIXIV/NOVEL_TEXT_SUCCESS',
+        payload: expect.objectContaining({
+          novelId,
+          text: 'plain text',
+          embeddedImages: {},
+          debugInfo: expect.any(Object),
+          timestamp: expect.any(Number),
+        }),
+      }),
     );
   });
 

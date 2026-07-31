@@ -27,7 +27,7 @@ const styles = StyleSheet.create({
   },
 });
 
-class IllustList extends Component {
+export class IllustList extends Component {
   componentDidMount() {
     const { listKey, loadMoreItems } = this.props;
     if (listKey && loadMoreItems) {
@@ -152,6 +152,7 @@ class IllustList extends Component {
       theme,
       innerRef,
     } = this.props;
+    const isInitialLoading = !loaded && loading;
     return (
       <View
         style={[
@@ -159,9 +160,9 @@ class IllustList extends Component {
           { backgroundColor: theme.colors.background },
         ]}
       >
-        {!loaded && renderHeader && renderHeader()}
-        {(!items || (!loaded && loading)) && <Loader />}
-        {loaded ? (
+        {isInitialLoading && renderHeader && renderHeader()}
+        {isInitialLoading && <Loader />}
+        {!isInitialLoading ? (
           <FlatList
             onLayout={this.handleOnLayout}
             ref={(ref) => {
@@ -173,7 +174,7 @@ class IllustList extends Component {
             data={
               maxItems && items && items.length
                 ? items.slice(0, maxItems)
-                : items
+                : items || []
             }
             numColumns={ILLUST_COLUMNS}
             keyExtractor={(item) => item.id.toString()}

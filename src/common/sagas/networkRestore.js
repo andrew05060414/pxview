@@ -2,6 +2,7 @@ import { put, select, take } from 'redux-saga/effects';
 import { fetchRecommendedIllusts } from '../actions/recommendedIllusts';
 import { fetchRecommendedNovels } from '../actions/recommendedNovels';
 import { fetchRecommendedMangas } from '../actions/recommendedMangas';
+import { fetchRecommendedUsers } from '../actions/recommendedUsers';
 import { fetchFollowingUserIllusts } from '../actions/followingUserIllusts';
 import { fetchFollowingUserNovels } from '../actions/followingUserNovels';
 import { fetchNewIllusts } from '../actions/newIllusts';
@@ -10,6 +11,13 @@ import { fetchNewNovels } from '../actions/newNovels';
 import { fetchRanking } from '../actions/ranking';
 
 const CONNECTION_CHANGE = '@@network-connectivity/CONNECTION_CHANGE';
+
+export const NETWORK_SAGA_OPTIONS = {
+  pingInterval: 10000,
+  pingOnlyIfOffline: false,
+  pingServerUrl: 'https://app-api.pixiv.net',
+  pingTimeout: 5000,
+};
 
 /**
  * Dispatches a refresh for each list that has error: true (failed to load
@@ -30,6 +38,9 @@ function* handleNetworkRestore() {
   }
   if (state.recommendedMangas && state.recommendedMangas.error) {
     yield put(fetchRecommendedMangas(undefined, undefined, true));
+  }
+  if (state.recommendedUsers && state.recommendedUsers.error) {
+    yield put(fetchRecommendedUsers(undefined, undefined, true));
   }
   if (state.followingUserIllusts && state.followingUserIllusts.error) {
     yield put(fetchFollowingUserIllusts(undefined, undefined, true));
