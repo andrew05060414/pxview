@@ -78,7 +78,12 @@ describe('followingInsights saga', () => {
     );
 
     // End of all streams
-    expect(gen.next().value).toEqual(put(syncFollowingInsightsSuccess()));
+    expect(gen.next().value).toEqual(
+      put({
+        type: 'PIXIV/FOLLOWING_INSIGHTS_SYNC_SUCCESS',
+        payload: { timestamp: expect.any(Number) },
+      }),
+    );
     expect(gen.next().done).toBe(true);
   });
 
