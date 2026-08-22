@@ -5,6 +5,7 @@ import bookmarkLibrary from './bookmarkLibrary';
 import followingInsights from './followingInsights';
 import aiSettings from './aiSettings';
 import classifications from './classifications';
+import bookmarkRules from './bookmarkRules';
 import walkthroughIllusts from './walkthroughIllusts';
 import recommendedIllusts from './recommendedIllusts';
 import recommendedMangas from './recommendedMangas';
@@ -161,6 +162,7 @@ const rootReducer = combineReducers({
   followingInsights,
   aiSettings,
   classifications,
+  bookmarkRules,
 });
 
 export default rootReducer;

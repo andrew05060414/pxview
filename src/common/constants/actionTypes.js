@@ -8,7 +8,9 @@ import {
   ADD,
   ADD_SUCCESS,
   ADD_FAILURE,
+  EDIT,
   REMOVE,
+  REORDER,
   REPLACE,
   OPEN,
   CLOSE,
@@ -554,3 +556,10 @@ export const CLASSIFICATIONS = defineAction(
   ],
   appNamespace,
 );
+
+export const BOOKMARK_RULES = defineAction(
+  'BOOKMARK_RULES',
+  [ADD, EDIT, REMOVE, REORDER, RESTORE, CLEAR],
+  appNamespace,
+);
+

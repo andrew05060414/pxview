@@ -7,7 +7,9 @@ export const CLEAR_ALL = 'CLEAR_ALL';
 export const ADD = 'ADD';
 export const ADD_SUCCESS = 'ADD_SUCCESS';
 export const ADD_FAILURE = 'ADD_FAILURE';
+export const EDIT = 'EDIT';
 export const REMOVE = 'REMOVE';
+export const REORDER = 'REORDER';
 
 export const REPLACE = 'REPLACE';
 

@@ -283,6 +283,7 @@ export default function configureStore() {
       'followingInsights',
       'aiSettings',
       'classifications',
+      'bookmarkRules',
       'entities',
       'auth',
       'i18n',
