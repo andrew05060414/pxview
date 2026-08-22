@@ -30,9 +30,11 @@ import PXThumbnail from '../../components/PXThumbnail';
 import HeaderInfoButton from '../../components/HeaderInfoButton';
 import HeaderSaveImageButton from '../../components/HeaderSaveImageButton';
 import HeaderMenuButton from '../../components/HeaderMenuButton';
+import { connectLocalization } from '../../components/Localization';
 import * as browsingHistoryNovelsActionCreators from '../../common/actions/browsingHistoryNovels';
 import * as muteUsersActionCreators from '../../common/actions/muteUsers';
 import * as novelDetailActionCreators from '../../common/actions/novelDetail';
+import buildNovelShareOptions from '../../common/helpers/novelShare';
 import { makeGetDetailNovelItem } from '../../common/selectors';
 import { SCREENS } from '../../common/constants';
 import { globalStyles, globalStyleVariables } from '../../styles';
@@ -108,7 +110,7 @@ class NovelDetail extends Component {
           id: novelId.toString(),
           fromDeepLink: true,
         });
-      } else {
+      } else if (item) {
         this.masterListUpdateListener = DeviceEventEmitter.addListener(
           'masterListUpdate',
           this.handleOnMasterListUpdate,
@@ -247,11 +249,16 @@ class NovelDetail extends Component {
   };
 
   handleOnPressShareNovel = () => {
+    this.openNovelLinkShare();
+  };
+
+  handleOnPressSendToPXRead = () => {
+    this.openNovelLinkShare();
+  };
+
+  openNovelLinkShare = () => {
     const { item } = this.props;
-    const shareOptions = {
-      message: `${item.title} | ${item.user.name} #pxviewr`,
-      url: `https://www.pixiv.net/novel/show.php?id=${item.id}`,
-    };
+    const shareOptions = buildNovelShareOptions(item);
     Share.open(shareOptions)
       .then(this.handleOnCancelMenuBottomSheet)
       .catch(this.handleOnCancelMenuBottomSheet);
@@ -432,7 +439,9 @@ class NovelDetail extends Component {
             globalStyles.container,
             { backgroundColor: theme.colors.background },
           ]}
-          ref={(ref) => (this.detailView = ref)}
+          ref={(ref) => {
+            this.detailView = ref;
+          }}
         >
           {this.renderMainContent()}
           {isActionButtonVisible && item && (
@@ -464,7 +473,13 @@ class NovelDetail extends Component {
               onPress={this.handleOnPressShareNovel}
               iconName="share"
               iconType="entypo"
-              text={i18n.share}
+              text={i18n.sharePixivLink}
+            />
+            <PXBottomSheetButton
+              onPress={this.handleOnPressSendToPXRead}
+              iconName="book-plus"
+              iconType="material-community"
+              text={i18n.sendToPXRead}
             />
             <PXBottomSheetButton
               onPress={this.handleOnPressToggleMuteUser}
@@ -491,42 +506,44 @@ class NovelDetail extends Component {
 
 export default withTheme(
   enhanceSaveImage(
-    connect(
-      () => {
-        const getDetailItem = makeGetDetailNovelItem();
-        return (state, props) => {
-          const item = getDetailItem(state, props);
-          const isMuteUser = item
-            ? state.muteUsers.items.some((m) => m.id === item.user.id)
-            : false;
-          const {
-            id: novelIdFromQS,
-            novelId,
-            items,
-            index,
-            onListEndReached,
-            parentListKey,
-          } = props.route.params;
-          const id = parseInt(novelIdFromQS || novelId, 0);
-          return {
-            novelId: id || item.id,
-            novelDetail: state.novelDetail[id], // get novelDetail from api if load from deep link
-            item,
-            isMuteUser,
-            isFromDeepLink: !!id,
-            items,
-            index,
-            onListEndReached,
-            parentListKey,
-            authUser: state.auth.user,
+    connectLocalization(
+      connect(
+        () => {
+          const getDetailItem = makeGetDetailNovelItem();
+          return (state, props) => {
+            const item = getDetailItem(state, props);
+            const isMuteUser = item
+              ? state.muteUsers.items.some((m) => m.id === item.user.id)
+              : false;
+            const {
+              id: novelIdFromQS,
+              novelId,
+              items,
+              index,
+              onListEndReached,
+              parentListKey,
+            } = props.route.params;
+            const id = parseInt(novelIdFromQS || novelId, 0);
+            return {
+              novelId: id || item?.id,
+              novelDetail: state.novelDetail[id], // get novelDetail from api if load from deep link
+              item,
+              isMuteUser,
+              isFromDeepLink: !!id,
+              items,
+              index,
+              onListEndReached,
+              parentListKey,
+              authUser: state.auth.user,
+            };
           };
-        };
-      },
-      {
-        ...browsingHistoryNovelsActionCreators,
-        ...muteUsersActionCreators,
-        ...novelDetailActionCreators,
-      },
-    )(NovelDetail),
+        },
+        {
+          ...browsingHistoryNovelsActionCreators,
+          ...muteUsersActionCreators,
+          ...novelDetailActionCreators,
+        },
+      )(NovelDetail),
+    ),
   ),
 );
