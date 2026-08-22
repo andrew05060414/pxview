@@ -707,6 +707,98 @@ describe('NovelInlineImage', () => {
     );
   });
 
+  it.each([
+    [
+      'GIF',
+      'https://example.com/animated.gif?format=gif&token=gif-query',
+    ],
+    [
+      'AVIF',
+      'https://example.com/novel.avif?format=avif&token=avif-query',
+    ],
+  ])(
+    'keeps query parameters on %s embedded URLs when metadata has no dimensions',
+    async (_format, imageUrl) => {
+      const getSizeWithHeaders = jest.spyOn(
+        require('react-native').Image,
+        'getSizeWithHeaders',
+      );
+
+      let getSizeError;
+      getSizeWithHeaders.mockImplementationOnce(
+        (receivedUrl, _headers, _success, error) => {
+          expect(receivedUrl).toBe(imageUrl);
+          getSizeError = error;
+        },
+      );
+
+      let tree;
+      await act(async () => {
+        tree = renderer.create(
+          <NovelInlineImage
+            imageId="24115550"
+            imageKind="uploadedimage"
+            embeddedImages={{
+              24115550: {
+                urls: { original: imageUrl },
+              },
+            }}
+          />,
+        );
+      });
+
+      expect(getSizeWithHeaders).toHaveBeenCalledWith(
+        imageUrl,
+        { referer: 'http://www.pixiv.net' },
+        expect.any(Function),
+        expect.any(Function),
+      );
+      expect(JSON.stringify(tree.toJSON())).toContain('Loading image...');
+
+      await act(async () => {
+        getSizeError(new Error('format metadata unavailable'));
+      });
+
+      let imageNode = findHostNodeByAccessibilityLabel(
+        tree.root,
+        'novel-inline-image-24115550',
+        'Image',
+      );
+      expect(imageNode.props.uri).toBe(imageUrl);
+
+      await act(async () => {
+        imageNode.props.onLoad({
+          nativeEvent: { source: { width: 640, height: 360 } },
+        });
+      });
+
+      imageNode = findHostNodeByAccessibilityLabel(
+        tree.root,
+        'novel-inline-image-24115550',
+        'Image',
+      );
+      expect(imageNode.props.uri).toBe(imageUrl);
+      expect(imageNode.props.style).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ aspectRatio: 640 / 360 }),
+        ]),
+      );
+
+      await act(async () => {
+        imageNode.props.onError();
+      });
+
+      expect(
+        findHostNodeByAccessibilityLabel(
+          tree.root,
+          'novel-inline-image-24115550',
+          'Text',
+        ).props.children,
+      ).toBe('Image unavailable (image request failed)');
+      expect(illustDetail).not.toHaveBeenCalled();
+    },
+  );
+
   it('shows when a resolved uploaded image url still fails to load', async () => {
     let tree;
     await act(async () => {

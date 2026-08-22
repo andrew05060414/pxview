@@ -1,5 +1,5 @@
 const UPLOADED_IMAGE_PATTERN = /\[uploadedimage:(\d+)\]/g;
-const IMAGE_URL_PATTERN = /https?:\/\/[^"'\\<>\s]+(?:jpg|jpeg|png|webp)/gi;
+const IMAGE_URL_PATTERN = /https?:\/\/[^"'\\<>\s]+?\.(?:jpe?g|png|webp|gif|avif)(?:[?#][^"'\\<>\s]*)?/gi;
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 

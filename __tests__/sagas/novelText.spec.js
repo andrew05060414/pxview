@@ -20,8 +20,12 @@ describe('handleFetchNovelText', () => {
     const ajaxUrl = `https://www.pixiv.net/ajax/novel/${novelId}`;
     const ajaxOptions = {
       headers: {
-        Accept: 'application/json',
+        Accept: 'application/json, text/plain, */*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
         Referer: `https://www.pixiv.net/novel/show.php?id=${novelId}`,
+        'User-Agent':
+          'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest',
       },
     };
     const ajaxResponse = {
@@ -75,8 +79,12 @@ describe('handleFetchNovelText', () => {
     const ajaxUrl = `https://www.pixiv.net/ajax/novel/${novelId}`;
     const ajaxOptions = {
       headers: {
-        Accept: 'application/json',
+        Accept: 'application/json, text/plain, */*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
         Referer: `https://www.pixiv.net/novel/show.php?id=${novelId}`,
+        'User-Agent':
+          'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest',
       },
     };
     const ajaxResponse = {
@@ -125,8 +133,12 @@ describe('handleFetchNovelText', () => {
     const ajaxUrl = `https://www.pixiv.net/ajax/novel/${novelId}`;
     const ajaxOptions = {
       headers: {
-        Accept: 'application/json',
+        Accept: 'application/json, text/plain, */*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
         Referer: `https://www.pixiv.net/novel/show.php?id=${novelId}`,
+        'User-Agent':
+          'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest',
       },
     };
     const webviewRawResponse = `
@@ -161,8 +173,12 @@ describe('handleFetchNovelText', () => {
     const ajaxUrl = `https://www.pixiv.net/ajax/novel/${novelId}`;
     const ajaxOptions = {
       headers: {
-        Accept: 'application/json',
+        Accept: 'application/json, text/plain, */*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
         Referer: `https://www.pixiv.net/novel/show.php?id=${novelId}`,
+        'User-Agent':
+          'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest',
       },
     };
     const error = new Error('boom');
