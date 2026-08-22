@@ -84,6 +84,8 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
+          # diagnostic: show how me.relex:photodraweeview resolves in this environment
+          ./gradlew :react-native-photo-view-ex:dependencies --configuration releaseCompileClasspath --no-daemon | grep -E 'photodraweeview|BUILD' || true
           # clean runs in its own invocation; see pxview-build skill pitfall
           ./gradlew clean --no-daemon
           ./gradlew assembleRelease --no-daemon \
