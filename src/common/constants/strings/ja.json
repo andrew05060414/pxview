@@ -316,5 +316,8 @@
   "collectionGroupSeries": "シリーズ別",
   "collectionGroupDuplicates": "重複検出",
   "collectionGroupNoDuplicates": "重複するブックマークは見つかりませんでした",
-  "collectionRulesTitle": "スマート分類ルール"
+  "collectionRulesTitle": "スマート分類ルール",
+  "collectionTasteTitle": "AI 嗜好・スタイル分析",
+  "collectionTasteGenerate": "嗜好まとめを生成",
+  "collectionTasteGenerating": "嗜好を分析中..."
 }

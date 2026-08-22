@@ -316,5 +316,8 @@
   "collectionGroupSeries": "By Series",
   "collectionGroupDuplicates": "Duplicates",
   "collectionGroupNoDuplicates": "No duplicate bookmarks found",
-  "collectionRulesTitle": "Smart Rules"
+  "collectionRulesTitle": "Smart Rules",
+  "collectionTasteTitle": "AI Taste & Aesthetic Profile",
+  "collectionTasteGenerate": "Generate Taste Summary",
+  "collectionTasteGenerating": "Analyzing aesthetic preferences..."
 }

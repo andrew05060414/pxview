@@ -30,6 +30,11 @@ import {
   computeYearDist,
   computeLengthDist,
 } from '../../../common/helpers/bookmarkLibraryStats';
+import {
+  buildTasteProfile,
+  buildTasteSummaryPrompt,
+} from '../../../common/helpers/tasteProfile';
+import { sendChatRequest } from '../../../common/helpers/llmClient';
 import { SCREENS } from '../../../common/constants';
 import { globalStyleVariables } from '../../../styles';
 
@@ -119,6 +124,16 @@ const CollectionStats = ({ navigation }) => {
     return Object.entries(map).filter(([, count]) => count > 0);
   }, [classifications]);
 
+  const [tasteSummary, setTasteSummary] = useState('');
+  const [isGeneratingTasteSummary, setIsGeneratingTasteSummary] = useState(
+    false,
+  );
+
+  const tasteProfile = useMemo(
+    () => buildTasteProfile(items, classifications.items || {}),
+    [items, classifications.items],
+  );
+
   const handleOnPressSync = () => {
     if (syncing) {
       dispatch(syncBookmarkLibraryCancel());
@@ -132,6 +147,30 @@ const CollectionStats = ({ navigation }) => {
       dispatch(classifyStop());
     } else {
       dispatch(classifyStart());
+    }
+  };
+
+  const handleOnPressGenerateTaste = async () => {
+    if (!hasAiConfig || tasteProfile.total === 0) return;
+    setIsGeneratingTasteSummary(true);
+    try {
+      const messages = buildTasteSummaryPrompt(tasteProfile);
+      const response = await sendChatRequest(aiSettings, messages, {
+        temperature: 0.7,
+      });
+      const text =
+        response &&
+        response.choices &&
+        response.choices[0] &&
+        response.choices[0].message &&
+        response.choices[0].message.content;
+      if (text) {
+        setTasteSummary(text.trim());
+      }
+    } catch (err) {
+      // Ignored or could show toast
+    } finally {
+      setIsGeneratingTasteSummary(false);
     }
   };
 
@@ -305,6 +344,38 @@ const CollectionStats = ({ navigation }) => {
                 ))}
               </View>
             )}
+          </Card>
+
+          <Card style={styles.card}>
+            <View style={styles.syncRow}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Subheading>{i18n.collectionTasteTitle}</Subheading>
+                <Caption>
+                  {hasAiConfig
+                    ? `${tasteProfile.total} 件作品偏好分析`
+                    : i18n.collectionStatsAiClassifyConfigPrompt}
+                </Caption>
+              </View>
+              {hasAiConfig && (
+                <Button
+                  mode="outlined"
+                  compact
+                  color={globalStyleVariables.PRIMARY_COLOR}
+                  loading={isGeneratingTasteSummary}
+                  disabled={
+                    isGeneratingTasteSummary || tasteProfile.total === 0
+                  }
+                  onPress={handleOnPressGenerateTaste}
+                >
+                  {i18n.collectionTasteGenerate}
+                </Button>
+              )}
+            </View>
+            {tasteSummary ? (
+              <Text style={{ marginTop: 8, lineHeight: 20 }}>
+                {tasteSummary}
+              </Text>
+            ) : null}
           </Card>
 
           <Card style={styles.card}>

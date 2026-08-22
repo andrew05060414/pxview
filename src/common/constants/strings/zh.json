@@ -316,5 +316,8 @@
   "collectionGroupSeries": "按同系列聚合",
   "collectionGroupDuplicates": "潜在重复",
   "collectionGroupNoDuplicates": "未发现重复收藏作品",
-  "collectionRulesTitle": "智能规则"
+  "collectionRulesTitle": "智能规则",
+  "collectionTasteTitle": "AI 审美与口味画像",
+  "collectionTasteGenerate": "生成口味画像总结",
+  "collectionTasteGenerating": "正在分析审美偏好..."
 }
