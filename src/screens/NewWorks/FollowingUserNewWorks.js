@@ -1,9 +1,10 @@
 import React, { Component } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { withTheme, Button } from 'react-native-paper';
 import FollowingUserIllusts from './FollowingUserIllusts';
 import FollowingUserNovels from './FollowingUserNovels';
 import { connectLocalization } from '../../components/Localization';
+import PXTabView from '../../components/PXTabView';
 import Pills from '../../components/Pills';
 import HeaderFilterButton from '../../components/HeaderFilterButton';
 import VisibilityFilterModal from '../../components/VisibilityFilterModal';
@@ -39,6 +40,37 @@ class FollowingUserNewWorks extends Component {
 
   handleOnPressPill = (index) => {
     this.setState({ index });
+  };
+
+  handleOnIndexChange = (index) => {
+    this.setState({ index });
+  };
+
+  renderScene = ({ route }) => {
+    const { active, navigation } = this.props;
+    const { illustFilterOptions, novelFilterOptions } = this.state;
+    switch (route.key) {
+      case 'illust':
+        return (
+          <FollowingUserIllusts
+            renderEmpty={this.renderEmpty}
+            navigation={navigation}
+            active={active}
+            options={illustFilterOptions}
+          />
+        );
+      case 'novel':
+        return (
+          <FollowingUserNovels
+            renderEmpty={this.renderEmpty}
+            navigation={navigation}
+            active={active}
+            options={novelFilterOptions}
+          />
+        );
+      default:
+        return null;
+    }
   };
 
   handleOnPressFilterButton = () => {
@@ -153,7 +185,7 @@ class FollowingUserNewWorks extends Component {
   };
 
   render() {
-    const { active, navigation } = this.props;
+    const { i18n } = this.props;
     const {
       index,
       isOpenIllustFilterModal,
@@ -163,23 +195,19 @@ class FollowingUserNewWorks extends Component {
     } = this.state;
     return (
       <View style={globalStyles.container}>
-        {index === 0 ? (
-          <FollowingUserIllusts
-            renderEmpty={this.renderEmpty}
-            renderHeader={this.renderHeader}
-            navigation={navigation}
-            active={active}
-            options={illustFilterOptions}
-          />
-        ) : (
-          <FollowingUserNovels
-            renderEmpty={this.renderEmpty}
-            renderHeader={this.renderHeader}
-            navigation={navigation}
-            active={active}
-            options={novelFilterOptions}
-          />
-        )}
+        <PXTabView
+          navigationState={{
+            index,
+            routes: [
+              { key: 'illust', title: i18n.illustManga },
+              { key: 'novel', title: i18n.novel },
+            ],
+          }}
+          renderTabBar={() => this.renderHeader()}
+          renderScene={this.renderScene}
+          onIndexChange={this.handleOnIndexChange}
+          includeStatusBarPadding={Platform.OS === 'ios'}
+        />
         <VisibilityFilterModal
           isOpen={isOpenIllustFilterModal}
           onPressCloseButton={this.handleOnPressCloseIllustFilterButton}
