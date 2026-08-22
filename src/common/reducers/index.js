@@ -2,6 +2,7 @@ import { combineReducers } from 'redux';
 import { reducer as network } from 'react-native-offline';
 import entities from './entities';
 import bookmarkLibrary from './bookmarkLibrary';
+import aiSettings from './aiSettings';
 import walkthroughIllusts from './walkthroughIllusts';
 import recommendedIllusts from './recommendedIllusts';
 import recommendedMangas from './recommendedMangas';
@@ -155,6 +156,7 @@ const rootReducer = combineReducers({
   theme,
   network,
   bookmarkLibrary,
+  aiSettings,
 });
 
 export default rootReducer;
