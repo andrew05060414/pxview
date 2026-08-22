@@ -37,8 +37,8 @@ sh ./scripts/install-android-release.sh
 | `scripts/use-android-jdk11.ps1` | sets Android SDK, JDK 11, and Gradle home |
 | `scripts/test-jest.ps1` | runs Jest with the known-good Node binary |
 | `scripts/bundle-android-release.ps1` | pre-bundles Android JS with Metro workers forced to 1 |
-| `scripts/build-android-debug.ps1` | runs Jest, then `assembleDebug` |
-| `scripts/build-android-release.ps1` | runs Jest, pre-bundles JS, then builds signed release APK |
+| `scripts/build-android-debug.ps1` | runs Jest, pre-bundles JS, cleans stale Gradle outputs, then builds Debug APK while skipping Gradle's duplicate Bundle task |
+| `scripts/build-android-release.ps1` | runs Jest, pre-bundles JS, cleans stale Gradle outputs, then builds signed release APK while skipping Gradle's duplicate Bundle task |
 | `scripts/install-android-release.ps1` | installs the built release APK with `adb install -r` |
 | `scripts/use-node14.sh` | pins JS tooling to Node v14 on macOS / Linux / WSL |
 | `scripts/use-android-jdk11.sh` | sets Android SDK, JDK 11, and Gradle home on macOS / Linux / WSL |
@@ -97,7 +97,9 @@ Symptom:
 - Gradle cannot fetch `maven.google.com` / `jcenter()`
 
 Fix:
-- keep using `GRADLE_USER_HOME=D:\Andrew\Code\Andrew\pxview\.gradle-user-home`
+- keep using the repository-local `.gradle-user-home` created by
+  `scripts/use-android-jdk11.ps1`
+- set `GRADLE_USER_HOME` explicitly only when a shared cache is needed
 - that directory already contains the Aliyun mirror init script
 
 ### photodraweeview missing
@@ -109,12 +111,30 @@ Fix:
 - verify `android/settings.gradle` still includes `:photodraweeview`
 - restore from git if removed
 
+### PackageList cannot find symbol after clean
+
+Symptom:
+- `:app:compileReleaseJavaWithJavac FAILED`
+- `import com.facebook.react.PackageList` — cannot find symbol
+
+Cause:
+- In a single `gradlew clean assembleRelease` invocation, javac can run
+  before the `clean`/`generatePackageList` ordering settles the generated
+  `build/generated/rncli/src/main/java/com/facebook/react/PackageList.java`,
+  so the compile source set misses it. Gradle then still finishes the
+  remaining independent tasks (writing PackageList.java), so a plain retry
+  without `clean` succeeds and hides the problem.
+
+Fix:
+- the build scripts run `gradlew clean` in its own invocation before
+  `assembleRelease`/`assembleDebug`; keep that split when editing them
+
 ## Verification Sequence
 
 Before claiming success:
 
 1. Run the Jest script for your platform
-2. Build the intended APK with the repo script
+2. Build the intended APK with the repo script; Debug and Release both pre-bundle JS and skip the duplicate Gradle Bundle task
 3. If device testing matters, install and check:
    - app opens
    - login works
