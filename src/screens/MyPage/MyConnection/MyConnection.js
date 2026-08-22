@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import UserFollowing from './UserFollowing';
 import UserFollowers from './UserFollowers';
 import UserMyPixiv from './UserMyPixiv';
+import FollowingInsights from './FollowingInsights';
 import { connectLocalization } from '../../../components/Localization';
 import PXTabView from '../../../components/PXTabView';
 import { FOLLOWING_TYPES } from '../../../common/constants';
@@ -17,6 +18,7 @@ class MyConnection extends Component {
         { key: '2', title: i18n.followingPrivate },
         { key: '3', title: i18n.follower },
         { key: '4', title: i18n.myPixiv },
+        { key: '5', title: i18n.followingInsights },
       ],
     };
   }
@@ -60,6 +62,13 @@ class MyConnection extends Component {
         return (
           <UserMyPixiv
             userId={userId}
+            navigation={navigation}
+            route={navigationRoute}
+          />
+        );
+      case '5':
+        return (
+          <FollowingInsights
             navigation={navigation}
             route={navigationRoute}
           />

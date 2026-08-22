@@ -55,6 +55,10 @@ const settingsList = [
     title: 'muteSettings',
   },
   {
+    id: 'aiSettings',
+    title: 'aiSettings',
+  },
+  {
     id: 'lang',
     title: 'lang',
   },
@@ -183,6 +187,10 @@ class Settings extends Component {
       }
       case 'backup': {
         navigate(SCREENS.Backup);
+        break;
+      }
+      case 'aiSettings': {
+        navigate(SCREENS.AISettings);
         break;
       }
       case 'lang': {

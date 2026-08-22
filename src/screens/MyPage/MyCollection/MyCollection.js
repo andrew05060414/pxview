@@ -4,6 +4,7 @@ import UserBookmarkIllusts from '../../Shared/UserBookmarkIllusts';
 import MyPrivateBookmarkIllusts from './MyPrivateBookmarkIllusts';
 import UserBookmarkNovels from '../../Shared/UserBookmarkNovels';
 import MyPrivateBookmarkNovels from './MyPrivateBookmarkNovels';
+import CollectionStats from './CollectionStats';
 import IllustTagsFilterModal from '../../../containers/IllustTagsFilterModal';
 import NovelTagsFilterModal from '../../../containers/NovelTagsFilterModal';
 import { connectLocalization } from '../../../components/Localization';
@@ -28,6 +29,7 @@ class MyCollection extends Component {
         { key: '2', title: i18n.illustrationPrivate },
         { key: '3', title: i18n.novelPublic },
         { key: '4', title: i18n.novelPrivate },
+        { key: '5', title: i18n.collectionStats },
       ],
       selectedPublicIllustTag: '',
       selectedPrivateIllustTag: '',
@@ -38,22 +40,24 @@ class MyCollection extends Component {
   }
 
   componentDidMount() {
-    this.setHeaderRight();
+    this.setHeaderRight(0);
   }
 
-  setHeaderRight = () => {
+  setHeaderRight = (index = this.state.index) => {
     const {
       navigation: { setOptions },
     } = this.props;
     setOptions({
-      headerRight: () => (
-        <HeaderFilterButton onPress={this.handleOnPressOpenFilterModal} />
-      ),
+      headerRight: () =>
+        index === 4 ? null : (
+          <HeaderFilterButton onPress={this.handleOnPressOpenFilterModal} />
+        ),
     });
   };
 
   handleChangeTab = (index) => {
     this.setState({ index });
+    this.setHeaderRight(index);
   };
 
   renderScene = ({ route }) => {
@@ -100,6 +104,13 @@ class MyCollection extends Component {
           <MyPrivateBookmarkNovels
             userId={userId}
             tag={selectedPrivateNovelTag}
+            navigation={navigation}
+            route={route}
+          />
+        );
+      case '5':
+        return (
+          <CollectionStats
             navigation={navigation}
             route={route}
           />
