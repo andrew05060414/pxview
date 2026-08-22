@@ -8,6 +8,7 @@ import { withTheme, Button } from 'react-native-paper';
 import { connectLocalization } from '../../components/Localization';
 import PXListItem from '../../components/PXListItem';
 import SingleChoiceDialog from '../../components/SingleChoiceDialog';
+import TextInputDialog from '../../components/TextInputDialog';
 import SearchIllustsBookmarkRangesPickerDialog from '../../components/SearchIllustsBookmarkRangesPickerDialog';
 import SearchNovelsBookmarkRangesPickerDialog from '../../components/SearchNovelsBookmarkRangesPickerDialog';
 import {
@@ -15,6 +16,7 @@ import {
   SEARCH_PERIOD_TYPES,
   SCREENS,
 } from '../../common/constants';
+import { mapSearchAiTypeToAiType } from '../../common/helpers/searchOptions';
 import { globalStyles, globalStyleVariables } from '../../styles';
 
 const styles = StyleSheet.create({
@@ -47,6 +49,9 @@ class SearchFilterModal extends Component {
         bookmark_num_min,
         bookmark_num_max,
         bookmarkCountsTag,
+        minBookmarks,
+        excludeKeywords,
+        search_ai_type,
       },
     } = props.route.params;
     this.state = {
@@ -56,6 +61,10 @@ class SearchFilterModal extends Component {
       sort: sort || 'date_desc',
       startDate: start_date,
       endDate: end_date,
+      minBookmarks: (minBookmarks && String(minBookmarks)) || '',
+      excludeKeywords: excludeKeywords || '',
+      aiType: mapSearchAiTypeToAiType(search_ai_type),
+      isOpenExcludeKeywordsDialog: false,
       likes: this.getSelectedLikesFilterValue(
         bookmark_num_min,
         bookmark_num_max,
@@ -206,6 +215,43 @@ class SearchFilterModal extends Component {
         options: bookmarkCountsTagOptions,
       },
       {
+        key: 'minBookmarks',
+        options: [
+          {
+            value: '',
+            label: i18n.searchMinBookmarksAll,
+          },
+          {
+            value: '100',
+            label: '100',
+          },
+          {
+            value: '300',
+            label: '300',
+          },
+          {
+            value: '500',
+            label: '500',
+          },
+          {
+            value: '1000',
+            label: '1000',
+          },
+          {
+            value: '3000',
+            label: '3000',
+          },
+          {
+            value: '5000',
+            label: '5000',
+          },
+          {
+            value: '10000',
+            label: '10000',
+          },
+        ],
+      },
+      {
         key: 'sort',
         options: [
           {
@@ -221,6 +267,27 @@ class SearchFilterModal extends Component {
             label: i18n.searchOrderPopularity,
           },
         ],
+      },
+      {
+        key: 'aiType',
+        options: [
+          {
+            value: 'all',
+            label: i18n.searchAiTypeAll,
+          },
+          {
+            value: 'hide',
+            label: i18n.searchAiTypeHide,
+          },
+          {
+            value: 'only',
+            label: i18n.searchAiTypeOnly,
+          },
+        ],
+      },
+      {
+        key: 'excludeKeywords',
+        options: [],
       },
     ];
     if (user.is_premium) {
@@ -244,10 +311,16 @@ class SearchFilterModal extends Component {
         return i18n.searchTarget;
       case 'bookmarkCountsTag':
         return i18n.searchBookmarkCountsTag;
+      case 'minBookmarks':
+        return i18n.searchMinBookmarks;
       case 'period':
         return i18n.searchPeriod;
       case 'sort':
         return i18n.searchOrder;
+      case 'aiType':
+        return i18n.searchAiType;
+      case 'excludeKeywords':
+        return i18n.searchExcludeKeywords;
       case 'likes':
         return i18n.searchLikes;
       default:
@@ -256,12 +329,16 @@ class SearchFilterModal extends Component {
   };
 
   getSelectedFilterName = (key, options) => {
+    const { i18n } = this.props;
+    const { excludeKeywords } = this.state;
+    if (key === 'excludeKeywords') {
+      return excludeKeywords || i18n.searchExcludeKeywordsNone;
+    }
     if (key !== 'likes') {
       return options.find((o) => o.value === this.state[key]).label;
     }
     const { bookmarkNumMin, bookmarkNumMax } = this.state;
     if (!bookmarkNumMin && !bookmarkNumMax) {
-      const { i18n } = this.props;
       return i18n.searchLikesAll;
     }
     if (!bookmarkNumMax) {
@@ -281,10 +358,29 @@ class SearchFilterModal extends Component {
   };
 
   handleOnPressFilterOption = (filterType) => {
+    if (filterType === 'excludeKeywords') {
+      this.setState({
+        isOpenExcludeKeywordsDialog: true,
+      });
+      return;
+    }
     const value = this.state[filterType];
     this.setState({
       selectedFilterType: filterType,
       selectedPickerValue: value,
+    });
+  };
+
+  handleSubmitExcludeKeywords = (value) => {
+    this.setState({
+      excludeKeywords: value,
+      isOpenExcludeKeywordsDialog: false,
+    });
+  };
+
+  handleCloseExcludeKeywordsDialog = () => {
+    this.setState({
+      isOpenExcludeKeywordsDialog: false,
     });
   };
 
@@ -367,6 +463,9 @@ class SearchFilterModal extends Component {
       bookmarkNumMin,
       bookmarkNumMax,
       bookmarkCountsTag,
+      minBookmarks,
+      excludeKeywords,
+      aiType,
     } = this.state;
     navigate(SCREENS.SearchResult, {
       target,
@@ -377,6 +476,9 @@ class SearchFilterModal extends Component {
       bookmarkNumMin,
       bookmarkNumMax,
       bookmarkCountsTag,
+      minBookmarks,
+      excludeKeywords,
+      aiType,
     });
   };
 
@@ -391,6 +493,8 @@ class SearchFilterModal extends Component {
       period,
       startDate,
       endDate,
+      excludeKeywords,
+      isOpenExcludeKeywordsDialog,
     } = this.state;
     return (
       <SafeAreaView
@@ -458,6 +562,15 @@ class SearchFilterModal extends Component {
             selectedItemValue={selectedPickerValue}
             onPressCancel={this.handleOnCancelPickerDialog}
             onPressOk={this.handleOnOkPickerDialog}
+          />
+        )}
+        {isOpenExcludeKeywordsDialog && (
+          <TextInputDialog
+            title={i18n.searchExcludeKeywords}
+            placeholder={i18n.searchExcludeKeywordsPlaceholder}
+            value={excludeKeywords}
+            onSubmit={this.handleSubmitExcludeKeywords}
+            onClose={this.handleCloseExcludeKeywordsDialog}
           />
         )}
       </SafeAreaView>

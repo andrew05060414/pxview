@@ -5,6 +5,7 @@ import { createSelector, createSelectorCreator } from 'reselect';
 import equals from 'shallow-equals';
 import { denormalize } from 'normalizr';
 import parseNovelText from '../helpers/novelTextParser';
+import { filterItemsByMinBookmarks } from '../helpers/searchOptions';
 import Schemas from '../constants/schemas';
 import { READING_DIRECTION_TYPES } from '../constants';
 
@@ -347,11 +348,14 @@ export const makeGetSearchIllustsItems = () =>
           Schemas.ILLUST_ARRAY,
           entities,
         );
-        return getNonMutedTagsAndUsersItems(
-          muteSettings.isHideMute,
-          items,
-          muteTags,
-          muteUsers,
+        return filterItemsByMinBookmarks(
+          getNonMutedTagsAndUsersItems(
+            muteSettings.isHideMute,
+            items,
+            muteTags,
+            muteUsers,
+          ),
+          props.options?.minBookmarks,
         );
       }
       return defaultArray;
@@ -375,11 +379,14 @@ export const makeGetSearchNovelsItems = () =>
           Schemas.NOVEL_ARRAY,
           entities,
         );
-        return getNonMutedTagsAndUsersItems(
-          muteSettings.isHideMute,
-          items,
-          muteTags,
-          muteUsers,
+        return filterItemsByMinBookmarks(
+          getNonMutedTagsAndUsersItems(
+            muteSettings.isHideMute,
+            items,
+            muteTags,
+            muteUsers,
+          ),
+          props.options?.minBookmarks,
         );
       }
       return defaultArray;

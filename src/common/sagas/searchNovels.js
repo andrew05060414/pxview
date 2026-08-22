@@ -11,6 +11,11 @@ import { SEARCH_PERIOD_TYPES } from '../constants';
 import Schemas from '../constants/schemas';
 import { getAuthUser } from '../selectors';
 import mapSearchPeriodToStartAndEndDates from '../helpers/searchPeriod';
+import {
+  buildSearchWord,
+  stripLocalSearchOptions,
+  mergeSearchResponses,
+} from '../helpers/searchOptions';
 
 export function* handleFetchSearchNovels(action) {
   const { navigationStateKey, word, options, nextUrl } = action.payload;
@@ -24,9 +29,7 @@ export function* handleFetchSearchNovels(action) {
         Schemas.NOVEL_ARRAY,
       );
     } else {
-      const searchWord = options?.bookmarkCountsTag
-        ? `${word} 小説${options.bookmarkCountsTag}`
-        : word;
+      const searchWord = buildSearchWord(word, options, { isNovel: true });
       let finalOptions;
       if (options) {
         finalOptions = Object.keys(options)
@@ -35,6 +38,7 @@ export function* handleFetchSearchNovels(action) {
             prev[key] = options[key];
             return prev;
           }, {});
+        finalOptions = stripLocalSearchOptions(finalOptions);
         if (
           !options.start_date &&
           !options.end_date &&
@@ -57,10 +61,20 @@ export function* handleFetchSearchNovels(action) {
           ]);
         } else {
           delete finalOptions.sort;
-          response = yield apply(pixiv, pixiv.searchNovelPopularPreview, [
+          const previewResponse = yield apply(
+            pixiv,
+            pixiv.searchNovelPopularPreview,
+            [searchWord, finalOptions],
+          );
+          const regularResponse = yield apply(pixiv, pixiv.searchNovel, [
             searchWord,
             finalOptions,
           ]);
+          response = mergeSearchResponses(
+            previewResponse,
+            regularResponse,
+            'novels',
+          );
         }
       } else {
         response = yield apply(pixiv, pixiv.searchNovel, [

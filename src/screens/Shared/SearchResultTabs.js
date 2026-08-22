@@ -12,6 +12,7 @@ import HeaderFilterButton from '../../components/HeaderFilterButton';
 import HeaderEncyclopediaButton from '../../components/HeaderEncyclopediaButton';
 import * as searchAutoCompleteActionCreators from '../../common/actions/searchAutoComplete';
 import * as searchUsersAutoCompleteActionCreators from '../../common/actions/searchUsersAutoComplete';
+import { mapAiTypeToSearchAiType } from '../../common/helpers/searchOptions';
 import { SEARCH_TYPES, SCREENS } from '../../common/constants';
 
 const styles = StyleSheet.create({
@@ -48,7 +49,11 @@ class SearchResultTabs extends Component {
       route?.params?.endDate !== prevRoute?.params.endDate ||
       route?.params?.bookmarkNumMin !== prevRoute?.params.bookmarkNumMin ||
       route?.params?.bookmarkNumMax !== prevRoute?.params.bookmarkNumMax ||
-      route?.params?.bookmarkCountsTag !== prevRoute?.params.bookmarkCountsTag
+      route?.params?.bookmarkCountsTag !==
+        prevRoute?.params.bookmarkCountsTag ||
+      route?.params?.minBookmarks !== prevRoute?.params.minBookmarks ||
+      route?.params?.excludeKeywords !== prevRoute?.params.excludeKeywords ||
+      route?.params?.aiType !== prevRoute?.params.aiType
     ) {
       const {
         target,
@@ -59,6 +64,9 @@ class SearchResultTabs extends Component {
         bookmarkNumMin,
         bookmarkNumMax,
         bookmarkCountsTag,
+        minBookmarks,
+        excludeKeywords,
+        aiType,
       } = route.params;
       this.setState({
         searchOptions: {
@@ -70,6 +78,9 @@ class SearchResultTabs extends Component {
           bookmark_num_min: bookmarkNumMin,
           bookmark_num_max: bookmarkNumMax,
           bookmarkCountsTag,
+          minBookmarks: minBookmarks ? Number(minBookmarks) : null,
+          excludeKeywords,
+          search_ai_type: mapAiTypeToSearchAiType(aiType),
         },
       });
     }
