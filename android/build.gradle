@@ -41,3 +41,15 @@ allprojects {
         maven { url "https://www.jitpack.io" }
     }
 }
+
+subprojects {
+    configurations.all {
+        resolutionStrategy.dependencySubstitution {
+            // me.relex:photodraweeview:1.1.3 only ever existed on the defunct
+            // jcenter; route any maven reference (e.g. from
+            // react-native-photo-view-ex after a fresh npm install) to the
+            // vendored :photodraweeview project instead.
+            substitute module('me.relex:photodraweeview') with project(':photodraweeview')
+        }
+    }
+}
