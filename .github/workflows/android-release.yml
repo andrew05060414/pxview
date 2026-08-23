@@ -85,6 +85,15 @@ jobs:
           }
           EOF
 
+      # AGP 3.5.3 auto-discovers NDK under $ANDROID_HOME/ndk* even with the
+      # env vars cleared; runners ship NDK 29+ whose toolchain layout it
+      # cannot use (arm-linux-androideabi prefix removed). The local builds
+      # succeed precisely because no NDK is installed, so match that: with no
+      # NDK present AGP skips stripReleaseDebugSymbols and the (doNotStrip'd)
+      # native libs ship as-is.
+      - name: Remove runner NDK (AGP 3.5 incompatible)
+        run: rm -rf ${ANDROID_HOME}/ndk ${ANDROID_HOME}/ndk-bundle
+
       - name: Build release APK
         working-directory: android
         env:
