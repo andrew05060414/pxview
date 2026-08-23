@@ -8,6 +8,8 @@ import IllustItem from '../../components/IllustItem';
 import PXTouchable from '../../components/PXTouchable';
 import Loader from '../../components/Loader';
 import { connectLocalization } from '../../components/Localization';
+import withWindowWidth from '../../components/withWindowWidth';
+import { getResponsiveGridColumns } from '../../common/helpers/gridColumns';
 import * as rankingActionCreators from '../../common/actions/ranking';
 import { makeGetIllustRankingItems } from '../../common/selectors';
 import { SCREENS, RANKING_TYPES } from '../../common/constants';
@@ -105,8 +107,13 @@ class RankingHorizontalList extends Component {
   };
 
   renderItem = ({ item, index }) => {
+    const { windowWidth } = this.props;
+    const columns = getResponsiveGridColumns(
+      windowWidth ?? globalStyleVariables.getWindowWidth(),
+    );
     const itemWidth =
-      globalStyleVariables.getWindowWidth() / 3 + ITEM_HORIZONTAL_PADDING * 2;
+      (windowWidth ?? globalStyleVariables.getWindowWidth()) / columns +
+      ITEM_HORIZONTAL_PADDING * 2;
     return (
       <View
         style={[
@@ -118,7 +125,7 @@ class RankingHorizontalList extends Component {
           key={item.id}
           illustId={item.id}
           index={index}
-          numColumns={3}
+          numColumns={columns}
           onPressItem={() => this.handleOnPressItem(item)}
         />
       </View>
@@ -178,15 +185,17 @@ class RankingHorizontalList extends Component {
 
 export default withTheme(
   connectLocalization(
-    connect(() => {
-      const getRankingItems = makeGetIllustRankingItems();
-      return (state, props) => {
-        const { ranking } = state;
-        return {
-          ranking: ranking[props.rankingMode],
-          items: getRankingItems(state, props),
+    withWindowWidth(
+      connect(() => {
+        const getRankingItems = makeGetIllustRankingItems();
+        return (state, props) => {
+          const { ranking } = state;
+          return {
+            ranking: ranking[props.rankingMode],
+            items: getRankingItems(state, props),
+          };
         };
-      };
-    }, rankingActionCreators)(RankingHorizontalList),
+      }, rankingActionCreators)(RankingHorizontalList),
+    ),
   ),
 );

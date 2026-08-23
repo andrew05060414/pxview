@@ -6,6 +6,7 @@ import {
   FlatList,
   Platform,
   DeviceEventEmitter,
+  useWindowDimensions,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
@@ -14,9 +15,8 @@ import IllustItem from './IllustItem';
 import Loader from './Loader';
 import EmptyStateView from './EmptyStateView';
 import { globalStyles, globalStyleVariables } from '../styles';
+import { getResponsiveGridColumns } from '../common/helpers/gridColumns';
 import { SCREENS } from '../common/constants';
-
-const ILLUST_COLUMNS = 3;
 
 const styles = StyleSheet.create({
   footer: {
@@ -68,6 +68,21 @@ export class IllustList extends Component {
     }
   };
 
+  getNumColumns = () => {
+    const { windowWidth } = this.props;
+    return getResponsiveGridColumns(
+      windowWidth ?? globalStyleVariables.getWindowWidth(),
+    );
+  };
+
+  getItemWidth = () => {
+    const { windowWidth } = this.props;
+    return (
+      (windowWidth ?? globalStyleVariables.getWindowWidth()) /
+      this.getNumColumns()
+    );
+  };
+
   renderItem = ({ item, index }) => {
     const { hideBookmarkButton } = this.props;
     return (
@@ -75,7 +90,7 @@ export class IllustList extends Component {
         key={item.id}
         illustId={item.id}
         index={index}
-        numColumns={ILLUST_COLUMNS}
+        numColumns={this.getNumColumns()}
         hideBookmarkButton={hideBookmarkButton}
         onPressItem={() => this.handleOnPressItem(item, index)}
       />
@@ -164,6 +179,9 @@ export class IllustList extends Component {
         {isInitialLoading && <Loader />}
         {!isInitialLoading ? (
           <FlatList
+            // remount when column count changes (fold/unfold) so cells
+            // re-layout immediately instead of waiting for a manual refresh
+            key={`illust-grid-${this.getNumColumns()}`}
             onLayout={this.handleOnLayout}
             ref={(ref) => {
               this.illustList = ref;
@@ -176,14 +194,14 @@ export class IllustList extends Component {
                 ? items.slice(0, maxItems)
                 : items || []
             }
-            numColumns={ILLUST_COLUMNS}
+            numColumns={this.getNumColumns()}
+            extraData={this.getNumColumns()}
             keyExtractor={(item) => item.id.toString()}
             listKey={listKey}
             renderItem={this.renderItem}
             getItemLayout={(data, index) => ({
-              length: globalStyleVariables.getWindowWidth() / ILLUST_COLUMNS,
-              offset:
-                (globalStyleVariables.getWindowWidth() / ILLUST_COLUMNS) * index,
+              length: this.getItemWidth(),
+              offset: this.getItemWidth() * index,
               index,
             })}
             removeClippedSubviews={Platform.OS === 'android'}
@@ -213,6 +231,7 @@ export class IllustList extends Component {
 export default forwardRef((props, ref) => {
   const theme = useTheme();
   const navigation = useNavigation();
+  const { width: windowWidth } = useWindowDimensions();
   // const isConnected = useSelector((state) => state.network.isConnected);
   return (
     <IllustList
@@ -221,6 +240,7 @@ export default forwardRef((props, ref) => {
       // isConnected={isConnected}
       theme={theme}
       navigation={navigation}
+      windowWidth={windowWidth}
       innerRef={ref}
     />
   );

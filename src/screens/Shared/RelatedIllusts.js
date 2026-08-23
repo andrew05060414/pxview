@@ -7,9 +7,11 @@ import IllustItem from '../../components/IllustItem';
 import NoResult from '../../components/NoResult';
 import ViewMoreButton from '../../components/ViewMoreButton';
 import Loader from '../../components/Loader';
+import withWindowWidth from '../../components/withWindowWidth';
+import { getResponsiveGridColumns } from '../../common/helpers/gridColumns';
 import * as relatedIllustsActionCreators from '../../common/actions/relatedIllusts';
 import { makeGetRelatedIllustsItems } from '../../common/selectors';
-import { globalStyles } from '../../styles';
+import { globalStyles, globalStyleVariables } from '../../styles';
 import { SCREENS } from '../../common/constants';
 
 const styles = StyleSheet.create({
@@ -93,6 +95,10 @@ class RelatedIllusts extends Component {
         return <Loader />;
       }
       if (relatedIllusts?.loaded && items?.length) {
+        const { windowWidth } = this.props;
+        const illustColumns = getResponsiveGridColumns(
+          windowWidth ?? globalStyleVariables.getWindowWidth(),
+        );
         return (
           <View style={styles.listContainer}>
             {items.slice(0, maxItems).map((item, index) => {
@@ -101,7 +107,7 @@ class RelatedIllusts extends Component {
                   key={item.id}
                   illustId={item.id}
                   index={index}
-                  numColumns={3}
+                  numColumns={illustColumns}
                   onPressItem={() => this.handleOnPressItem(item, index)}
                 />
               );
@@ -150,19 +156,21 @@ class RelatedIllusts extends Component {
   }
 }
 
-export default connectLocalization(
-  connect(() => {
-    const getRelatedIllustsItems = makeGetRelatedIllustsItems();
-    return (state, props) => {
-      const { relatedIllusts } = state;
-      const { listKey } = props;
-      const illustId = props.illustId || props.route.params.illustId;
-      return {
-        relatedIllusts: relatedIllusts[illustId],
-        items: getRelatedIllustsItems(state, props),
-        illustId,
-        listKey: listKey || `${props.route.key}-${illustId}`,
+export default withWindowWidth(
+  connectLocalization(
+    connect(() => {
+      const getRelatedIllustsItems = makeGetRelatedIllustsItems();
+      return (state, props) => {
+        const { relatedIllusts } = state;
+        const { listKey } = props;
+        const illustId = props.illustId || props.route.params.illustId;
+        return {
+          relatedIllusts: relatedIllusts[illustId],
+          items: getRelatedIllustsItems(state, props),
+          illustId,
+          listKey: listKey || `${props.route.key}-${illustId}`,
+        };
       };
-    };
-  }, relatedIllustsActionCreators)(RelatedIllusts),
+    }, relatedIllustsActionCreators)(RelatedIllusts),
+  ),
 );

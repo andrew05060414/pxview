@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import { withTheme, Text } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import IllustItem from './IllustItem';
 import PXTouchable from './PXTouchable';
 import { SCREENS } from '../common/constants';
+import { getResponsiveGridColumns } from '../common/helpers/gridColumns';
 
-const ILLUST_COLUMNS = 3;
 const CONTAINER_MARGIN = 10;
 
 const styles = StyleSheet.create({
@@ -47,9 +47,11 @@ const IllustCollection = (props) => {
     onPressViewMore,
     theme,
   } = props;
+  const { width: windowWidth } = useWindowDimensions();
   if (!items || !items.length) {
     return null;
   }
+  const illustColumns = getResponsiveGridColumns(windowWidth);
   const illusts = items.slice(0, maxItems || 6);
   return (
     <View style={styles.container}>
@@ -77,7 +79,7 @@ const IllustCollection = (props) => {
                 key={item.id}
                 illustId={item.id}
                 index={index}
-                numColumns={ILLUST_COLUMNS}
+                numColumns={illustColumns}
                 onPressItem={() =>
                   push(SCREENS.Detail, { items: illusts, index })
                 }

@@ -5,6 +5,7 @@ import {
   View,
   RefreshControl,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
@@ -14,9 +15,8 @@ import PXTouchable from './PXTouchable';
 import PXImage from './PXImage';
 import { SCREENS } from '../common/constants';
 import { addSearchHistory } from '../common/actions/searchHistory';
+import { getResponsiveGridColumns } from '../common/helpers/gridColumns';
 import { globalStyles, globalStyleVariables } from '../styles';
-
-const ILLUST_COLUMNS = 3;
 
 const styles = StyleSheet.create({
   contentContainer: {
@@ -61,6 +61,10 @@ const TagList = forwardRef(
     const dispatch = useDispatch();
     const theme = useTheme();
     const navigation = useNavigation();
+    const { width: windowWidth } = useWindowDimensions();
+    const illustColumns = getResponsiveGridColumns(
+      windowWidth || globalStyleVariables.getWindowWidth(),
+    );
 
     const handleOnPressItem = (item) => {
       dispatch(addSearchHistory(item.tag));
@@ -75,9 +79,8 @@ const TagList = forwardRef(
       let imageStyle = {};
       let tagContainerStyle = {};
       if (index === 0) {
-        const width = globalStyleVariables.getWindowWidth();
-        const height =
-          (globalStyleVariables.getWindowWidth() / ILLUST_COLUMNS) * 2 - 1;
+        const width = windowWidth || globalStyleVariables.getWindowWidth();
+        const height = (width / illustColumns) * 2 - 1;
         imageContainerStyle = {
           width,
           height,
@@ -91,10 +94,13 @@ const TagList = forwardRef(
           height,
         };
       } else {
-        const width = globalStyleVariables.getWindowWidth() / ILLUST_COLUMNS - 1;
-        const height = globalStyleVariables.getWindowWidth() / ILLUST_COLUMNS - 1;
+        const width =
+          (windowWidth || globalStyleVariables.getWindowWidth()) /
+            illustColumns -
+          1;
+        const height = width;
         imageContainerStyle = {
-          marginRight: index % ILLUST_COLUMNS ? 1 : 0,
+          marginRight: index % illustColumns ? 1 : 0,
           width,
           height,
         };
@@ -103,8 +109,8 @@ const TagList = forwardRef(
           height,
         };
         tagContainerStyle = {
-          height: globalStyleVariables.getWindowWidth() / 3 - 1,
-          width: globalStyleVariables.getWindowWidth() / 3 - 1,
+          height: width,
+          width,
         };
       }
       return (
