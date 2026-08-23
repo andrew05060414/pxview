@@ -52,4 +52,18 @@ subprojects {
             substitute module('me.relex:photodraweeview') with project(':photodraweeview')
         }
     }
+
+    afterEvaluate { project ->
+        // Old npm libraries hardcode low compileSdk versions (e.g.
+        // react-native-localization@1.0.12 pins compileSdkVersion 25), which
+        // fails resource linking once androidx appcompat's values-v26/v28
+        // enter the graph. Force every Android module onto the root SDK
+        // settings so fresh npm installs build like the patched local tree.
+        if (project.hasProperty("android")) {
+            project.android {
+                compileSdkVersion rootProject.ext.has('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 29
+                buildToolsVersion rootProject.ext.has('buildToolsVersion') ? rootProject.ext.buildToolsVersion : "29.0.2"
+            }
+        }
+    }
 }
