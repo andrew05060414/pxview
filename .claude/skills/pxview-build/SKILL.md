@@ -48,6 +48,18 @@ sh ./scripts/install-android-release.sh
 | `scripts/build-android-release.sh` | builds signed release APK on macOS / Linux / WSL |
 | `scripts/install-android-release.sh` | installs release APK on macOS / Linux / WSL |
 
+## CI Auto-Build (GitHub Actions)
+
+`.github/workflows/android-release.yml` mirrors the local flow in the cloud:
+
+- Trigger A: publishing a GitHub release -> APK is built and attached to that release
+- Trigger B: manual `workflow_dispatch` from the Actions tab -> APK uploaded as a workflow artifact
+- Environment: Node 14.21.3 + npm 9 (lockfile v3), JDK 11, `npx jetify`, repo debug keystore signing
+- A placeholder `google-services.json` is generated at build time (real one is gitignored)
+
+If the workflow needs changes, keep it in sync with the local scripts' ordering:
+jest -> Metro bundle -> placeholder google-services -> `clean` (own invocation) -> `assembleRelease -x bundleReleaseJsAndAssets`.
+
 ## Signing Rule
 
 Always sign with the repo keystore:
@@ -128,6 +140,34 @@ Cause:
 Fix:
 - the build scripts run `gradlew clean` in its own invocation before
   `assembleRelease`/`assembleDebug`; keep that split when editing them
+
+### `android.support.annotation does not exist` on a fresh checkout
+
+Symptom:
+- `:react-native-photo-view-ex:compileReleaseJavaWithJavac FAILED`
+- imports of `android.support.annotation.*` unresolved
+
+Cause:
+- pre-AndroidX sources in older RN libs; the local `node_modules` was
+  jetified at some point, so only fresh installs (CI) hit it
+
+Fix:
+- run `npx jetify` after `npm ci` (package.json also declares it as
+  `postinstall`)
+
+### NDK `stripReleaseDebugSymbols` fails on CI runners
+
+Symptom:
+- `No toolchains found in the NDK toolchains folder for ABI with prefix: arm-linux-androideabi`
+
+Cause:
+- GitHub runners export `ANDROID_NDK_HOME`/`ANDROID_NDK_ROOT` pointing at
+  NDK 29+, which removed the legacy toolchain layout AGP 3.5.3 expects;
+  `packagingOptions.doNotStrip` alone does not prevent the probe
+
+Fix:
+- the CI workflow clears `ANDROID_NDK_HOME`/`ANDROID_NDK_ROOT` in the
+  build step env; keep doing that if the step is rewritten
 
 ## Verification Sequence
 
