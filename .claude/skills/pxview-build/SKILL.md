@@ -161,13 +161,32 @@ Symptom:
 - `No toolchains found in the NDK toolchains folder for ABI with prefix: arm-linux-androideabi`
 
 Cause:
-- GitHub runners export `ANDROID_NDK_HOME`/`ANDROID_NDK_ROOT` pointing at
-  NDK 29+, which removed the legacy toolchain layout AGP 3.5.3 expects;
-  `packagingOptions.doNotStrip` alone does not prevent the probe
+- GitHub runners ship NDK 29+ (and export `ANDROID_NDK_HOME`/`ANDROID_NDK_ROOT`);
+  its toolchain layout removed the legacy prefixes AGP 3.5.3 expects.
+  Local builds pass precisely because the local SDK has no NDK installed at
+  all — AGP then skips the strip task and `doNotStrip "**/*.so"` ships the
+  native libs as-is.
+
+Fix (CI only):
+- the workflow removes `${ANDROID_HOME}/ndk*` and clears the env vars
+  before assembling; keep both if the step is rewritten
+
+### AAPT `android:attr/colorError not found` on fresh npm install
+
+Symptom:
+- `:<lib>:verifyReleaseResources` fails; appcompat/core values-v26/v28
+  reference attrs missing from the link target
+
+Cause:
+- some published RN libraries hardcode low compileSdk versions (e.g.
+  `react-native-localization@1.0.12` pins `compileSdkVersion 25`) while the
+  local `node_modules` copy may have been hand-patched — so only fresh
+  installs (CI, new machines) hit it
 
 Fix:
-- the CI workflow clears `ANDROID_NDK_HOME`/`ANDROID_NDK_ROOT` in the
-  build step env; keep doing that if the step is rewritten
+- `android/build.gradle` forces every Android module onto the root
+  compileSdk/buildTools via a `subprojects.afterEvaluate` override;
+  never rely on hand-edited `node_modules` surviving `npm ci`
 
 ## Verification Sequence
 
