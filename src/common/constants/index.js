@@ -235,4 +235,7 @@ export const SCREENS = {
   Feedback: 'Feedback',
   PrivacyPolicy: 'PrivacyPolicy',
   About: 'About',
+  AISettings: 'AISettings',
+  FollowingInsights: 'FollowingInsights',
+  CollectionStats: 'CollectionStats',
 };

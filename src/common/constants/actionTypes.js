@@ -8,13 +8,29 @@ import {
   ADD,
   ADD_SUCCESS,
   ADD_FAILURE,
+  EDIT,
   REMOVE,
+  REORDER,
   REPLACE,
   OPEN,
   CLOSE,
   STOP,
   SET,
   RESTORE,
+  SYNC_START,
+  SYNC_CANCEL,
+  SYNC_STOP,
+  SYNC_PROGRESS,
+  SYNC_BATCH,
+  SYNC_SUCCESS,
+  SYNC_FAILURE,
+  CLASSIFY_START,
+  CLASSIFY_STOP,
+  CLASSIFY_PROGRESS,
+  CLASSIFY_BATCH,
+  CLASSIFY_SUCCESS,
+  CLASSIFY_FAILURE,
+  SET_CATEGORIES,
 } from './stateConstants';
 
 const appNamespace = defineAction('PIXIV');
@@ -489,3 +505,61 @@ export const READING_PROGRESS = defineAction(
   [SET, CLEAR],
   appNamespace,
 );
+
+export const BOOKMARK_LIBRARY = defineAction(
+  'BOOKMARK_LIBRARY',
+  [
+    SYNC_START,
+    SYNC_CANCEL,
+    SYNC_STOP,
+    SYNC_PROGRESS,
+    SYNC_BATCH,
+    SYNC_SUCCESS,
+    SYNC_FAILURE,
+    CLEAR,
+  ],
+  appNamespace,
+);
+
+export const FOLLOWING_INSIGHTS = defineAction(
+  'FOLLOWING_INSIGHTS',
+  [
+    SYNC_START,
+    SYNC_CANCEL,
+    SYNC_STOP,
+    SYNC_PROGRESS,
+    SYNC_BATCH,
+    SYNC_SUCCESS,
+    SYNC_FAILURE,
+    CLEAR,
+  ],
+  appNamespace,
+);
+
+export const AI_SETTINGS = defineAction(
+  'AI_SETTINGS',
+  [SET, RESTORE],
+  appNamespace,
+);
+
+export const CLASSIFICATIONS = defineAction(
+  'CLASSIFICATIONS',
+  [
+    SET_CATEGORIES,
+    CLASSIFY_START,
+    CLASSIFY_STOP,
+    CLASSIFY_PROGRESS,
+    CLASSIFY_BATCH,
+    CLASSIFY_SUCCESS,
+    CLASSIFY_FAILURE,
+    CLEAR,
+  ],
+  appNamespace,
+);
+
+export const BOOKMARK_RULES = defineAction(
+  'BOOKMARK_RULES',
+  [ADD, EDIT, REMOVE, REORDER, RESTORE, CLEAR],
+  appNamespace,
+);
+

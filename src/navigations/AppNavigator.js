@@ -50,6 +50,9 @@ import Backup from '../screens/MyPage/Backup';
 import Feedback from '../screens/MyPage/Feedback';
 import PrivacyPolicy from '../screens/MyPage/PrivacyPolicy';
 import About from '../screens/MyPage/About';
+import AISettings from '../screens/MyPage/AISettings';
+import FollowingInsights from '../screens/MyPage/MyConnection/FollowingInsights';
+import CollectionStats from '../screens/MyPage/MyCollection/CollectionStats';
 import { useLocalization } from '../components/Localization';
 import {
   globalStyles,
@@ -447,6 +450,30 @@ const AppNavigator = ({ initialRouteName }) => {
           component={About}
           options={{
             title: i18n.about,
+            headerStyle,
+          }}
+        />
+        <Stack.Screen
+          name={SCREENS.AISettings}
+          component={AISettings}
+          options={{
+            title: i18n.aiSettingsTitle,
+            headerStyle,
+          }}
+        />
+        <Stack.Screen
+          name={SCREENS.FollowingInsights}
+          component={FollowingInsights}
+          options={{
+            title: i18n.followingInsightsTitle,
+            headerStyle,
+          }}
+        />
+        <Stack.Screen
+          name={SCREENS.CollectionStats}
+          component={CollectionStats}
+          options={{
+            title: i18n.collectionStatsTitle,
             headerStyle,
           }}
         />

@@ -63,6 +63,9 @@ import { watchFetchUgoiraMeta } from './ugoiraMeta';
 import { watchFetchMyAccountState } from './myAccountState';
 import { watchEditAccount } from './editAccount';
 import { watchSendVerificationEmail } from './verificationEmail';
+import { watchBookmarkLibrarySync } from './bookmarkLibrary';
+import { watchFollowingInsightsSync } from './followingInsights';
+import { watchAiClassify } from './aiClassify';
 import {
   NETWORK_SAGA_OPTIONS,
   watchNetworkRestore,
@@ -136,5 +139,8 @@ export default function* rootSaga() {
     watchSendVerificationEmail(),
     watchNetworkRestore(),
     networkSaga(NETWORK_SAGA_OPTIONS),
+    watchBookmarkLibrarySync(),
+    watchFollowingInsightsSync(),
+    watchAiClassify(),
   ]);
 }
