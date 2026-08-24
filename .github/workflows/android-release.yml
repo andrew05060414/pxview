@@ -110,6 +110,20 @@ jobs:
             "-PPXVIEWR_RELEASE_KEY_ALIAS=androiddebugkey" \
             "-PPXVIEWR_RELEASE_KEY_PASSWORD=android"
 
+      # Release assets get a stable, versioned download name instead of the
+      # gradle default (app-release.apk): PxViewR-<tag>.apk for releases,
+      # PxViewR-<short-sha>.apk for manual dispatch runs.
+      - name: Rename APK
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            SUFFIX="$GITHUB_REF_NAME"
+          else
+            SUFFIX="$(git rev-parse --short HEAD)"
+          fi
+          mv android/app/build/outputs/apk/release/app-release.apk \
+            "android/app/build/outputs/apk/release/PxViewR-$SUFFIX.apk"
+          ls -la android/app/build/outputs/apk/release/
+
       - name: Attach APK to release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
@@ -121,6 +135,6 @@ jobs:
         if: github.event_name != 'release'
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
+          name: pxviewr-apk
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
