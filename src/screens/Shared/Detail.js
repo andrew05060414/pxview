@@ -16,6 +16,7 @@ import Share from 'react-native-share';
 import ActionButton from 'react-native-action-button';
 import { AndroidBackHandler } from 'react-navigation-backhandler';
 import enhanceSaveImage from '../../components/HOC/enhanceSaveImage';
+import withWindowWidth from '../../components/withWindowWidth';
 import IllustDetailContent from '../../components/IllustDetailContent';
 import PXHeader from '../../components/PXHeader';
 import PXViewPager from '../../components/PXViewPager';
@@ -42,16 +43,10 @@ const THUMBNAIL_SIZE = 30;
 const styles = StyleSheet.create({
   content: {
     flex: 1,
-    width: globalStyleVariables.getWindowWidth(),
   },
   headerTitleContainer: {
     flex: 1,
     alignItems: Platform.OS === 'android' ? 'flex-start' : 'center',
-    ...Platform.select({
-      ios: {
-        maxWidth: globalStyleVariables.getWindowWidth() - 150,
-      },
-    }),
   },
   headerThumnailNameContainer: {
     flexDirection: 'row',
@@ -317,9 +312,14 @@ class Detail extends Component {
   renderHeaderTitle = (item) => {
     const {
       navigation: { push },
+      windowWidth,
     } = this.props;
+    const titleContainerStyle =
+      Platform.OS === 'ios' && windowWidth
+        ? [styles.headerTitleContainer, { maxWidth: windowWidth - 150 }]
+        : styles.headerTitleContainer;
     return (
-      <View style={styles.headerTitleContainer}>
+      <View style={titleContainerStyle}>
         <PXTouchable
           style={styles.headerThumnailNameContainer}
           onPress={() => push(SCREENS.UserDetail, { userId: item.user.id })}
@@ -374,9 +374,12 @@ class Detail extends Component {
   };
 
   renderContent = ({ item, index: itemIndex }) => {
-    const { navigation, authUser, route, index } = this.props;
+    const { navigation, authUser, route, index, windowWidth } = this.props;
+    const contentStyle = windowWidth
+      ? [styles.content, { width: windowWidth }]
+      : styles.content;
     return (
-      <View style={styles.content} key={item.id}>
+      <View style={contentStyle} key={item.id}>
         <PXHeader
           headerTitle={this.renderHeaderTitle(item)}
           headerRight={this.renderHeaderRight(item)}
@@ -512,42 +515,44 @@ class Detail extends Component {
   }
 }
 
-export default withTheme(
-  enhanceSaveImage(
-    connect(
-      () => {
-        const getDetailItem = makeGetDetailItem();
-        return (state, props) => {
-          const item = getDetailItem(state, props);
-          const isMuteUser = item
-            ? state.muteUsers.items.some((m) => m.id === item.user.id)
-            : false;
-          const {
-            illust_id: illustIdFromQS,
-            illustId,
-            items,
-            index,
-            parentListKey,
-          } = props.route.params;
-          const id = parseInt(illustIdFromQS || illustId, 0);
-          return {
-            illustId: id || item.id,
-            illustDetail: state.illustDetail[id], // get illustDetail from api if load from deep link
-            item,
-            isMuteUser,
-            isFromDeepLink: !!id,
-            items,
-            index,
-            parentListKey,
-            authUser: state.auth.user,
+export default withWindowWidth(
+  withTheme(
+    enhanceSaveImage(
+      connect(
+        () => {
+          const getDetailItem = makeGetDetailItem();
+          return (state, props) => {
+            const item = getDetailItem(state, props);
+            const isMuteUser = item
+              ? state.muteUsers.items.some((m) => m.id === item.user.id)
+              : false;
+            const {
+              illust_id: illustIdFromQS,
+              illustId,
+              items,
+              index,
+              parentListKey,
+            } = props.route.params;
+            const id = parseInt(illustIdFromQS || illustId, 0);
+            return {
+              illustId: id || item?.id,
+              illustDetail: state.illustDetail[id], // get illustDetail from api if load from deep link
+              item,
+              isMuteUser,
+              isFromDeepLink: !!id,
+              items,
+              index,
+              parentListKey,
+              authUser: state.auth.user,
+            };
           };
-        };
-      },
-      {
-        ...browsingHistoryIllustsActionCreators,
-        ...muteUsersActionCreators,
-        ...illustDetailActionCreators,
-      },
-    )(Detail),
+        },
+        {
+          ...browsingHistoryIllustsActionCreators,
+          ...muteUsersActionCreators,
+          ...illustDetailActionCreators,
+        },
+      )(Detail),
+    ),
   ),
 );

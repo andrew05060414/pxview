@@ -21,7 +21,6 @@ import { globalStyleVariables } from '../styles';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    width: globalStyleVariables.getWindowWidth(),
   },
   imagePageNumberContainer: {
     top: 10,
@@ -309,7 +308,13 @@ class IllustDetailContent extends Component {
       return null;
     }
     return (
-      <View key={item.id} style={styles.container}>
+      <View
+        key={item.id}
+        style={[
+          styles.container,
+          { width: globalStyleVariables.getWindowWidth() },
+        ]}
+      >
         <FlatList
           data={item.page_count > 1 ? item.meta_pages : [item]}
           keyExtractor={(page) => page.image_urls.large}
