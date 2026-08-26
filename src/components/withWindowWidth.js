@@ -18,7 +18,11 @@ const withWindowWidth = (WrappedComponent) => {
       };
       const subscription = Dimensions.addEventListener('change', handleChange);
       return () => {
-        subscription.remove();
+        if (subscription && typeof subscription.remove === 'function') {
+          subscription.remove();
+        } else {
+          Dimensions.removeEventListener('change', handleChange);
+        }
       };
     }, []);
 

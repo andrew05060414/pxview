@@ -1,5 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, StatusBar, Platform, Dimensions } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  StatusBar,
+  Platform,
+  Dimensions,
+} from 'react-native';
 import { useSelector } from 'react-redux';
 import {
   NavigationContainer,
@@ -135,14 +141,15 @@ const App = () => {
   }, [prevRehydrated, rehydrated]);
 
   useEffect(() => {
-    const subscription = Dimensions.addEventListener('change', () => {
+    const handleChange = () => {
       forceUpdate((n) => n + 1);
-    });
+    };
+    const subscription = Dimensions.addEventListener('change', handleChange);
     return () => {
       if (subscription && typeof subscription.remove === 'function') {
         subscription.remove();
       } else {
-        Dimensions.removeEventListener('change', () => {});
+        Dimensions.removeEventListener('change', handleChange);
       }
     };
   }, []);
