@@ -8,7 +8,6 @@ import {
 import {
   classifyBatch,
   classifyProgress,
-  classifySuccess,
   classifyFailure,
 } from '../../src/common/actions/classifications';
 import {
@@ -62,13 +61,20 @@ describe('aiClassify saga', () => {
     const gen = handleClassifyBookmarks();
     expect(gen.next().value).toEqual(select(getAiSettings));
     expect(gen.next(validAiSettings).value).toEqual(select(getBookmarkItems));
-    expect(gen.next(sampleBookmarks).value).toEqual(select(getClassificationsState));
+    expect(gen.next(sampleBookmarks).value).toEqual(
+      select(getClassificationsState),
+    );
     expect(
       gen.next({
         categories: ['Cat A'],
         items: { 1: 'Cat A', 2: 'Cat A' },
       }).value,
-    ).toEqual(put(classifySuccess()));
+    ).toEqual(
+      put({
+        type: 'PIXIV/CLASSIFICATIONS_CLASSIFY_SUCCESS',
+        payload: { timestamp: expect.any(Number) },
+      }),
+    );
     expect(gen.next().done).toBe(true);
   });
 
@@ -76,10 +82,15 @@ describe('aiClassify saga', () => {
     const gen = handleClassifyBookmarks();
     expect(gen.next().value).toEqual(select(getAiSettings));
     expect(gen.next(validAiSettings).value).toEqual(select(getBookmarkItems));
-    expect(gen.next(sampleBookmarks).value).toEqual(select(getClassificationsState));
+    expect(gen.next(sampleBookmarks).value).toEqual(
+      select(getClassificationsState),
+    );
 
     const batch = [sampleBookmarks[1], sampleBookmarks[2]];
-    const messages = buildClassificationMessages(batch, sampleClassState.categories);
+    const messages = buildClassificationMessages(
+      batch,
+      sampleClassState.categories,
+    );
 
     // First batch call
     expect(gen.next(sampleClassState).value).toEqual(
@@ -110,7 +121,12 @@ describe('aiClassify saga', () => {
 
     expect(gen.next().value).toEqual(put(classifyProgress(2, 2)));
     expect(gen.next().value).toEqual(delay(300));
-    expect(gen.next().value).toEqual(put(classifySuccess()));
+    expect(gen.next().value).toEqual(
+      put({
+        type: 'PIXIV/CLASSIFICATIONS_CLASSIFY_SUCCESS',
+        payload: { timestamp: expect.any(Number) },
+      }),
+    );
     expect(gen.next().done).toBe(true);
   });
 });
