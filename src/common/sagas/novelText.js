@@ -139,6 +139,7 @@ export function* handleFetchNovelText(action) {
 
       if (response) {
         const text = response.text || response.content || '';
+        const hasText = typeof text === 'string' && text.trim().length > 0;
         const embeddedImages = extractEmbeddedImages(response);
         const uploadedImageIds = extractUploadedImageIdsFromText(text);
         const uploadedImageCount = uploadedImageIds.length;
@@ -161,7 +162,7 @@ export function* handleFetchNovelText(action) {
               !hasEmbeddedImageForId(embeddedImages, uploadedImageId),
           );
 
-        if (!hasMissingUploadedImageMetadata) {
+        if (hasText && !hasMissingUploadedImageMetadata) {
           yield put(
             fetchNovelTextSuccess(text, novelId, embeddedImages, debugInfo),
           );
@@ -170,7 +171,9 @@ export function* handleFetchNovelText(action) {
 
         ajaxText = text;
         ajaxEmbeddedImages = embeddedImages;
-        ajaxFallbackReason = 'missing uploaded image metadata';
+        ajaxFallbackReason = !hasText
+          ? 'missing text in ajax response'
+          : 'missing uploaded image metadata';
       }
     } catch (ajaxError) {
       ajaxFallbackReason = 'ajax request failed';
@@ -195,6 +198,14 @@ export function* handleFetchNovelText(action) {
       ...textEmbeddedImagesFromHtml,
       ...uploadedImageCandidates,
     };
+    const finalText = text || ajaxText;
+    const hasFinalText =
+      typeof finalText === 'string' && finalText.trim().length > 0;
+
+    if (!hasFinalText) {
+      throw new Error(`Novel ${novelId} content is empty or could not be loaded`);
+    }
+
     const finalDebugInfo = ajaxFallbackReason
       ? {
           ...debugInfo,
@@ -206,7 +217,7 @@ export function* handleFetchNovelText(action) {
       : debugInfo;
     yield put(
       fetchNovelTextSuccess(
-        text || ajaxText,
+        finalText,
         novelId,
         embeddedImages,
         finalDebugInfo,

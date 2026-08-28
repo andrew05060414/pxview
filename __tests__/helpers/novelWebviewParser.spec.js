@@ -112,4 +112,34 @@ describe('extractNovelWebviewData', () => {
       },
     });
   });
+
+  it('extracts novel content when meta tag has content attribute before id and contains apostrophes', () => {
+    const html = `
+      <html>
+        <head>
+          <meta content='{"novel":{"123":{"id":"123","text":"It&apos;s a test story"}}}' id="meta-preload-data" />
+        </head>
+      </html>
+    `;
+
+    expect(extractNovelWebviewData(html, '123')).toEqual({
+      id: '123',
+      text: "It's a test story",
+    });
+  });
+
+  it('extracts novel content when novel structure is nested under body or novelDetails', () => {
+    const html = `
+      <html>
+        <head>
+          <meta id="meta-preload-data" content='{"body":{"123":{"id":"123","text":"body nested text"}}}' />
+        </head>
+      </html>
+    `;
+
+    expect(extractNovelWebviewData(html, '123')).toEqual({
+      id: '123',
+      text: 'body nested text',
+    });
+  });
 });

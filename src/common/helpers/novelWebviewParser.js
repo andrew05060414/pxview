@@ -13,7 +13,7 @@ const safeJsonParse = (value) => {
 };
 
 const selectNovelEntry = (novelState, novelId) => {
-  if (!novelState) {
+  if (!novelState || typeof novelState !== 'object') {
     return null;
   }
 
@@ -34,19 +34,61 @@ const selectNovelEntry = (novelState, novelId) => {
     return novelState[parseInt(normalizedNovelId, 10)];
   }
 
+  if (novelState.novel && typeof novelState.novel === 'object') {
+    const nested = selectNovelEntry(novelState.novel, novelId);
+    if (nested) {
+      return nested;
+    }
+  }
+
+  if (novelState.body && typeof novelState.body === 'object') {
+    const nested = selectNovelEntry(novelState.body, novelId);
+    if (nested) {
+      return nested;
+    }
+  }
+
+  const values = Object.values(novelState);
+  const candidatesWithText = values.filter(
+    (item) => item && typeof item === 'object' && (item.text || item.content),
+  );
+
+  if (candidatesWithText.length > 0) {
+    if (normalizedNovelId) {
+      const match = candidatesWithText.find(
+        (c) => String(c.id || c.novelId) === normalizedNovelId,
+      );
+      if (match) {
+        return match;
+      }
+    }
+    return candidatesWithText[0];
+  }
+
   const firstNovelKey = Object.keys(novelState)[0];
-  return firstNovelKey ? novelState[firstNovelKey] : null;
+  return firstNovelKey && typeof novelState[firstNovelKey] === 'object'
+    ? novelState[firstNovelKey]
+    : null;
 };
 
 const extractMetaTagContent = (rawHtml) => {
-  const metaTagMatch = rawHtml.match(
-    /<meta[^>]*id=(['"])meta-preload-data\1[^>]*>/i,
-  );
+  if (!rawHtml || typeof rawHtml !== 'string') {
+    return null;
+  }
+
+  const metaTagMatch =
+    rawHtml.match(/<meta\s+[^>]*id=(['"])meta-preload-data\1[^>]*>/i) ||
+    rawHtml.match(/<meta\s+[^>]*name=(['"])preload-data\1[^>]*>/i);
+
   if (!metaTagMatch) {
     return null;
   }
 
-  const contentMatch = metaTagMatch[0].match(/content=(['"])([\s\S]*?)\1/i);
+  const metaTag = metaTagMatch[0];
+  const contentMatch =
+    metaTag.match(/content=(["'])([\s\S]*)\1\s*\/?>$/i) ||
+    metaTag.match(/content=(["'])([\s\S]*?)\1/i);
+
   return contentMatch ? entities.decodeHTML(contentMatch[2]) : null;
 };
 

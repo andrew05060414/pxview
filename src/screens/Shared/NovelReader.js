@@ -2,12 +2,14 @@ import React, { Component } from 'react';
 import { View, InteractionManager } from 'react-native';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { withTheme } from 'react-native-paper';
+import { withTheme, Button } from 'react-native-paper';
 import NovelViewer from '../../components/NovelViewer';
 import PXHeader from '../../components/PXHeader';
 import HeaderTextTitle from '../../components/HeaderTextTitle';
 import HeaderSettingsButton from '../../components/HeaderSettingsButton';
 import Loader from '../../components/Loader';
+import EmptyStateView from '../../components/EmptyStateView';
+import { connectLocalization } from '../../components/Localization';
 import * as novelTextActionCreators from '../../common/actions/novelText';
 import * as modalActionCreators from '../../common/actions/modal';
 import { makeGetParsedNovelText } from '../../common/selectors';
@@ -71,6 +73,14 @@ class NovelReader extends Component {
     }
   }
 
+  handleOnRetry = () => {
+    const { fetchNovelText, clearNovelText, novelId } = this.props;
+    clearNovelText(novelId);
+    InteractionManager.runAfterInteractions(() => {
+      fetchNovelText(novelId);
+    });
+  };
+
   handleOnIndexChange = (index) => {
     const { novelId, dispatch } = this.props;
     this.setState({ index });
@@ -120,9 +130,19 @@ class NovelReader extends Component {
       novelText,
       parsedNovelText,
       novelSettings: { fontSize, lineHeight },
+      i18n,
       theme,
     } = this.props;
     const { index } = this.state;
+    const isLoading =
+      !novelText ||
+      !novelText.loaded ||
+      novelText.loading ||
+      (parsedNovelText && index === null);
+    const isErrorOrEmpty =
+      !isLoading &&
+      (!parsedNovelText || !parsedNovelText.length);
+
     return (
       <View
         style={[
@@ -137,11 +157,25 @@ class NovelReader extends Component {
           headerTitle={parsedNovelText && this.renderHeaderTitle()}
           headerRight={this.renderHeaderRight()}
         />
-        {(!novelText ||
-          !novelText.loaded ||
-          novelText.loading ||
-          index === null) && <Loader />}
-        {parsedNovelText && index !== null && (
+        {isLoading && <Loader />}
+        {isErrorOrEmpty && (
+          <EmptyStateView
+            iconName="book-open"
+            iconType="feather"
+            title={i18n ? i18n.noResults || 'No content' : 'No content'}
+            description={
+              i18n
+                ? i18n.novelLoadError || 'Failed to load novel text'
+                : 'Failed to load novel text'
+            }
+            actionButton={
+              <Button mode="contained" onPress={this.handleOnRetry}>
+                {i18n ? i18n.retry || 'Retry' : 'Retry'}
+              </Button>
+            }
+          />
+        )}
+        {parsedNovelText && index !== null && !isErrorOrEmpty && (
           <NovelViewer
             novelId={novelId}
             items={parsedNovelText}
@@ -162,7 +196,8 @@ class NovelReader extends Component {
 }
 
 export default withTheme(
-  connect(
+  connectLocalization(
+    connect(
     () => {
       const getParsedNovelText = makeGetParsedNovelText();
       return (state, props) => {
@@ -199,5 +234,5 @@ export default withTheme(
         dispatch,
       ),
     }),
-  )(NovelReader),
+  )(NovelReader)),
 );

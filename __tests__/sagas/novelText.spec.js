@@ -168,6 +168,91 @@ describe('handleFetchNovelText', () => {
     );
   });
 
+  test('falls back to webview when ajax response has empty text', () => {
+    const generator = handleFetchNovelText(action);
+    const ajaxUrl = `https://www.pixiv.net/ajax/novel/${novelId}`;
+    const ajaxOptions = {
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        Referer: `https://www.pixiv.net/novel/show.php?id=${novelId}`,
+        'User-Agent':
+          'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    };
+    const ajaxResponseWithoutText = {
+      error: false,
+      body: {
+        id: novelId,
+        title: 'Metadata only',
+      },
+    };
+    const webviewRawResponse = `
+      <meta id="meta-preload-data" content="{&quot;novel&quot;:{&quot;123&quot;:{&quot;id&quot;:&quot;123&quot;,&quot;text&quot;:&quot;recovered from webview&quot;}}}" />
+    `;
+
+    expect(generator.next().value).toEqual(
+      apply(pixiv, pixiv.requestUrl, [ajaxUrl, ajaxOptions]),
+    );
+    expect(generator.next(ajaxResponseWithoutText).value).toEqual(
+      apply(pixiv, pixiv.novelWebview, [novelId, true]),
+    );
+    expect(generator.next(webviewRawResponse).value).toEqual(
+      put({
+        type: 'PIXIV/NOVEL_TEXT_SUCCESS',
+        payload: expect.objectContaining({
+          novelId,
+          text: 'recovered from webview',
+          debugInfo: expect.objectContaining({
+            ajaxFallback: expect.objectContaining({
+              reason: 'missing text in ajax response',
+            }),
+          }),
+          timestamp: expect.any(Number),
+        }),
+      }),
+    );
+    expect(generator.next().done).toBe(true);
+  });
+
+  test('dispatches failure when webview returns empty text', () => {
+    const generator = handleFetchNovelText(action);
+    const ajaxUrl = `https://www.pixiv.net/ajax/novel/${novelId}`;
+    const ajaxOptions = {
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        Referer: `https://www.pixiv.net/novel/show.php?id=${novelId}`,
+        'User-Agent':
+          'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    };
+    const ajaxResponse = {
+      error: false,
+      body: {
+        id: novelId,
+        title: 'No text',
+      },
+    };
+    const emptyWebviewResponse = '<html><body>no preload data</body></html>';
+
+    expect(generator.next().value).toEqual(
+      apply(pixiv, pixiv.requestUrl, [ajaxUrl, ajaxOptions]),
+    );
+    expect(generator.next(ajaxResponse).value).toEqual(
+      apply(pixiv, pixiv.novelWebview, [novelId, true]),
+    );
+    expect(generator.next(emptyWebviewResponse).value).toEqual(
+      put(fetchNovelTextFailure(novelId)),
+    );
+    expect(generator.next().value).toEqual(
+      put(addError(expect.any(Error))),
+    );
+    expect(generator.next().done).toBe(true);
+  });
+
   test('dispatches failure when both ajax and webview requests fail', () => {
     const generator = handleFetchNovelText(action);
     const ajaxUrl = `https://www.pixiv.net/ajax/novel/${novelId}`;
