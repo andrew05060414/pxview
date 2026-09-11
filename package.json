@@ -7,6 +7,7 @@
     "start": "react-native start",
     "lint": "eslint src --fix",
     "test": "jest",
+    "verify:dependencies": "node scripts/verify-dependencies.js",
     "test:watch": "jest --watch --coverage",
     "android": "react-native run-android",
     "android-bundle": "cd android && ./gradlew bundleRelease",
