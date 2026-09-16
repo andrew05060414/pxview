@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTheme } from 'react-native-paper';
 import { createStackNavigator } from '@react-navigation/stack';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import RankingPreview from '../screens/Ranking/RankingPreview';
 import Ranking from '../screens/Ranking/Ranking';
 import NovelRanking from '../screens/Ranking/NovelRanking';
@@ -45,22 +45,22 @@ const RankingNavigator = () => {
           headerStatusBarHeight: 0,
         }}
       />
-      {/* <Stack.Screen
+      <Stack.Screen
         name={SCREENS.Ranking}
         component={Ranking}
         options={{
           headerStyle: getThemedHeaderStyle(theme),
           headerStatusBarHeight: 0,
         }}
-      /> */}
-      {/* <Stack.Screen
+      />
+      <Stack.Screen
         name={SCREENS.NovelRanking}
         component={NovelRanking}
         options={{
           headerStyle: getThemedHeaderStyle(theme),
           headerStatusBarHeight: 0,
         }}
-      /> */}
+      />
     </Stack.Navigator>
   );
 };

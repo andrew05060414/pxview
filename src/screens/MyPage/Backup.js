@@ -26,6 +26,7 @@ import {
   restoreMuteTags,
   restoreMuteUsers,
   restoreNovelSettings,
+  restoreNovelRankingSettings,
   restoreSearchHistory,
   restoreTheme,
 } from '../../common/actions/dataBackup';
@@ -48,6 +49,9 @@ const Backup = () => {
   const muteTags = useSelector((state) => state.muteTags);
   const muteUsers = useSelector((state) => state.muteUsers);
   const novelSettings = useSelector((state) => state.novelSettings);
+  const novelRankingSettings = useSelector(
+    (state) => state.novelRankingSettings,
+  );
   const themeSettings = useSelector((state) => state.theme);
   const searchHistory = useSelector((state) => state.searchHistory);
 
@@ -103,6 +107,7 @@ const Backup = () => {
         );
       }
     }
+    return null;
   };
 
   const handleOnPressConfirmBackup = async () => {
@@ -122,6 +127,7 @@ const Backup = () => {
           muteTags,
           muteUsers,
           novelSettings,
+          novelRankingSettings,
           theme: themeSettings,
           searchHistory,
         },
@@ -133,7 +139,10 @@ const Backup = () => {
       }
       await writeFile(backupFilePath, backupSettings, 'utf8');
       showToast(i18n.formatString(i18n.backupSuccessfully, backupFilePath));
-    } catch (err) {}
+      return null;
+    } catch (err) {
+      return null;
+    }
   };
 
   const handleOnPressConfirmRestore = async () => {
@@ -189,6 +198,11 @@ const Backup = () => {
           if (parsedData?.data.novelSettings) {
             dispatch(restoreNovelSettings(parsedData.data.novelSettings));
           }
+          if (parsedData?.data.novelRankingSettings) {
+            dispatch(
+              restoreNovelRankingSettings(parsedData.data.novelRankingSettings),
+            );
+          }
           if (parsedData?.data.searchHistory) {
             dispatch(restoreSearchHistory(parsedData.data.searchHistory));
           }
@@ -198,7 +212,10 @@ const Backup = () => {
           showToast(i18n.backupRestoreSuccessfully);
         }
       }
-    } catch (err) {}
+      return null;
+    } catch (err) {
+      return null;
+    }
   };
 
   const handleOnPressBackup = () => {

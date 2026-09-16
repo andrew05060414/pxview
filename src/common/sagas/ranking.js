@@ -1,11 +1,22 @@
 import { normalize } from 'normalizr';
-import { takeEvery, apply, put } from 'redux-saga/effects';
+import { takeEvery, all, apply, call, put } from 'redux-saga/effects';
 import { fetchRankingSuccess, fetchRankingFailure } from '../actions/ranking';
 import { addError } from '../actions/error';
 import pixiv from '../helpers/apiClient';
 import { RANKING } from '../constants/actionTypes';
-import { RANKING_FOR_UI, RANKING_TYPES } from '../constants';
+import {
+  NOVEL_RANKING_LANGUAGES,
+  RANKING_FOR_UI,
+  RANKING_TYPES,
+} from '../constants';
 import Schemas from '../constants/schemas';
+import {
+  NOVEL_LANGUAGE_UNKNOWN,
+  detectNovelTextLanguage,
+  extractNovelData,
+  extractNovelText,
+  getNovelLanguageFromMetadata,
+} from '../helpers/novelRankingLanguage';
 
 function mapRankingMode(rankingMode) {
   switch (rankingMode) {
@@ -83,10 +94,11 @@ function getRankingType(rankingMode) {
 
 export function* handleFetchRanking(action) {
   const { rankingMode, options, nextUrl } = action.payload;
+  const { language, ...apiOptions } = options || {};
   try {
     const mode = mapRankingMode(rankingMode);
     const rankingType = getRankingType(rankingMode);
-    const finalOptions = { ...options };
+    const finalOptions = { ...apiOptions };
     if (mode) {
       finalOptions.mode = mode;
     }
@@ -100,10 +112,12 @@ export function* handleFetchRanking(action) {
     }
     let normalized;
     if (rankingType === RANKING_TYPES.NOVEL) {
-      normalized = normalize(
-        response.novels.filter((novel) => novel.visible && novel.id),
-        Schemas.NOVEL_ARRAY,
-      );
+      let novels = response.novels.filter((novel) => novel.visible && novel.id);
+      if (language === NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE) {
+        // eslint-disable-next-line no-use-before-define
+        novels = yield call(filterSimplifiedChineseNovels, novels);
+      }
+      normalized = normalize(novels, Schemas.NOVEL_ARRAY);
     } else {
       normalized = normalize(
         response.illusts.filter((illust) => illust.visible && illust.id),
@@ -122,6 +136,38 @@ export function* handleFetchRanking(action) {
     yield put(fetchRankingFailure(rankingMode));
     yield put(addError(err));
   }
+}
+
+export function* getNovelRankingLanguage(novel) {
+  const metadataLanguage = getNovelLanguageFromMetadata(novel);
+  if (metadataLanguage) {
+    return metadataLanguage;
+  }
+
+  try {
+    const rawResponse = yield apply(pixiv, pixiv.novelWebview, [
+      novel.id,
+      true,
+    ]);
+    const webviewNovel = extractNovelData(rawResponse, novel.id);
+    const webviewMetadataLanguage = getNovelLanguageFromMetadata(webviewNovel);
+    if (webviewMetadataLanguage) {
+      return webviewMetadataLanguage;
+    }
+    return detectNovelTextLanguage(extractNovelText(rawResponse, novel.id));
+  } catch (err) {
+    return NOVEL_LANGUAGE_UNKNOWN;
+  }
+}
+
+export function* filterSimplifiedChineseNovels(novels) {
+  const languages = yield all(
+    novels.map((novel) => call(getNovelRankingLanguage, novel)),
+  );
+  return novels.filter(
+    (novel, index) =>
+      languages[index] === NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE,
+  );
 }
 
 export function* watchFetchRanking() {

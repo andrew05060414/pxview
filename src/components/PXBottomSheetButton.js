@@ -23,9 +23,15 @@ const PXBottomSheetButton = ({
   iconSize,
   text,
   textStyle,
+  accessibilityLabel,
+  accessibilityRole,
   theme,
 }) => (
-  <PXTouchable onPress={onPress}>
+  <PXTouchable
+    onPress={onPress}
+    accessibilityLabel={accessibilityLabel}
+    accessibilityRole={accessibilityRole}
+  >
     <View style={styles.bottomSheetListItem}>
       {iconName && iconType && (
         <Icon

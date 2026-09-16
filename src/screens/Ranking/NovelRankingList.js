@@ -1,15 +1,12 @@
 import React, { Component } from 'react';
 import { InteractionManager } from 'react-native';
 import { connect } from 'react-redux';
+// eslint-disable-next-line import/no-named-as-default
 import NovelList from '../../components/NovelList';
 import * as rankingActionCreators from '../../common/actions/ranking';
 import { makeGetNovelRankingItems } from '../../common/selectors';
 
 class NovelRankingList extends Component {
-  static defaultProps = {
-    reload: true,
-  };
-
   componentDidMount() {
     const {
       ranking,
@@ -32,7 +29,10 @@ class NovelRankingList extends Component {
     const { options: prevOptions } = prevProps;
     if (
       options &&
-      (options.mode !== prevOptions.mode || options.date !== prevOptions.date)
+      (!prevOptions ||
+        options.mode !== prevOptions.mode ||
+        options.date !== prevOptions.date ||
+        options.language !== prevOptions.language)
     ) {
       InteractionManager.runAfterInteractions(() => {
         clearRanking(rankingMode);
@@ -54,23 +54,28 @@ class NovelRankingList extends Component {
   };
 
   handleOnRefresh = () => {
-    const { rankingMode, fetchRanking, clearRanking } = this.props;
+    const { rankingMode, options, fetchRanking, clearRanking } = this.props;
     clearRanking(rankingMode);
-    fetchRanking(rankingMode, null, null, true);
+    fetchRanking(rankingMode, options, null, true);
   };
 
   render() {
-    const { ranking, items, listKey } = this.props;
+    const { ranking, items, listKey, renderHeader } = this.props;
     return (
       <NovelList
         data={{ ...ranking, items }}
         listKey={listKey}
+        renderHeader={renderHeader}
         loadMoreItems={this.loadMoreItems}
         onRefresh={this.handleOnRefresh}
       />
     );
   }
 }
+
+NovelRankingList.defaultProps = {
+  reload: true,
+};
 
 export default connect(() => {
   const getRankingItems = makeGetNovelRankingItems();

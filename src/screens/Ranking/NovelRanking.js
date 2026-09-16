@@ -1,11 +1,20 @@
 import React, { Component } from 'react';
 import { Platform } from 'react-native';
+import { connect } from 'react-redux';
 import NovelRankingList from './NovelRankingList';
+import NovelRankingLanguageFilter from './NovelRankingLanguageFilter';
 import PastRanking from './PastRanking';
 import PXTabView from '../../components/PXTabView';
 import TabContentWrapper from '../../components/TabContentWrapper';
 import { connectLocalization } from '../../components/Localization';
-import { RANKING_FOR_UI } from '../../common/constants';
+import {
+  NOVEL_RANKING_LANGUAGES,
+  RANKING_FOR_UI,
+} from '../../common/constants';
+import {
+  clearLanguage,
+  setLanguage,
+} from '../../common/actions/novelRankingSettings';
 import mapRankingTypeString from '../../common/helpers/mapRankingTypeString';
 
 class NovelRanking extends Component {
@@ -68,11 +77,34 @@ class NovelRanking extends Component {
     this.setState({ index });
   };
 
+  handleOnChangeLanguage = (language) => {
+    const { setNovelRankingLanguage } = this.props;
+    setNovelRankingLanguage(language);
+  };
+
+  handleOnResetLanguage = () => {
+    const { clearNovelRankingLanguage } = this.props;
+    clearNovelRankingLanguage();
+  };
+
   renderScene = ({ route }) => {
-    const { route: navigationRoute } = this.props;
+    const { route: navigationRoute, i18n, novelRankingLanguage } = this.props;
     const { routes, index } = this.state;
     const { rankingType } = navigationRoute.params;
     const { rankingMode, reload } = route;
+    const isMaleNovelRanking = rankingMode === RANKING_FOR_UI.DAILY_MALE_NOVEL;
+    const selectedLanguage =
+      novelRankingLanguage || NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE;
+    const renderHeader = isMaleNovelRanking
+      ? () => (
+          <NovelRankingLanguageFilter
+            value={selectedLanguage}
+            i18n={i18n}
+            onChange={this.handleOnChangeLanguage}
+            onReset={this.handleOnResetLanguage}
+          />
+        )
+      : undefined;
     return (
       <TabContentWrapper active={routes.indexOf(route) === index}>
         {rankingMode === RANKING_FOR_UI.PAST_NOVEL ? (
@@ -86,6 +118,8 @@ class NovelRanking extends Component {
             rankingMode={rankingMode}
             route={route}
             reload={reload}
+            options={isMaleNovelRanking ? { language: selectedLanguage } : null}
+            renderHeader={renderHeader}
           />
         )}
       </TabContentWrapper>
@@ -105,4 +139,14 @@ class NovelRanking extends Component {
   }
 }
 
-export default connectLocalization(NovelRanking);
+export default connectLocalization(
+  connect(
+    (state) => ({
+      novelRankingLanguage: state.novelRankingSettings.language,
+    }),
+    {
+      setNovelRankingLanguage: setLanguage,
+      clearNovelRankingLanguage: clearLanguage,
+    },
+  )(NovelRanking),
+);
