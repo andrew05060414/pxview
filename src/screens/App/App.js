@@ -6,7 +6,7 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import {
   NavigationContainer,
   DefaultTheme as NavigationDefaultTheme,
@@ -15,7 +15,6 @@ import {
 } from '@react-navigation/native';
 import { getStateFromPath } from '@react-navigation/core';
 import analytics from '@react-native-firebase/analytics';
-import firebaseAuth from '@react-native-firebase/auth';
 import {
   DefaultTheme as PaperDefaultTheme,
   DarkTheme as PaperDarkTheme,
@@ -31,7 +30,6 @@ import PXSnackbar from '../../components/PXSnackbar';
 import { THEME_TYPES, SCREENS } from '../../common/constants';
 import { globalStyleVariables } from '../../styles';
 import usePrevious from '../../common/hooks/usePrevious';
-import firebaseAuthStateChanged from '../../common/actions/firebaseAuth';
 
 const styles = StyleSheet.create({
   container: {
@@ -51,7 +49,6 @@ const getActiveRouteName = (state) => {
 };
 
 const App = () => {
-  const dispatch = useDispatch();
   const [initialState, setInitialState] = useState();
   const [navigationIsReady, setNavigationIsReady] = useState(false);
   const [, forceUpdate] = useState(0);
@@ -64,13 +61,6 @@ const App = () => {
   const navigationRef = useRef();
   const routeNameRef = useRef();
   const prevRehydrated = usePrevious(rehydrated);
-
-  useEffect(() => {
-    const unsubscribe = firebaseAuth().onAuthStateChanged((firebaseUser) => {
-      dispatch(firebaseAuthStateChanged(firebaseUser));
-    });
-    return unsubscribe;
-  }, [dispatch]);
 
   const { getInitialState } = useLinking(navigationRef, {
     prefixes: [
