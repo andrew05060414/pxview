@@ -76,3 +76,27 @@ GoogleService-Info.plist
 
 # Local device verification screenshots
 /tmp-device-screen*.png
+
+# Xcode/Metro outputs created by the iOS build scripts
+/ios/build-*/
+/ios/assets/
+/ios/com.apple.DeveloperTools/
+
+# Host-specific Xcode recovery helpers
+/scripts/fix-simulator.sh
+/scripts/fix-xcode-system.sh
+/scripts/open-xcode.sh
+
+# Temporary local agent coordination artifacts
+/.agents/teamwork_*/
+/.agents/orchestrator/
+/.agents/sentinel/
+/.agents/ORIGINAL_REQUEST.md
+
+# Locally installed agent skills are machine tooling, not app sources
+/.agents/skills/firebase-*/
+/.agents/skills/extension-to-functions-codebase/
+/.agents/skills/xcode-project-setup/
+/.agents/skills/firestore-rules-creation/
+/.claude/skills/
+/skills-lock.json

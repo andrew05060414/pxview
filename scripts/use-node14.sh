@@ -3,6 +3,8 @@ set -eu
 
 if [ -n "${PXVIEW_NODE:-}" ]; then
   NODE_BIN="$PXVIEW_NODE"
+elif [ -x "${HOME}/.local/share/fnm/node-versions/v14.21.3/installation/bin/node" ]; then
+  NODE_BIN="${HOME}/.local/share/fnm/node-versions/v14.21.3/installation/bin/node"
 elif [ -x "${HOME}/.nvm/versions/node/v14.21.3/bin/node" ]; then
   NODE_BIN="${HOME}/.nvm/versions/node/v14.21.3/bin/node"
 elif command -v node >/dev/null 2>&1; then

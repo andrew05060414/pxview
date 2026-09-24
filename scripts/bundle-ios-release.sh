@@ -8,10 +8,16 @@ cd "$REPO_ROOT"
 
 export REACT_NATIVE_MAX_WORKERS=1
 
+BUNDLE_OUTPUT="${PXVIEW_IOS_BUNDLE_OUTPUT:-ios/main.jsbundle}"
+ASSETS_DEST="${PXVIEW_IOS_ASSETS_DEST:-ios}"
+
+mkdir -p "$(dirname "$BUNDLE_OUTPUT")"
+mkdir -p "$ASSETS_DEST"
+
 "$PXVIEW_NODE" ./node_modules/react-native/cli.js bundle \
-  --platform android \
+  --platform ios \
   --dev false \
   --entry-file index.js \
-  --bundle-output android/app/src/main/assets/index.android.bundle \
-  --assets-dest android/app/src/main/res \
+  --bundle-output "$BUNDLE_OUTPUT" \
+  --assets-dest "$ASSETS_DEST" \
   --max-workers 1
