@@ -5,7 +5,9 @@ description: Use when building, testing, installing, or debugging the Android ap
 
 # pxview Build Skill
 
-Use the repo scripts first. Do not hand-type the old command chain unless a script is missing or broken.
+This is the single maintained build skill for this repository. The Claude entry is a compatibility wrapper; edit build guidance here only. All script and configuration paths below are relative to the repository root.
+
+Use the repo scripts first. Do not hand-type the old command chain unless a script is missing or broken. Treat version-specific troubleshooting below as context to check against the current scripts/workflow, not proof of the current machine or CI state.
 
 ## Primary Entry Points
 
@@ -48,6 +50,18 @@ sh ./scripts/install-android-release.sh
 | `scripts/build-android-release.sh` | builds signed release APK on macOS / Linux / WSL |
 | `scripts/install-android-release.sh` | installs release APK on macOS / Linux / WSL |
 
+## CI Auto-Build (GitHub Actions)
+
+`.github/workflows/android-release.yml` mirrors the local flow in the cloud:
+
+- Trigger A: publishing a GitHub release -> APK is built and attached to that release
+- Trigger B: manual `workflow_dispatch` from the Actions tab -> APK uploaded as a workflow artifact
+- Environment: Node 14.21.3 + npm 9 (lockfile v3), JDK 11, `npx jetify`, repo debug keystore signing
+- A placeholder `google-services.json` is generated at build time (real one is gitignored)
+
+If the workflow needs changes, keep it in sync with the local scripts' ordering:
+jest -> Metro bundle -> placeholder google-services -> `clean` (own invocation) -> `assembleRelease -x bundleReleaseJsAndAssets`.
+
 ## Signing Rule
 
 Always sign with the repo keystore:
@@ -67,7 +81,7 @@ export PXVIEW_KEYSTORE_PASSWORD="android"
 export PXVIEW_KEY_PASSWORD="android"
 ```
 
-If install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, uninstall first:
+If install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, first check the installed APK's signing identity and try a matching signed build. Uninstalling deletes local app data: preserve needed data and obtain explicit authorization for uninstall before using this fallback:
 
 ```powershell
 adb uninstall com.utopia.pxviewr
@@ -128,6 +142,53 @@ Cause:
 Fix:
 - the build scripts run `gradlew clean` in its own invocation before
   `assembleRelease`/`assembleDebug`; keep that split when editing them
+
+### `android.support.annotation does not exist` on a fresh checkout
+
+Symptom:
+- `:react-native-photo-view-ex:compileReleaseJavaWithJavac FAILED`
+- imports of `android.support.annotation.*` unresolved
+
+Cause:
+- pre-AndroidX sources in older RN libs; the local `node_modules` was
+  jetified at some point, so only fresh installs (CI) hit it
+
+Fix:
+- run `npx jetify` after `npm ci` (package.json also declares it as
+  `postinstall`)
+
+### NDK `stripReleaseDebugSymbols` fails on CI runners
+
+Symptom:
+- `No toolchains found in the NDK toolchains folder for ABI with prefix: arm-linux-androideabi`
+
+Cause:
+- GitHub runners ship NDK 29+ (and export `ANDROID_NDK_HOME`/`ANDROID_NDK_ROOT`);
+  its toolchain layout removed the legacy prefixes AGP 3.5.3 expects.
+  Local builds pass precisely because the local SDK has no NDK installed at
+  all — AGP then skips the strip task and `doNotStrip "**/*.so"` ships the
+  native libs as-is.
+
+Fix (CI only):
+- the workflow removes `${ANDROID_HOME}/ndk*` and clears the env vars
+  before assembling; keep both if the step is rewritten
+
+### AAPT `android:attr/colorError not found` on fresh npm install
+
+Symptom:
+- `:<lib>:verifyReleaseResources` fails; appcompat/core values-v26/v28
+  reference attrs missing from the link target
+
+Cause:
+- some published RN libraries hardcode low compileSdk versions (e.g.
+  `react-native-localization@1.0.12` pins `compileSdkVersion 25`) while the
+  local `node_modules` copy may have been hand-patched — so only fresh
+  installs (CI, new machines) hit it
+
+Fix:
+- `android/build.gradle` forces every Android module onto the root
+  compileSdk/buildTools via a `subprojects.afterEvaluate` override;
+  never rely on hand-edited `node_modules` surviving `npm ci`
 
 ## Verification Sequence
 
