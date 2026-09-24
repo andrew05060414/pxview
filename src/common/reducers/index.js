@@ -73,6 +73,7 @@ import modal from './modal';
 import saveImageSettings from './saveImageSettings';
 import initialScreenSettings from './initialScreenSettings';
 import novelSettings from './novelSettings';
+import novelRankingSettings from './novelRankingSettings';
 import likeButtonSettings from './likeButtonSettings';
 import readingSettings from './readingSettings';
 import trendingSearchSettings from './trendingSearchSettings';
@@ -151,6 +152,7 @@ const rootReducer = combineReducers({
   saveImageSettings,
   initialScreenSettings,
   novelSettings,
+  novelRankingSettings,
   likeButtonSettings,
   readingSettings,
   trendingSearchSettings,

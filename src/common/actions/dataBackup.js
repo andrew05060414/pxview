@@ -8,5 +8,6 @@ export { restoreSettings as restoreHighlightTags } from './highlightTags';
 export { restoreSettings as restoreMuteTags } from './muteTags';
 export { restoreSettings as restoreMuteUsers } from './muteUsers';
 export { restoreSettings as restoreNovelSettings } from './novelSettings';
+export { restoreSettings as restoreNovelRankingSettings } from './novelRankingSettings';
 export { restoreSettings as restoreTheme } from './theme';
 export { restoreSettings as restoreSearchHistory } from './searchHistory';

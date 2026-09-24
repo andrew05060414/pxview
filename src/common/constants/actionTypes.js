@@ -460,6 +460,12 @@ export const NOVEL_SETTINGS = defineAction(
   appNamespace,
 );
 
+export const NOVEL_RANKING_SETTINGS = defineAction(
+  'NOVEL_RANKING_SETTINGS',
+  [SET, RESTORE],
+  appNamespace,
+);
+
 export const SAVE_IMAGE_SETTINGS = defineAction(
   'SAVE_IMAGE_SETTINGS',
   [SET, RESTORE],
@@ -562,4 +568,3 @@ export const BOOKMARK_RULES = defineAction(
   [ADD, EDIT, REMOVE, REORDER, RESTORE, CLEAR],
   appNamespace,
 );
-

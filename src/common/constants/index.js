@@ -37,6 +37,11 @@ export const RANKING_TYPES = {
   NOVEL: 'NOVEL',
 };
 
+export const NOVEL_RANKING_LANGUAGES = {
+  ALL: 'all',
+  SIMPLIFIED_CHINESE: 'zh-CN',
+};
+
 // map values for ranking api option
 export const RANKING_ILLUST = {
   day: 'day',
