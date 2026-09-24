@@ -140,7 +140,7 @@
     "eslint-plugin-react-native": "^3.8.1",
     "jest": "^25.1.0",
     "metro-react-native-babel-preset": "^0.59.0",
-    "prettier": "^2.0.1",
+    "prettier": "^2.8.8",
     "prettier-eslint": "^9.0.1",
     "react-test-renderer": "16.13.1",
     "redux-immutable-state-invariant": "^2.0.0"
