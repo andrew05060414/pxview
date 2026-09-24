@@ -16,7 +16,8 @@ KEYSTORE_PASSWORD="${PXVIEW_KEYSTORE_PASSWORD:-android}"
 KEY_PASSWORD="${PXVIEW_KEY_PASSWORD:-android}"
 
 cd "$REPO_ROOT/android"
-./gradlew clean assembleRelease --no-daemon \
+./gradlew clean --no-daemon
+./gradlew assembleRelease --no-daemon \
   "-PPXVIEWR_RELEASE_STORE_FILE=$KEYSTORE_PATH" \
   "-PPXVIEWR_RELEASE_STORE_PASSWORD=$KEYSTORE_PASSWORD" \
   "-PPXVIEWR_RELEASE_KEY_ALIAS=$KEY_ALIAS" \

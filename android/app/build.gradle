@@ -146,6 +146,9 @@ def enableHermes = project.ext.react.get("enableHermes", true);
 
 android {
     compileSdkVersion rootProject.ext.compileSdkVersion
+    // AGP 3.5 requires the legacy arm-linux-androideabi toolchain. Keep the
+    // compatible NDK explicit instead of silently selecting NDK 26+.
+    ndkVersion "21.4.7075529"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8

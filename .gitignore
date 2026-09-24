@@ -52,6 +52,7 @@ buck-out/
 # https://docs.fastlane.tools/best-practices/source-control/
 
 coverage
+.jest-cache/
 
 .vscode
 flow-typed

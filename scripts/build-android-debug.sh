@@ -11,4 +11,5 @@ cd "$REPO_ROOT"
 "$REPO_ROOT/scripts/bundle-android-release.sh"
 
 cd "$REPO_ROOT/android"
-./gradlew clean assembleDebug --no-daemon -x bundleDebugJsAndAssets
+./gradlew clean --no-daemon
+./gradlew assembleDebug --no-daemon -x bundleDebugJsAndAssets
