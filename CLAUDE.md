@@ -1,4 +1,3 @@
-<!-- GSD:project-start source:PROJECT.md -->
 ## Project
 
 **PxView Reader Fixes**
@@ -13,9 +12,7 @@ This repo is an old brownfield React Native Pixiv client that the user is treati
 - **Scope**: First phase is inline novel images only — the user explicitly wants one concrete behavior fixed before any build/runtime cleanup
 - **Validation**: Automated and code-level verification matter more than emulator confidence right now — local install/runtime behavior is currently unreliable
 - **Compatibility**: Preserve existing novel reader UX such as page order, jump links, and reading settings — this is already working and should not regress
-<!-- GSD:project-end -->
 
-<!-- GSD:stack-start source:codebase/STACK.md -->
 ## Technology Stack
 
 ## Summary
@@ -64,9 +61,7 @@ This repo is an old brownfield React Native Pixiv client that the user is treati
 - Android release/debug bundle artifacts are committed in `android/app/src/main/assets/index.android.bundle` and `android/app/src/main/assets/index.android.bundle.meta`.
 - Android debug keystore material exists in `android/app/debug.keystore` and `android/keystores/debug.keystore.properties`.
 - Screenshot and marketing assets are committed under `screenshots/`, `src/images/`, and `donations/`.
-<!-- GSD:stack-end -->
 
-<!-- GSD:conventions-start source:CONVENTIONS.md -->
 ## Conventions
 
 ## Language And Style
@@ -113,9 +108,7 @@ This repo is an old brownfield React Native Pixiv client that the user is treati
 - Many reducers share the same request-success-failure shape.
 - Screens often own direct navigation-header configuration and view-specific side effects.
 - This repetition makes the codebase easy to pattern-match, but expensive to update globally.
-<!-- GSD:conventions-end -->
 
-<!-- GSD:architecture-start source:ARCHITECTURE.md -->
 ## Architecture
 
 ## High-Level Shape
@@ -173,26 +166,3 @@ This repo is an old brownfield React Native Pixiv client that the user is treati
 - Business logic is still close to the UI in several places, especially screens such as `src/screens/MyPage/Feedback.js` and `src/screens/MyPage/Backup.js`.
 - There is no explicit service layer beyond helper modules like `src/common/helpers/apiClient.js`.
 - The app favors pragmatic shared-state reuse over strict feature isolation.
-<!-- GSD:architecture-end -->
-
-<!-- GSD:workflow-start source:GSD defaults -->
-## GSD Workflow Enforcement
-
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
-
-Use these entry points:
-- `/gsd:quick` for small fixes, doc updates, and ad-hoc tasks
-- `/gsd:debug` for investigation and bug fixing
-- `/gsd:execute-phase` for planned phase work
-
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
-
-
-
-<!-- GSD:profile-start -->
-## Developer Profile
-
-> Profile not yet configured. Run `/gsd:profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->
