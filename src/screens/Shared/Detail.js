@@ -375,11 +375,8 @@ class Detail extends Component {
 
   renderContent = ({ item, index: itemIndex }) => {
     const { navigation, authUser, route, index, windowWidth } = this.props;
-    const contentStyle = windowWidth
-      ? [styles.content, { width: windowWidth }]
-      : styles.content;
     return (
-      <View style={contentStyle} key={item.id}>
+      <View style={styles.content} key={item.id}>
         <PXHeader
           headerTitle={this.renderHeaderTitle(item)}
           headerRight={this.renderHeaderRight(item)}
@@ -395,6 +392,7 @@ class Detail extends Component {
           navigation={navigation}
           route={route}
           authUser={authUser}
+          windowWidth={windowWidth}
           onPressImage={this.handleOnPressImage}
           onLongPressImage={this.handleOnLongPressImage}
           onScroll={this.handleOnScrollDetailImageList}

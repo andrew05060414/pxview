@@ -42,8 +42,13 @@ const NovelGridViewItem = ({
   isHighlight,
   isMute,
   isShowLikeCount,
+  windowWidth,
 }) => {
+  const currentWindowWidth =
+    windowWidth || globalStyleVariables.getWindowWidth();
+  const itemSize = currentWindowWidth / numColumns - 1;
   const imageWidthOffset = isHighlight ? HIGHLIGHT_BORDER_WIDTH * 2 + 1 : 1;
+  const imageSize = currentWindowWidth / numColumns - imageWidthOffset;
   return (
     <PXTouchable
       style={[
@@ -51,8 +56,8 @@ const NovelGridViewItem = ({
           marginRight: index % numColumns < numColumns - 1 ? 1 : 0,
           marginBottom: 1,
           backgroundColor: globalStyleVariables.BACKGROUND_COLOR,
-          width: globalStyleVariables.getWindowWidth() / numColumns - 1,
-          height: globalStyleVariables.getWindowWidth() / numColumns - 1,
+          width: itemSize,
+          height: itemSize,
         },
         containerStyle,
         isHighlight && styles.highlight,
@@ -69,12 +74,8 @@ const NovelGridViewItem = ({
             style={[
               {
                 resizeMode: 'cover',
-                width:
-                  globalStyleVariables.getWindowWidth() / numColumns -
-                  imageWidthOffset,
-                height:
-                  globalStyleVariables.getWindowWidth() / numColumns -
-                  imageWidthOffset,
+                width: imageSize,
+                height: imageSize,
               },
               imageStyle,
             ]}

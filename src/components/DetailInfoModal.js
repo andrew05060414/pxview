@@ -6,6 +6,7 @@ import {
   Animated,
   ScrollView,
   Linking,
+  Dimensions,
 } from 'react-native';
 import { connect } from 'react-redux';
 import { withTheme, Text } from 'react-native-paper';
@@ -91,12 +92,6 @@ const styles = StyleSheet.create({
 class DetailInfoModal extends Component {
   static defaultProps = {
     duration: 300,
-    height: Math.floor(
-      (globalStyleVariables.getWindowHeight() -
-        globalStyleVariables.APPBAR_HEIGHT -
-        globalStyleVariables.STATUSBAR_HEIGHT) *
-        0.6,
-    ),
   };
 
   constructor(props) {
@@ -117,13 +112,26 @@ class DetailInfoModal extends Component {
     }
   }
 
+  getModalHeight = () => {
+    const { height } = this.props;
+    if (height !== undefined) {
+      return height;
+    }
+    return Math.floor(
+      (Dimensions.get('window').height -
+        globalStyleVariables.APPBAR_HEIGHT -
+        globalStyleVariables.STATUSBAR_HEIGHT) *
+        0.6,
+    );
+  };
+
   setModalVisible = (visible) => {
-    const { height, duration } = this.props;
+    const { duration } = this.props;
     const { modalVisible, animatedHeight } = this.state;
     if (visible && !modalVisible) {
       this.setState({ modalVisible: visible });
       Animated.timing(animatedHeight, {
-        toValue: height,
+        toValue: this.getModalHeight(),
         duration,
         useNativeDriver: false,
       }).start();

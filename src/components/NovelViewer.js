@@ -19,7 +19,7 @@ import { globalStyleVariables } from '../styles';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    width: globalStyleVariables.getWindowWidth(),
+    width: '100%',
     padding: 10,
   },
   novelChapter: {
@@ -228,7 +228,6 @@ const MODAL_THUMB_W = 28;
 const MODAL_THUMB_H = 60;
 const MODAL_SLIDER_WIDTH = 100;
 const MODAL_SLIDER_RIGHT_PAD = 20;
-const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 class NovelPage extends Component {
   constructor(props) {
@@ -273,7 +272,7 @@ class NovelPage extends Component {
   };
 
   getModalTrackHeight() {
-    return SCREEN_HEIGHT - 200;
+    return Dimensions.get('window').height - 200;
   }
 
   getModalThumbTop() {
@@ -636,7 +635,7 @@ class NovelViewer extends Component {
           imageKind={imageKind}
           pageNumber={Number.isNaN(parsedPageNumber) ? null : parsedPageNumber}
           embeddedImages={embeddedImages}
-          maxWidth={globalStyleVariables.WINDOW_WIDTH - 20}
+          maxWidth={Dimensions.get('window').width - 20}
         />
       );
     }

@@ -65,4 +65,38 @@ describe('withWindowWidth', () => {
       expect.any(Function),
     );
   });
+
+  test('recalibrates window width when app state becomes active', () => {
+    let appStateHandler = null;
+    jest.spyOn(Dimensions, 'get').mockReturnValue({ width: 390, height: 800 });
+    jest.spyOn(Dimensions, 'addEventListener').mockImplementation(() => ({
+      remove: jest.fn(),
+    }));
+    const AppState = require('react-native').AppState;
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((eventType, handler) => {
+        if (eventType === 'change') {
+          appStateHandler = handler;
+        }
+        return { remove: jest.fn() };
+      });
+
+    const Probe = ({ windowWidth }) => <div data-width={windowWidth} />;
+    const Wrapped = withWindowWidth(Probe);
+    let tree;
+    act(() => {
+      tree = renderer.create(<Wrapped />);
+    });
+    expect(tree.root.findByType(Probe).props.windowWidth).toBe(390);
+
+    // Simulate screen unlock / fold unfold returning to active with wider screen
+    Dimensions.get.mockReturnValue({ width: 780, height: 800 });
+    act(() => {
+      appStateHandler('active');
+    });
+    expect(tree.root.findByType(Probe).props.windowWidth).toBe(780);
+
+    tree.unmount();
+  });
 });

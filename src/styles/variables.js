@@ -27,5 +27,7 @@ export const getWindowHeight = () =>
 // https://material.io/guidelines/layout/structure.html#structure-app-bar
 export const APPBAR_HEIGHT = Platform.OS === 'ios' ? 44 : 56;
 export const STATUSBAR_HEIGHT = getStatusBarHeight();
-export const getDrawerWidth = () =>
-  getWindowWidth() - (Platform.OS === 'android' ? 56 : 64);
+export const getDrawerWidth = () => {
+  const fullWidth = getWindowWidth() - (Platform.OS === 'android' ? 56 : 64);
+  return Math.min(fullWidth, 320);
+};

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Platform, Dimensions } from 'react-native';
+import { StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { TabView, TabBar, ScrollPager } from 'react-native-tab-view';
 import ViewPagerAdapter from 'react-native-tab-view-viewpager-adapter';
 import { useTheme } from 'react-native-paper';
@@ -26,7 +26,8 @@ const PXTabView = ({
   ...restProps
 }) => {
   const theme = useTheme();
-  const initialLayout = { width: Dimensions.get('window').width };
+  const { width: windowWidth } = useWindowDimensions();
+  const initialLayout = { width: windowWidth };
 
   const handleRenderTabBar = (props) => {
     if (renderTabBar) {

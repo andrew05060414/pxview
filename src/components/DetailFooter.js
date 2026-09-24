@@ -19,7 +19,7 @@ import { globalStyleVariables } from '../styles';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    width: globalStyleVariables.getWindowWidth(),
+    width: '100%',
   },
   infoContainer: {
     margin: 10,

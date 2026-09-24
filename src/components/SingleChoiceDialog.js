@@ -13,7 +13,7 @@ import { globalStyleVariables } from '../styles';
 const styles = StyleSheet.create({
   dialogContentContainer: {
     paddingHorizontal: 0,
-    maxHeight: globalStyleVariables.getWindowHeight() - 200,
+    maxHeight: '75%',
   },
   row: {
     flexDirection: 'row',

@@ -55,7 +55,8 @@ const styles = StyleSheet.create({
   avatarContainer: {
     position: 'absolute',
     bottom: -(avatarSize / 2),
-    width: globalStyleVariables.getWindowWidth(),
+    left: 0,
+    right: 0,
     alignItems: 'center',
   },
   profileContainer: {
@@ -381,7 +382,7 @@ class UserDetail extends Component {
               uri={detail.user.profile_image_urls.medium}
               style={{
                 resizeMode: 'cover',
-                width: globalStyleVariables.getWindowWidth(),
+                width: '100%',
                 height: 100,
                 backgroundColor: 'transparent',
               }}

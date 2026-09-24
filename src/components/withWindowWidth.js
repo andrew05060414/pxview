@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Dimensions } from 'react-native';
+import { Dimensions, AppState } from 'react-native';
 
 // Re-renders the wrapped (usually class) component with a `windowWidth` prop
 // whenever the window resizes — e.g. folding/unfolding a foldable — so grids
@@ -12,16 +12,40 @@ const withWindowWidth = (WrappedComponent) => {
 
     useEffect(() => {
       const handleChange = ({ window }) => {
-        if (window) {
+        if (window && window.width) {
           setWindowWidth(window.width);
+        } else {
+          setWindowWidth(Dimensions.get('window').width);
         }
       };
       const subscription = Dimensions.addEventListener('change', handleChange);
+
+      const handleAppStateChange = (nextAppState) => {
+        if (nextAppState === 'active') {
+          const currentWidth = Dimensions.get('window').width;
+          if (currentWidth) {
+            setWindowWidth(currentWidth);
+          }
+        }
+      };
+      const appStateSubscription = AppState.addEventListener(
+        'change',
+        handleAppStateChange,
+      );
+
       return () => {
         if (subscription && typeof subscription.remove === 'function') {
           subscription.remove();
         } else {
           Dimensions.removeEventListener('change', handleChange);
+        }
+        if (
+          appStateSubscription &&
+          typeof appStateSubscription.remove === 'function'
+        ) {
+          appStateSubscription.remove();
+        } else {
+          AppState.removeEventListener('change', handleAppStateChange);
         }
       };
     }, []);

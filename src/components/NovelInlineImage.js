@@ -1,8 +1,7 @@
 import React, { Component } from 'react';
-import { Image, StyleSheet, Text } from 'react-native';
+import { Image, StyleSheet, Text, Dimensions } from 'react-native';
 import PXImage from './PXImage';
 import pixiv from '../common/helpers/apiClient';
-import { globalStyleVariables } from '../styles';
 
 const styles = StyleSheet.create({
   image: {
@@ -141,6 +140,32 @@ const resolveIllustImageUrl = (illust, pageNumber) => {
   return null;
 };
 
+const pendingIllustDetailRequests = new Map();
+
+const fetchIllustDetail = (imageId) => {
+  const requestKey = String(imageId);
+  const pendingRequest = pendingIllustDetailRequests.get(requestKey);
+  if (pendingRequest) {
+    return pendingRequest;
+  }
+
+  const request = Promise.resolve().then(() => pixiv.illustDetail(imageId));
+  pendingIllustDetailRequests.set(requestKey, request);
+  request.then(
+    () => {
+      if (pendingIllustDetailRequests.get(requestKey) === request) {
+        pendingIllustDetailRequests.delete(requestKey);
+      }
+    },
+    () => {
+      if (pendingIllustDetailRequests.get(requestKey) === request) {
+        pendingIllustDetailRequests.delete(requestKey);
+      }
+    },
+  );
+  return request;
+};
+
 class NovelInlineImage extends Component {
   constructor(props) {
     super(props);
@@ -267,7 +292,7 @@ class NovelInlineImage extends Component {
     }
 
     try {
-      const response = await pixiv.illustDetail(imageId);
+      const response = await fetchIllustDetail(imageId);
       if (this.unmounted || requestId !== this.requestId) {
         return;
       }
@@ -359,7 +384,8 @@ class NovelInlineImage extends Component {
       );
     }
 
-    const imageWidth = maxWidth || globalStyleVariables.WINDOW_WIDTH - 20;
+    const imageWidth =
+      maxWidth || Dimensions.get('window').width - 20;
     const imageStyle =
       imageAspectRatio !== null
         ? { width: imageWidth, aspectRatio: imageAspectRatio }

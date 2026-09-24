@@ -19,6 +19,10 @@ const styles = StyleSheet.create({
 });
 
 class PXCacheImageTouchable extends Component {
+  rawWidth = 0;
+
+  rawHeight = 0;
+
   constructor(props) {
     const { initWidth, initHeight } = props;
     super(props);
@@ -29,16 +33,40 @@ class PXCacheImageTouchable extends Component {
     };
   }
 
+  componentDidUpdate(prevProps) {
+    const { windowWidth } = this.props;
+    const { windowWidth: prevWindowWidth } = prevProps;
+    if (
+      windowWidth &&
+      prevWindowWidth &&
+      windowWidth !== prevWindowWidth &&
+      this.rawWidth &&
+      this.rawHeight
+    ) {
+      const newWidth =
+        this.rawWidth > windowWidth ? windowWidth : this.rawWidth;
+      const newHeight =
+        ((this.rawWidth > windowWidth ? windowWidth : this.rawWidth) *
+          this.rawHeight) /
+        this.rawWidth;
+      // eslint-disable-next-line react/no-did-update-set-state
+      this.setState({
+        width: newWidth,
+        height: newHeight,
+      });
+    }
+  }
+
   handleOnFoundImageSize = (width, height, url) => {
     if (width && height) {
+      this.rawWidth = width;
+      this.rawHeight = height;
+      const currentWindowWidth =
+        this.props.windowWidth || globalStyleVariables.getWindowWidth();
       const newWidth =
-        width > globalStyleVariables.getWindowWidth()
-          ? globalStyleVariables.getWindowWidth()
-          : width;
+        width > currentWindowWidth ? currentWindowWidth : width;
       const newHeight =
-        ((width > globalStyleVariables.getWindowWidth()
-          ? globalStyleVariables.getWindowWidth()
-          : width) *
+        ((width > currentWindowWidth ? currentWindowWidth : width) *
           height) /
         width;
       this.setState({
@@ -77,7 +105,7 @@ class PXCacheImageTouchable extends Component {
         style={[
           style,
           {
-            width: globalStyleVariables.getWindowWidth(),
+            width: '100%',
             height,
             backgroundColor: theme.colors.surface,
           },

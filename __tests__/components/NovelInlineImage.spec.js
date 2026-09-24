@@ -67,6 +67,49 @@ describe('NovelInlineImage', () => {
         'Text',
       ).props.children,
     ).toBe('Loading image...');
+
+    tree.unmount();
+    deferred.resolve({ illust: {} });
+    await act(async () => {
+      await deferred.promise;
+      await flushPromises();
+    });
+  });
+
+  it('shares an in-flight illust detail request for the same image id', async () => {
+    const deferred = createDeferred();
+    illustDetail.mockReturnValueOnce(deferred.promise);
+
+    let firstTree;
+    let secondTree;
+    await act(async () => {
+      firstTree = renderer.create(<NovelInlineImage illustId="24095674" />);
+      secondTree = renderer.create(<NovelInlineImage imageId="24095674" />);
+      await flushPromises();
+    });
+
+    expect(illustDetail).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      deferred.resolve({
+        illust: {
+          width: 120,
+          height: 60,
+          image_urls: { large: 'https://example.com/shared.jpg' },
+        },
+      });
+      await deferred.promise;
+      await flushPromises();
+    });
+
+    expect(JSON.stringify(firstTree.toJSON())).toContain(
+      'px-image-https://example.com/shared.jpg',
+    );
+    expect(JSON.stringify(secondTree.toJSON())).toContain(
+      'px-image-https://example.com/shared.jpg',
+    );
+    firstTree.unmount();
+    secondTree.unmount();
   });
 
   it('falls back when the image request resolves without a URL', async () => {

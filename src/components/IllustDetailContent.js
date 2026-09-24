@@ -98,10 +98,11 @@ class IllustDetailContent extends Component {
       tags: prevTags,
       isMuteUser: prevIsMuteUser,
       route: prevRoute,
+      windowWidth: prevWindowWidth,
       isVisible,
       isMounted,
     } = this.props;
-    const { item, tags, isMuteUser, route } = nextProps;
+    const { item, tags, isMuteUser, route, windowWidth } = nextProps;
     const {
       isInitState: prevIsInitState,
       isScrolling: prevIsScrolling,
@@ -130,6 +131,7 @@ class IllustDetailContent extends Component {
       tags !== prevTags ||
       isMuteUser !== prevIsMuteUser ||
       route !== prevRoute ||
+      windowWidth !== prevWindowWidth ||
       isVisible !== prevIsVisible ||
       isMounted !== prevIsMounted
     ) {
@@ -241,6 +243,7 @@ class IllustDetailContent extends Component {
       theme,
       onPressImage,
       onLongPressImage,
+      windowWidth,
     } = this.props;
     const isMultiImages = illustItem.page_count > 1;
     const isMute = tags.some((t) => t.isMute) || isMuteUser;
@@ -257,7 +260,7 @@ class IllustDetailContent extends Component {
       );
     }
     if (item.type === 'ugoira') {
-      return <UgoiraViewTouchable item={item} />;
+      return <UgoiraViewTouchable item={item} windowWidth={windowWidth} />;
     }
     return (
       <PXCacheImageTouchable
@@ -271,12 +274,13 @@ class IllustDetailContent extends Component {
         index={index}
         onPress={onPressImage}
         onLongPress={onLongPressImage}
+        windowWidth={windowWidth}
       />
     );
   };
 
   renderFooter = () => {
-    const { item, navigation, authUser, tags, route } = this.props;
+    const { item, navigation, authUser, tags, route, windowWidth } = this.props;
     const { isVisible } = this.state;
     return (
       <DetailFooter
@@ -290,6 +294,7 @@ class IllustDetailContent extends Component {
         onPressTag={this.handleOnPressTag}
         onLongPressTag={this.handleOnLongPressTag}
         isDetailPageReady={isVisible}
+        windowWidth={windowWidth}
       />
     );
   };
@@ -308,13 +313,7 @@ class IllustDetailContent extends Component {
       return null;
     }
     return (
-      <View
-        key={item.id}
-        style={[
-          styles.container,
-          { width: globalStyleVariables.getWindowWidth() },
-        ]}
-      >
+      <View key={item.id} style={styles.container}>
         <FlatList
           data={item.page_count > 1 ? item.meta_pages : [item]}
           keyExtractor={(page) => page.image_urls.large}

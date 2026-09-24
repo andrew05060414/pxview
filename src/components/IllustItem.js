@@ -47,15 +47,25 @@ class IllustItem extends Component {
       isHighlight: prevIsHighlight,
       isMute: prevIsMute,
       isShowLikeCount: prevIsShowLikeCount,
+      numColumns: prevNumColumns,
+      parentContainerMargin: prevParentContainerMargin,
     } = this.props;
-    const { item, isHighlight, isMute, isShowLikeCount } = nextProps;
-    // console.log(item.id, (prevItem.is_bookmarked !== item.is_bookmarked) || (prevItem.user.is_followed !== item.user.is_followed));
+    const {
+      item,
+      isHighlight,
+      isMute,
+      isShowLikeCount,
+      numColumns,
+      parentContainerMargin,
+    } = nextProps;
     return (
       prevItem.is_bookmarked !== item.is_bookmarked ||
       prevItem.user.is_followed !== item.user.is_followed ||
       prevIsHighlight !== isHighlight ||
       prevIsMute !== isMute ||
-      prevIsShowLikeCount !== isShowLikeCount
+      prevIsShowLikeCount !== isShowLikeCount ||
+      prevNumColumns !== numColumns ||
+      prevParentContainerMargin !== parentContainerMargin
     );
   }
 
