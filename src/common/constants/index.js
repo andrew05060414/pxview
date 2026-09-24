@@ -176,6 +176,7 @@ export const SCREENS = {
   Auth: 'Auth',
   Login: 'Login',
   SignUp: 'SignUp',
+  FirebaseAuth: 'FirebaseAuth',
   SearchFilterModal: 'SearchFilterModal',
   SearchFilterPeriodDateModal: 'SearchFilterPeriodDateModal',
   AccountSettingsModal: 'AccountSettingsModal',

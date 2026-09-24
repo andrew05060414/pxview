@@ -74,6 +74,13 @@ class Auth extends Component {
     navigate(SCREENS.SignUp);
   };
 
+  handleOnPressFirebaseAuth = () => {
+    const {
+      navigation: { navigate },
+    } = this.props;
+    navigate(SCREENS.FirebaseAuth);
+  };
+
   handleOnPressPrivacyPolicy = () => {
     const {
       navigation: { navigate },
@@ -129,6 +136,13 @@ class Auth extends Component {
                   onPress={this.handleOnPressSignUp}
                 >
                   {i18n.loginNoAccount}
+                </Button>
+                <Button
+                  style={styles.buttonContainer}
+                  mode="outlined"
+                  onPress={this.handleOnPressFirebaseAuth}
+                >
+                  Firebase Email Login
                 </Button>
                 <TouchableOpacity onPress={this.handleOnPressPrivacyPolicy}>
                   <Text style={styles.privacyPolicy}>{i18n.privacyPolicy}</Text>

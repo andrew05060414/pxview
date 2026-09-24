@@ -5,6 +5,7 @@ import {
   AUTH_LOGOUT,
   AUTH_REFRESH_ACCESS_TOKEN,
   AUTH_REHYDRATE,
+  FIREBASE_AUTH_STATE,
 } from '../constants/actionTypes';
 
 export default function auth(
@@ -12,6 +13,7 @@ export default function auth(
     loading: false,
     loaded: false,
     user: null,
+    firebaseUser: null,
     rehydrated: false,
   },
   action,
@@ -21,7 +23,13 @@ export default function auth(
       return {
         ...state,
         user: null,
+        firebaseUser: null,
         loaded: false,
+      };
+    case FIREBASE_AUTH_STATE.SET:
+      return {
+        ...state,
+        firebaseUser: action.payload,
       };
     case AUTH_LOGIN.REQUEST:
     case AUTH_SIGNUP.REQUEST:

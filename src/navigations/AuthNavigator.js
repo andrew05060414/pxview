@@ -5,6 +5,7 @@ import { useTheme } from 'react-native-paper';
 import Auth from '../screens/Auth/Auth';
 import Login from '../screens/Auth/Login';
 import SignUp from '../screens/Auth/SignUp';
+import FirebaseAuth from '../screens/Auth/FirebaseAuth';
 import PrivacyPolicy from '../screens/MyPage/PrivacyPolicy';
 import { useLocalization } from '../components/Localization';
 import { globalStyleVariables, getThemedHeaderStyle } from '../styles';
@@ -48,6 +49,14 @@ const AuthNavigator = () => {
           component={SignUp}
           options={{
             title: i18n.signUp,
+            headerStyle,
+          }}
+        />
+        <Stack.Screen
+          name={SCREENS.FirebaseAuth}
+          component={FirebaseAuth}
+          options={{
+            title: 'Firebase Email Login',
             headerStyle,
           }}
         />

@@ -61,6 +61,12 @@ export const AUTH_REHYDRATE = defineAction(
   appNamespace,
 );
 
+export const FIREBASE_AUTH_STATE = defineAction(
+  'FIREBASE_AUTH_STATE',
+  [SET],
+  appNamespace,
+);
+
 export const MY_ACCOUNT_STATE = defineAction(
   'MY_ACCOUNT_STATE',
   [REQUEST, SUCCESS, FAILURE, CLEAR],
@@ -562,4 +568,3 @@ export const BOOKMARK_RULES = defineAction(
   [ADD, EDIT, REMOVE, REORDER, RESTORE, CLEAR],
   appNamespace,
 );
-
