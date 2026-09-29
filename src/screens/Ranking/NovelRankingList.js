@@ -54,9 +54,9 @@ class NovelRankingList extends Component {
   };
 
   handleOnRefresh = () => {
-    const { rankingMode, fetchRanking, clearRanking } = this.props;
+    const { rankingMode, options, fetchRanking, clearRanking } = this.props;
     clearRanking(rankingMode);
-    fetchRanking(rankingMode, null, null, true);
+    fetchRanking(rankingMode, options, null, true);
   };
 
   render() {

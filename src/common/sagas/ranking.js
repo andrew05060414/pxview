@@ -44,6 +44,16 @@ function mapRankingMode(rankingMode) {
       return 'week_rookie';
     case RANKING_FOR_UI.WEEKLY_NOVEL:
       return 'week';
+    case RANKING_FOR_UI.DAILY_R18_NOVEL:
+      return 'day_r18';
+    case RANKING_FOR_UI.WEEKLY_R18_NOVEL:
+      return 'week_r18';
+    case RANKING_FOR_UI.DAILY_MALE_R18_NOVEL:
+      return 'day_male_r18';
+    case RANKING_FOR_UI.DAILY_FEMALE_R18_NOVEL:
+      return 'day_female_r18';
+    case RANKING_FOR_UI.WEEKLY_R18G_NOVEL:
+      return 'week_r18g';
     default:
       return null;
   }
@@ -74,6 +84,11 @@ function getRankingType(rankingMode) {
     case RANKING_FOR_UI.DAILY_FEMALE_NOVEL:
     case RANKING_FOR_UI.WEEKLY_ROOKIE_NOVEL:
     case RANKING_FOR_UI.WEEKLY_NOVEL:
+    case RANKING_FOR_UI.DAILY_R18_NOVEL:
+    case RANKING_FOR_UI.WEEKLY_R18_NOVEL:
+    case RANKING_FOR_UI.DAILY_MALE_R18_NOVEL:
+    case RANKING_FOR_UI.DAILY_FEMALE_R18_NOVEL:
+    case RANKING_FOR_UI.WEEKLY_R18G_NOVEL:
     case RANKING_FOR_UI.PAST_NOVEL:
       return RANKING_TYPES.NOVEL;
     default:
