@@ -7,6 +7,27 @@ description: Use when building, testing, installing, or debugging the Android ap
 
 Use the repo scripts first. Do not hand-type the old command chain unless a script is missing or broken.
 
+## Toolchain Status (frozen — read before touching dependencies)
+
+- Pinned stack: React Native 0.63.5 / React 16.13.1, Node 14.21.3, JDK 11,
+  AGP 3.5.3, Gradle 6.2, compileSdk/targetSdk 29. All end-of-life; it builds
+  because of the workarounds listed under Known Pitfalls, not because it is
+  stable.
+- **Do not bump `react-native`, React, Gradle/AGP/JDK, Node, navigation,
+  Paper, Reanimated or any native library in a feature branch.** Most current
+  library versions require RN >= 0.7x and will not resolve against 0.63; a
+  partial bump only breaks the build.
+- `npm ci --legacy-peer-deps` and `jest` also work on Node 22 (verified
+  2026-09-29: 40 suites / 227 tests green). Only Metro bundling needs Node 14,
+  so keep using the `use-node14` scripts for bundle/APK tasks.
+- Store publishing is blocked on this stack (Google Play: targetSdk 36 since
+  2026-08-31; App Store: Xcode 26 / iOS 26 SDK since 2026-04-28). The planned
+  migration (target: current RN stable / Expo prebuild, New Architecture),
+  effort estimates and phase plan live in
+  `docs/2026-09-29-dependency-upgrade-assessment-zh.md`. When that migration
+  starts, it gets its own branch and this skill gets rewritten; until then the
+  procedures below are authoritative.
+
 ## Primary Entry Points
 
 From the repo root on Windows:
@@ -47,6 +68,18 @@ sh ./scripts/install-android-release.sh
 | `scripts/build-android-debug.sh` | builds debug APK on macOS / Linux / WSL |
 | `scripts/build-android-release.sh` | builds signed release APK on macOS / Linux / WSL |
 | `scripts/install-android-release.sh` | installs release APK on macOS / Linux / WSL |
+
+## CI Auto-Build (GitHub Actions)
+
+`.github/workflows/android-release.yml` mirrors the local flow in the cloud:
+
+- Trigger A: publishing a GitHub release -> APK is built and attached to that release
+- Trigger B: manual `workflow_dispatch` from the Actions tab -> APK uploaded as a workflow artifact
+- Environment: Node 14.21.3 + npm 9 (lockfile v3), JDK 11, `npx jetify`, repo debug keystore signing
+- A placeholder `google-services.json` is generated at build time (real one is gitignored)
+
+If the workflow needs changes, keep it in sync with the local scripts' ordering:
+jest -> Metro bundle -> placeholder google-services -> `clean` (own invocation) -> `assembleRelease -x bundleReleaseJsAndAssets`.
 
 ## Signing Rule
 
@@ -128,6 +161,53 @@ Cause:
 Fix:
 - the build scripts run `gradlew clean` in its own invocation before
   `assembleRelease`/`assembleDebug`; keep that split when editing them
+
+### `android.support.annotation does not exist` on a fresh checkout
+
+Symptom:
+- `:react-native-photo-view-ex:compileReleaseJavaWithJavac FAILED`
+- imports of `android.support.annotation.*` unresolved
+
+Cause:
+- pre-AndroidX sources in older RN libs; the local `node_modules` was
+  jetified at some point, so only fresh installs (CI) hit it
+
+Fix:
+- run `npx jetify` after `npm ci` (package.json also declares it as
+  `postinstall`)
+
+### NDK `stripReleaseDebugSymbols` fails on CI runners
+
+Symptom:
+- `No toolchains found in the NDK toolchains folder for ABI with prefix: arm-linux-androideabi`
+
+Cause:
+- GitHub runners ship NDK 29+ (and export `ANDROID_NDK_HOME`/`ANDROID_NDK_ROOT`);
+  its toolchain layout removed the legacy prefixes AGP 3.5.3 expects.
+  Local builds pass precisely because the local SDK has no NDK installed at
+  all — AGP then skips the strip task and `doNotStrip "**/*.so"` ships the
+  native libs as-is.
+
+Fix (CI only):
+- the workflow removes `${ANDROID_HOME}/ndk*` and clears the env vars
+  before assembling; keep both if the step is rewritten
+
+### AAPT `android:attr/colorError not found` on fresh npm install
+
+Symptom:
+- `:<lib>:verifyReleaseResources` fails; appcompat/core values-v26/v28
+  reference attrs missing from the link target
+
+Cause:
+- some published RN libraries hardcode low compileSdk versions (e.g.
+  `react-native-localization@1.0.12` pins `compileSdkVersion 25`) while the
+  local `node_modules` copy may have been hand-patched — so only fresh
+  installs (CI, new machines) hit it
+
+Fix:
+- `android/build.gradle` forces every Android module onto the root
+  compileSdk/buildTools via a `subprojects.afterEvaluate` override;
+  never rely on hand-edited `node_modules` surviving `npm ci`
 
 ## Verification Sequence
 
