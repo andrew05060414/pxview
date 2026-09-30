@@ -11,7 +11,7 @@ import {
 } from 'redux-saga/effects';
 import moment from 'moment';
 import { REHYDRATE } from 'redux-persist';
-import { FOREGROUND, BACKGROUND } from 'redux-enhancer-react-native-appstate';
+import { FOREGROUND, BACKGROUND } from '../store/appStateEnhancer';
 import {
   login,
   loginSuccess,
@@ -231,3 +231,4 @@ export function* watchRehydrate() {
     }
   }
 }
+
