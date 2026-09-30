@@ -1,8 +1,9 @@
 import React, { Component } from 'react';
-import { View, StyleSheet, ViewPropTypes, Image } from 'react-native';
+import { View, StyleSheet, Image } from 'react-native';
+import { ViewPropTypes, ImagePropTypes } from 'deprecated-react-native-prop-types';
 import { PropTypes } from 'prop-types';
 import { connect } from 'react-redux';
-import { DarkTheme } from 'react-native-paper';
+import { MD3DarkTheme as DarkTheme } from 'react-native-paper';
 import PXTouchable from './PXTouchable';
 import PXImage from './PXImage';
 import OverlayImagePages from './OverlayImagePages';
@@ -28,7 +29,7 @@ class IllustItem extends Component {
     onPressItem: PropTypes.func.isRequired,
     parentContainerMargin: PropTypes.number,
     containerStyle: ViewPropTypes.style,
-    imageStyle: Image.propTypes.style,
+    imageStyle: ImagePropTypes.style,
     isHighlight: PropTypes.bool,
     isMute: PropTypes.bool,
   };
@@ -80,7 +81,7 @@ class IllustItem extends Component {
           {
             marginRight: index % numColumns < numColumns - 1 ? 1 : 0,
             marginBottom: 1,
-            backgroundColor: DarkTheme.colors.surface,
+            backgroundColor: (DarkTheme && DarkTheme.colors && DarkTheme.colors.surface) || '#121212',
             width:
               (globalStyleVariables.getWindowWidth() - parentContainerMargin * 2) /
                 numColumns -

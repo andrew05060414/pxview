@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { Button, useTheme } from 'react-native-paper';
-import RNFetchBlob from 'rn-fetch-blob';
+import RNFetchBlob from 'react-native-blob-util';
 import Share from 'react-native-share';
 import { connectLocalization } from './Localization';
 import {

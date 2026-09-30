@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import Spinner from 'react-native-spinkit';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { withTheme } from 'react-native-paper';
 
 const styles = StyleSheet.create({
@@ -26,7 +25,7 @@ const Loader = ({ theme, absolutePosition, style, color }) => (
       style,
     ]}
   >
-    <Spinner type="ThreeBounce" color={color || theme.colors.text} />
+    <ActivityIndicator size="large" color={color || (theme && theme.colors && theme.colors.text) || '#fff'} />
   </View>
 );
 
