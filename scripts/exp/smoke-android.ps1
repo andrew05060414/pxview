@@ -2,7 +2,7 @@
 param(
     [string]$Apk,
     [string]$Package = "com.utopia.pxviewr.exp",
-    [string]$Device = "127.0.0.1:16449"
+    [string]$Device = "127.0.0.1:16384"
 )
 
 $ErrorActionPreference = "Stop"
