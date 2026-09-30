@@ -20,7 +20,7 @@ class BookmarkNovelButton extends Component {
     render: PropTypes.func,
   };
 
-  handleOnPress = () => {
+  handleBookmarkAction = () => {
     const {
       item,
       loading,
@@ -39,6 +39,20 @@ class BookmarkNovelButton extends Component {
         unbookmarkNovel(item.id);
       } else {
         bookmarkNovel(item.id, bookmarkType);
+      }
+    }
+  };
+
+  handleOnPress = () => {
+    const { loading, actionType } = this.props;
+    if (loading) return;
+    if (this.bookmarkButtonRef && this.bookmarkButtonRef.handleOnPress) {
+      this.bookmarkButtonRef.handleOnPress();
+    } else {
+      if (actionType === LIKE_BUTTON_ACTION_TYPES.EDIT_LIKE) {
+        this.handleOnLongPress();
+      } else {
+        this.handleBookmarkAction();
       }
     }
   };
@@ -62,14 +76,29 @@ class BookmarkNovelButton extends Component {
         actionType,
         onPress: this.handleOnPress,
         onLongPress: this.handleOnLongPress,
+        renderButton: () => (
+          <BookmarkButton
+            ref={(ref) => {
+              this.bookmarkButtonRef = ref;
+            }}
+            item={item}
+            size={size}
+            actionType={actionType}
+            onPress={this.handleBookmarkAction}
+            onLongPress={this.handleOnLongPress}
+          />
+        ),
       });
     }
     return (
       <BookmarkButton
+        ref={(ref) => {
+          this.bookmarkButtonRef = ref;
+        }}
         item={item}
         size={size}
         actionType={actionType}
-        onPress={this.handleOnPress}
+        onPress={this.handleBookmarkAction}
         onLongPress={this.handleOnLongPress}
       />
     );

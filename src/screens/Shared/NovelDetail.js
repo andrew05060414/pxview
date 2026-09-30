@@ -425,11 +425,6 @@ class NovelDetail extends Component {
     );
   }
 
-  renderBookmarkButtonIcon = () => {
-    const { item } = this.props;
-    return <BookmarkNovelButton item={item} />;
-  };
-
   render() {
     const { item, isMuteUser, i18n, navigation, route, theme } = this.props;
     const {
@@ -452,10 +447,10 @@ class NovelDetail extends Component {
           {isActionButtonVisible && item && (
             <BookmarkNovelButton
               item={item}
-              render={({ onPress, onLongPress }) => (
+              render={({ onPress, onLongPress, renderButton }) => (
                 <FAB
                   style={styles.fab}
-                  icon={this.renderBookmarkButtonIcon}
+                  icon={renderButton}
                   onPress={onPress}
                   onLongPress={onLongPress}
                 />
