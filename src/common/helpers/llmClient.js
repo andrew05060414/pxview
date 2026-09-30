@@ -1,4 +1,4 @@
-import RNFetchBlob from 'rn-fetch-blob';
+import RNFetchBlob from 'react-native-blob-util';
 
 const DEFAULT_TIMEOUT_MS = 60000;
 const DEFAULT_MAX_BATCH = 40;

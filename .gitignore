@@ -104,3 +104,6 @@ GoogleService-Info.plist
 smoke-out/
 _bundle/
 
+.cxx/
+android/app/.cxx/
+

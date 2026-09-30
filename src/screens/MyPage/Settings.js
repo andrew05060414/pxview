@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { connect } from 'react-redux';
 import { withTheme } from 'react-native-paper';
-import RNFetchBlob from 'rn-fetch-blob';
+import RNFetchBlob from 'react-native-blob-util';
 import { connectLocalization } from '../../components/Localization';
 import PXListItem from '../../components/PXListItem';
 import * as modalActionCreators from '../../common/actions/modal';
