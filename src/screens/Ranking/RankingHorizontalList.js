@@ -1,7 +1,6 @@
 import React, { Component } from 'react';
-import { View, InteractionManager, StyleSheet } from 'react-native';
+import { View, InteractionManager, StyleSheet, FlatList } from 'react-native';
 import { connect } from 'react-redux';
-import Carousel from 'react-native-snap-carousel';
 import { withTheme, Text } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import IllustItem from '../../components/IllustItem';
@@ -48,7 +47,10 @@ const styles = StyleSheet.create({
 
 class RankingHorizontalList extends Component {
   componentDidMount() {
-    const { rankingMode, options, fetchRanking, clearRanking } = this.props;
+    const { rankingMode, options, fetchRanking, clearRanking, items } = this.props;
+    if (items && items.length) {
+      return;
+    }
     InteractionManager.runAfterInteractions(() => {
       clearRanking(rankingMode);
       fetchRanking(rankingMode, options);
@@ -164,18 +166,14 @@ class RankingHorizontalList extends Component {
         </View>
         {loading && <Loader />}
         {loaded && (
-          <Carousel
-            ref={(ref) => {
-              this.carousel = ref;
-            }}
+          <FlatList
+            horizontal
             data={items}
             renderItem={this.renderItem}
-            sliderWidth={sliderWidth}
-            itemWidth={itemWidth}
-            activeSlideAlignment="start"
-            enableMomentum
+            keyExtractor={(item) => item.id.toString()}
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={itemWidth}
             decelerationRate={0.9}
-            enableSnap={false}
           />
         )}
       </View>
@@ -191,8 +189,8 @@ export default withTheme(
         return (state, props) => {
           const { ranking } = state;
           return {
-            ranking: ranking[props.rankingMode],
-            items: getRankingItems(state, props),
+            ranking: props.ranking || ranking[props.rankingMode],
+            items: props.items || getRankingItems(state, props),
           };
         };
       }, rankingActionCreators)(RankingHorizontalList),
