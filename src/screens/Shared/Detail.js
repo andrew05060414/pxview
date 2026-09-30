@@ -10,10 +10,9 @@ import {
   DeviceEventEmitter,
 } from 'react-native';
 import { connect } from 'react-redux';
-import { withTheme } from 'react-native-paper';
+import { withTheme, FAB } from 'react-native-paper';
 import analytics from '@react-native-firebase/analytics';
 import Share from 'react-native-share';
-import ActionButton from 'react-native-action-button';
 import { AndroidBackHandler } from 'react-navigation-backhandler';
 import enhanceSaveImage from '../../components/HOC/enhanceSaveImage';
 import withWindowWidth from '../../components/withWindowWidth';
@@ -62,6 +61,12 @@ const styles = StyleSheet.create({
   headerRightContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  fab: {
+    position: 'absolute',
+    right: 30,
+    bottom: 30,
+    backgroundColor: '#fff',
   },
 });
 
@@ -436,11 +441,6 @@ class Detail extends Component {
     );
   }
 
-  renderBookmarkButtonIcon = () => {
-    const { item } = this.props;
-    return <BookmarkIllustButton item={item} />;
-  };
-
   render() {
     const { item, isMuteUser, i18n, navigation, theme, route } = this.props;
     const {
@@ -460,11 +460,16 @@ class Detail extends Component {
         >
           {this.renderMainContent()}
           {isActionButtonVisible && item && (
-            <ActionButton
-              buttonColor="rgba(255,255,255,1)"
-              bgColor="red"
-              renderIcon={this.renderBookmarkButtonIcon}
-              fixNativeFeedbackRadius
+            <BookmarkIllustButton
+              item={item}
+              render={({ onPress, onLongPress, renderButton }) => (
+                <FAB
+                  style={styles.fab}
+                  icon={renderButton}
+                  onPress={onPress}
+                  onLongPress={onLongPress}
+                />
+              )}
             />
           )}
           <DetailInfoModal
