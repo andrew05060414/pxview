@@ -86,7 +86,6 @@
     "react-redux": "latest",
     "redux": "latest",
     "redux-define": "latest",
-    "redux-enhancer-react-native-appstate": "latest",
     "redux-immutable-state-invariant": "^2.1.0",
     "redux-persist": "latest",
     "redux-persist-filesystem-storage": "latest",
