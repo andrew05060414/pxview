@@ -43,7 +43,6 @@
     "qs": "latest",
     "react": "19.2.3",
     "react-native": "0.87.1",
-    "react-native-action-button": "github:alphasp/react-native-action-button",
     "react-native-animatable": "latest",
     "react-native-blob-util": "^0.25.1",
     "react-native-datepicker": "latest",

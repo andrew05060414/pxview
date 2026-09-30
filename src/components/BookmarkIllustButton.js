@@ -17,6 +17,7 @@ class BookmarkIllustButton extends Component {
     bookmarkIllust: PropTypes.func.isRequired,
     unbookmarkIllust: PropTypes.func.isRequired,
     openModal: PropTypes.func.isRequired,
+    render: PropTypes.func,
   };
 
   handleOnPress = () => {
@@ -53,7 +54,16 @@ class BookmarkIllustButton extends Component {
   };
 
   render() {
-    const { item, size, actionType } = this.props;
+    const { item, size, actionType, render } = this.props;
+    if (typeof render === 'function') {
+      return render({
+        item,
+        size,
+        actionType,
+        onPress: this.handleOnPress,
+        onLongPress: this.handleOnLongPress,
+      });
+    }
     return (
       <BookmarkButton
         item={item}
