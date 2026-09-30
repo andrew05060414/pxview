@@ -51,19 +51,21 @@ describe('PXPhotoView component', () => {
     expect(onViewTap).toHaveBeenCalledWith({ x: 150, y: 150 });
   });
 
-  it('updates isZoomed flag when scale changes', () => {
-    const view = new PXPhotoView({ uri: 'https://example.com/test.jpg' });
+  it('updates isZoomed flag on gesture end based on zoom ref state', () => {
+    const view = new PXPhotoView({ ...PXPhotoView.defaultProps, uri: 'https://example.com/test.jpg' });
     view.setState = jest.fn((newState) => {
       Object.assign(view.state, newState);
     });
 
     // When scale > 1.05, should be zoomed
-    view.handleUpdate({ scale: 1.5 });
+    view.zoomRef = { current: { getState: () => ({ scale: 1.5 }) } };
+    view.handleGestureEnd();
     expect(view.setState).toHaveBeenCalledWith({ isZoomed: true });
     expect(view.state.isZoomed).toBe(true);
 
     // When scale resets to 1.0, should reset isZoomed to false
-    view.handleUpdate({ scale: 1.0 });
+    view.zoomRef = { current: { getState: () => ({ scale: 1.0 }) } };
+    view.handleGestureEnd();
     expect(view.setState).toHaveBeenCalledWith({ isZoomed: false });
     expect(view.state.isZoomed).toBe(false);
   });

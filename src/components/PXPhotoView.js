@@ -1,4 +1,4 @@
-import React, { PureComponent } from 'react';
+import React, { PureComponent, createRef } from 'react';
 import { StyleSheet, Image } from 'react-native';
 import PropTypes from 'prop-types';
 import { ResumableZoom } from 'react-native-zoom-toolkit';
@@ -42,6 +42,7 @@ class PXPhotoView extends PureComponent {
     this.state = {
       isZoomed: false,
     };
+    this.zoomRef = createRef();
   }
 
   handleOnLoad = () => {
@@ -60,11 +61,19 @@ class PXPhotoView extends PureComponent {
     }
   };
 
-  handleUpdate = ({ scale }) => {
-    const isZoomed = scale > 1.05;
-    const { isZoomed: currentIsZoomed } = this.state;
-    if (isZoomed !== currentIsZoomed) {
-      this.setState({ isZoomed });
+  handleGestureEnd = () => {
+    if (
+      this.zoomRef &&
+      this.zoomRef.current &&
+      typeof this.zoomRef.current.getState === 'function'
+    ) {
+      const zoomState = this.zoomRef.current.getState();
+      if (zoomState && typeof zoomState.scale === 'number') {
+        const isZoomed = zoomState.scale > 1.05;
+        if (isZoomed !== this.state.isZoomed) {
+          this.setState({ isZoomed });
+        }
+      }
     }
   };
 
@@ -83,12 +92,15 @@ class PXPhotoView extends PureComponent {
 
     return (
       <ResumableZoom
+        ref={this.zoomRef}
         minScale={minScale}
         maxScale={maxScale}
         panEnabled={isZoomed}
         style={[styles.container, style]}
         onTap={this.handleTap}
-        onUpdate={this.handleUpdate}
+        onGestureEnd={this.handleGestureEnd}
+        onPinchEnd={this.handleGestureEnd}
+        onDoubleTapEnd={this.handleGestureEnd}
         decay
       >
         <Image

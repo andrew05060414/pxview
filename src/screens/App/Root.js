@@ -1,5 +1,6 @@
 /* eslint react/prefer-stateless-function:0 */
 import 'react-native-gesture-handler'; // https://github.com/kmagiera/react-native-gesture-handler/issues/320
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { Component } from 'react';
 import { AppRegistry } from 'react-native';
 import { enableScreens } from 'react-native-screens';
@@ -54,11 +55,13 @@ class Root extends Component {
     return (
       <Provider store={store}>
         <LocalizationProvider i18n={i18n}>
-          <SafeAreaProvider>
-            <PersistGate loading={<Loader />} persistor={persistor}>
-              <App />
-            </PersistGate>
-          </SafeAreaProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <SafeAreaProvider>
+              <PersistGate loading={<Loader />} persistor={persistor}>
+                <App />
+              </PersistGate>
+            </SafeAreaProvider>
+          </GestureHandlerRootView>
         </LocalizationProvider>
       </Provider>
     );
