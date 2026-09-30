@@ -100,3 +100,7 @@ GoogleService-Info.plist
 /.agents/skills/firestore-rules-creation/
 /.claude/skills/
 /skills-lock.json
+
+smoke-out/
+_bundle/
+

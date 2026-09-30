@@ -1,9 +1,10 @@
+// PX-546 spike: disable autolinking for dead native libs that PR #22 plans to replace
+const off = { platforms: { android: null, ios: null } };
 module.exports = {
   dependencies: {
-    '@react-native-firebase/perf': {
-      platforms: {
-        android: null,
-      },
-    },
+    'rn-fetch-blob': off,
+    'react-native-photo-view-ex': off,
+    'react-native-spinkit': off,
+    'react-native-splash-screen': off,
   },
 };

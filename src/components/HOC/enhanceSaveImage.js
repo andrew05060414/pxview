@@ -9,7 +9,7 @@ import {
   Linking,
 } from 'react-native';
 import { connect } from 'react-redux';
-import CameraRoll from '@react-native-community/cameraroll';
+import { CameraRoll } from '@react-native-camera-roll/camera-roll';
 import RNFetchBlob from 'rn-fetch-blob';
 import hoistNonReactStatic from 'hoist-non-react-statics';
 import Promise from 'bluebird';
