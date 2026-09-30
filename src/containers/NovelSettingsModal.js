@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { connect } from 'react-redux';
 import { withTheme, Text } from 'react-native-paper';
-import Slider from 'react-native-slider';
+import Slider from '../components/Slider';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { connectLocalization } from '../components/Localization';
 import * as modalActionCreators from '../common/actions/modal';
@@ -216,3 +216,4 @@ export default withTheme(
     )(NovelSettingsModal),
   ),
 );
+
