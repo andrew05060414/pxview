@@ -34,11 +34,14 @@ describe('withWindowWidth', () => {
     });
     expect(tree.root.findByType(Probe).props.windowWidth).toBe(800);
 
-    tree.unmount();
+    act(() => {
+      tree.unmount();
+    });
     expect(removeSpy).toHaveBeenCalledTimes(1);
   });
 
   test('unmounts cleanly when Dimensions.addEventListener returns undefined (RN 0.63 legacy API)', () => {
+    Dimensions.removeEventListener = Dimensions.removeEventListener || jest.fn();
     const removeEventListenerSpy = jest
       .spyOn(Dimensions, 'removeEventListener')
       .mockImplementation(() => {});
@@ -57,7 +60,9 @@ describe('withWindowWidth', () => {
 
     // Unmounting should NOT throw TypeError: Cannot read property 'remove' of undefined
     expect(() => {
-      tree.unmount();
+      act(() => {
+        tree.unmount();
+      });
     }).not.toThrow();
 
     expect(removeEventListenerSpy).toHaveBeenCalledWith(

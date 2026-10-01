@@ -111,7 +111,7 @@ class NovelDetail extends Component {
       }
       if (isFromDeepLink) {
         fetchNovelDetail(novelId);
-        analytics().logEvent(`Screen_${SCREENS.NovelDetail}`, {
+        analytics?.()?.logEvent?.(`Screen_${SCREENS.NovelDetail}`, {
           id: novelId.toString(),
           fromDeepLink: true,
         });
@@ -120,7 +120,7 @@ class NovelDetail extends Component {
           'masterListUpdate',
           this.handleOnMasterListUpdate,
         );
-        analytics().logEvent(`Screen_${SCREENS.NovelDetail}`, {
+        analytics?.()?.logEvent?.(`Screen_${SCREENS.NovelDetail}`, {
           id: item.id.toString(),
         });
         addBrowsingHistoryNovels(item.id);
@@ -199,7 +199,7 @@ class NovelDetail extends Component {
       });
       InteractionManager.runAfterInteractions(() => {
         addBrowsingHistoryNovels(items[index].id);
-        analytics().logEvent(`Screen_${SCREENS.NovelDetail}`, {
+        analytics?.()?.logEvent?.(`Screen_${SCREENS.NovelDetail}`, {
           id: items[index].id.toString(),
           fromSwipe: true,
         });

@@ -1,5 +1,5 @@
 import React from 'react';
-import renderer from 'react-test-renderer';
+import renderer, { act } from 'react-test-renderer';
 
 jest.mock('react-native-gesture-handler', () => ({}));
 
@@ -10,6 +10,7 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 jest.mock('@react-navigation/stack', () => {
+  const React = require('react');
   const Screen = ({ name, children }) =>
     React.createElement('Screen', { name }, children);
   const Navigator = ({ children }) =>
@@ -40,7 +41,10 @@ const RankingNavigator = require('../../src/navigations/RankingNavigator')
 
 describe('RankingNavigator', () => {
   test('exposes preview, illustration, and novel ranking routes', () => {
-    const instance = renderer.create(<RankingNavigator />);
+    let instance;
+    act(() => {
+      instance = renderer.create(<RankingNavigator />);
+    });
     const screenNames = instance.root
       .findAllByType('Screen')
       .map((screen) => screen.props.name);

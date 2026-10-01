@@ -5,7 +5,14 @@ import {
   StatusBar,
   Platform,
   Dimensions,
+  Linking,
 } from 'react-native';
+import {
+  isExpBuild,
+  parseTestTarget,
+  setupExpMockEnvironment,
+  navigateToTestScreen,
+} from '../../common/helpers/expTestHarness';
 import { useSelector } from 'react-redux';
 import {
   NavigationContainer,
@@ -50,7 +57,7 @@ const getActiveRouteName = (state) => {
   return route ? route.name : '';
 };
 
-const App = () => {
+const App = ({ testTarget }) => {
   const [, forceUpdate] = useState(0);
   const rehydrated = useSelector((state) => state.auth.rehydrated);
   const user = useSelector((state) => state.auth.user);
@@ -71,6 +78,7 @@ const App = () => {
         'http://www.pixiv.net/en',
         'https://touch.pixiv.net',
         'pixiv://',
+        ...(isExpBuild() ? ['pxview-exp://'] : []),
       ],
       config: {
         screens: {
@@ -134,16 +142,45 @@ const App = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isExpBuild()) return;
+
+    const handleUrl = (url) => {
+      const target = parseTestTarget(null, url);
+      if (target && navigationRef.current) {
+        setupExpMockEnvironment(null, target);
+        navigateToTestScreen(navigationRef.current, target);
+      }
+    };
+
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl(url);
+    });
+
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      if (url) handleUrl(url);
+    });
+
+    return () => {
+      if (sub && typeof sub.remove === 'function') {
+        sub.remove();
+      }
+    };
+  }, [testTarget]);
   const handleOnNavigationStateChange = (state) => {
-    const previousRouteName = routeNameRef.current;
-    const currentRouteName = getActiveRouteName(state);
-    if (previousRouteName !== currentRouteName) {
-      analytics().logScreenView({
-        screen_name: currentRouteName,
-        screen_class: currentRouteName,
-      });
-    }
-    routeNameRef.current = currentRouteName;
+    try {
+      const previousRouteName = routeNameRef.current;
+      const currentRouteName = getActiveRouteName(state);
+      if (previousRouteName !== currentRouteName) {
+        if (typeof analytics === 'function') {
+          analytics?.()?.logScreenView?.({
+            screen_name: currentRouteName,
+            screen_class: currentRouteName,
+          });
+        }
+      }
+      routeNameRef.current = currentRouteName;
+    } catch (e) {}
   };
 
   const handleOnReady = () => {
@@ -151,6 +188,10 @@ const App = () => {
       const state = navigationRef.current.getRootState();
       if (state) {
         routeNameRef.current = getActiveRouteName(state);
+      }
+      if (isExpBuild() && testTarget) {
+        setupExpMockEnvironment(null, testTarget);
+        navigateToTestScreen(navigationRef.current, testTarget);
       }
     }
   };
@@ -194,9 +235,9 @@ const App = () => {
       ...extraColorsConfig,
     },
   };
-  if (!rehydrated) {
+  if (!rehydrated && !(isExpBuild() && testTarget)) {
     renderComponent = <Loader />;
-  } else if (user) {
+  } else if (user || (isExpBuild() && testTarget)) {
     renderComponent = <AppNavigator initialRouteName={initialRouteName} />;
   } else {
     renderComponent = <AuthNavigator />;
@@ -204,7 +245,7 @@ const App = () => {
 
   return (
     <PaperProvider theme={theme}>
-      {!rehydrated ? (
+      {!rehydrated && !(isExpBuild() && testTarget) ? (
         <Loader />
       ) : (
         <NavigationContainer

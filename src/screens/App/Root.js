@@ -11,7 +11,11 @@ import { LocalizationProvider } from '../../components/Localization';
 import Loader from '../../components/Loader';
 import i18n from '../../common/helpers/i18n';
 import configureStore from '../../common/store/configureStore';
-// GLOBAL.XMLHttpRequest = GLOBAL.originalXMLHttpRequest || GLOBAL.XMLHttpRequest;
+import {
+  isExpBuild,
+  parseTestTarget,
+  setupExpMockEnvironment,
+} from '../../common/helpers/expTestHarness';
 
 const { store, persistor } = configureStore();
 
@@ -47,16 +51,25 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// console.disableYellowBox = true;
-
 class Root extends Component {
+  constructor(props) {
+    super(props);
+    if (isExpBuild()) {
+      const testTarget = parseTestTarget(props);
+      if (testTarget) {
+        setupExpMockEnvironment(store, testTarget);
+      }
+    }
+  }
+
   render() {
+    const testTarget = isExpBuild() ? parseTestTarget(this.props) : null;
     return (
       <Provider store={store}>
         <LocalizationProvider i18n={i18n}>
           <SafeAreaProvider>
             <PersistGate loading={<Loader />} persistor={persistor}>
-              <App />
+              <App testTarget={testTarget} />
             </PersistGate>
           </SafeAreaProvider>
         </LocalizationProvider>

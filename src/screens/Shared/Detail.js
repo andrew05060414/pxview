@@ -102,7 +102,7 @@ class Detail extends Component {
       }
       if (isFromDeepLink) {
         fetchIllustDetail(illustId);
-        analytics().logEvent(`Screen_${SCREENS.Detail}`, {
+        analytics?.()?.logEvent?.(`Screen_${SCREENS.Detail}`, {
           id: illustId.toString(),
           fromDeepLink: true,
         });
@@ -111,9 +111,9 @@ class Detail extends Component {
           'masterListUpdate',
           this.handleOnMasterListUpdate,
         );
-        addBrowsingHistoryIllusts(item.id);
-        analytics().logEvent(`Screen_${SCREENS.Detail}`, {
-          id: item.id.toString(),
+        if (item && item.id) { addBrowsingHistoryIllusts(item.id); }
+        analytics?.()?.logEvent?.(`Screen_${SCREENS.Detail}`, {
+          id: item ? item.id.toString() : '',
         });
       }
     });
@@ -199,7 +199,7 @@ class Detail extends Component {
         index,
       });
       InteractionManager.runAfterInteractions(() => {
-        analytics().logEvent(`Screen_${SCREENS.Detail}`, {
+        analytics?.()?.logEvent?.(`Screen_${SCREENS.Detail}`, {
           id: items[index].id.toString(),
           fromSwipe: true,
         });
