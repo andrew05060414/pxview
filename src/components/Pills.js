@@ -1,7 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, StyleSheet, Platform, TouchableOpacity, Text } from 'react-native';
 import { withTheme } from 'react-native-paper';
-import { globalStyleVariables } from '../styles';
 
 const styles = StyleSheet.create({
   container: {
@@ -73,7 +72,7 @@ const Pills = (props) => {
                 {
                   backgroundColor: isSelected
                     ? theme.colors.headerBackground
-                    : globalStyleVariables.BACKGROUND_COLOR,
+                    : 'transparent',
                 },
               ]}
             >
