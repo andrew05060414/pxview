@@ -7,6 +7,27 @@ description: Use when building, testing, installing, or debugging the Android ap
 
 Use the repo scripts first. Do not hand-type the old command chain unless a script is missing or broken.
 
+## Toolchain Status (frozen — read before touching dependencies)
+
+- Pinned stack: React Native 0.63.5 / React 16.13.1, Node 14.21.3, JDK 11,
+  AGP 3.5.3, Gradle 6.2, compileSdk/targetSdk 29. All end-of-life; it builds
+  because of the workarounds listed under Known Pitfalls, not because it is
+  stable.
+- **Do not bump `react-native`, React, Gradle/AGP/JDK, Node, navigation,
+  Paper, Reanimated or any native library in a feature branch.** Most current
+  library versions require RN >= 0.7x and will not resolve against 0.63; a
+  partial bump only breaks the build.
+- `npm ci --legacy-peer-deps` and `jest` also work on Node 22 (verified
+  2026-09-29: 40 suites / 227 tests green). Only Metro bundling needs Node 14,
+  so keep using the `use-node14` scripts for bundle/APK tasks.
+- Store publishing is blocked on this stack (Google Play: targetSdk 36 since
+  2026-08-31; App Store: Xcode 26 / iOS 26 SDK since 2026-04-28). The planned
+  migration (target: current RN stable / Expo prebuild, New Architecture),
+  effort estimates and phase plan live in
+  `docs/2026-09-29-dependency-upgrade-assessment-zh.md`. When that migration
+  starts, it gets its own branch and this skill gets rewritten; until then the
+  procedures below are authoritative.
+
 ## Primary Entry Points
 
 From the repo root on Windows:
