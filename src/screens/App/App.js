@@ -26,7 +26,7 @@ import {
   MD3DarkTheme as PaperDarkTheme,
   Provider as PaperProvider,
 } from 'react-native-paper';
-import SplashScreen from 'react-native-splash-screen';
+import BootSplash from 'react-native-bootsplash';
 import FlashMessage from 'react-native-flash-message';
 import AppNavigator from '../../navigations/AppNavigator';
 import AuthNavigator from '../../navigations/AuthNavigator';
@@ -122,9 +122,7 @@ const App = ({ testTarget }) => {
 
   useEffect(() => {
     if (!prevRehydrated && rehydrated) {
-      if (SplashScreen && typeof SplashScreen.hide === 'function') {
-        SplashScreen.hide();
-      }
+      BootSplash.hide({ fade: true }).catch(() => {});
     }
   }, [prevRehydrated, rehydrated]);
 
