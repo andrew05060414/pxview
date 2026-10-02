@@ -149,7 +149,7 @@ class UserDetail extends Component {
   componentDidMount() {
     const { userId, userDetail, route } = this.props;
     InteractionManager.runAfterInteractions(() => {
-      analytics().logEvent(`Screen_${SCREENS.UserDetail}`, {
+      analytics?.()?.logEvent?.(`Screen_${SCREENS.UserDetail}`, {
         id: userId.toString(),
         fromDeepLink: !!route?.params?.id || !!route?.params?.uid,
       });

@@ -8,7 +8,8 @@
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "test:gate": "node scripts/jest-gate.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "latest",

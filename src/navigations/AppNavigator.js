@@ -75,7 +75,7 @@ const AppNavigator = ({ initialRouteName }) => {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.headerBackground }}>
       <Stack.Navigator
-        initialRouteName={initialRouteName}
+        initialRouteName={SCREENS.Main}
         screenOptions={{
           headerTintColor: globalStyleVariables.HEADER_TINT_COLOR,
           headerBackTitle: null,
@@ -95,7 +95,7 @@ const AppNavigator = ({ initialRouteName }) => {
             headerShown: false,
           }}
         >
-          {({ props }) => (
+          {(props) => (
             // eslint-disable-next-line react/jsx-props-no-spreading
             <AppTabNavigator {...props} initialRouteName={initialRouteName} />
           )}

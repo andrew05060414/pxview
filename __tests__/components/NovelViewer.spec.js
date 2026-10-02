@@ -2,12 +2,12 @@ import React from 'react';
 import renderer, { act } from 'react-test-renderer';
 import { Linking } from 'react-native';
 
-const illustDetail = jest.fn();
+const mockIllustDetail = jest.fn();
 
 jest.mock('../../src/common/helpers/apiClient', () => ({
   __esModule: true,
   default: {
-    illustDetail: (...args) => illustDetail(...args),
+    illustDetail: (...args) => mockIllustDetail(...args),
   },
 }));
 
@@ -160,8 +160,8 @@ const hasTextWithViewDescendant = (node) => {
 
 describe('NovelViewer inline images', () => {
   beforeEach(() => {
-    illustDetail.mockReset();
-    illustDetail.mockResolvedValue({ illust: {} });
+    mockIllustDetail.mockReset();
+    mockIllustDetail.mockResolvedValue({ illust: {} });
   });
 
   afterEach(() => {
@@ -169,7 +169,7 @@ describe('NovelViewer inline images', () => {
   });
 
   it('renders the real inline image component for px-image nodes in the page flow', async () => {
-    illustDetail.mockResolvedValueOnce({
+    mockIllustDetail.mockResolvedValueOnce({
       illust: {
         width: 120,
         height: 60,
@@ -365,7 +365,7 @@ describe('NovelViewer inline images', () => {
   });
 
   it('renders inline image fallbacks from the real inline image component when loading fails', async () => {
-    illustDetail.mockResolvedValueOnce({ illust: {} });
+    mockIllustDetail.mockResolvedValueOnce({ illust: {} });
 
     let instance;
     await act(async () => {
@@ -429,12 +429,13 @@ describe('NovelViewer inline images', () => {
     );
 
     expect(inlineImage.props.uri).toBe('https://example.com/uploaded-inline.jpg');
-    expect(illustDetail).not.toHaveBeenCalled();
+    expect(mockIllustDetail).not.toHaveBeenCalled();
   });
 
   it('renders chapter text after the custom chapter renderer rewrite', () => {
-    const tree = renderer
-      .create(
+    let tree;
+    act(() => {
+      tree = renderer.create(
         <NovelViewer
           novelId={1}
           items={['<chapter>Chapter title</chapter>body']}
@@ -445,17 +446,19 @@ describe('NovelViewer inline images', () => {
           onPressPageLink={() => {}}
           openModal={() => {}}
         />,
-      )
-      .toJSON();
+      );
+    });
 
-    const json = JSON.stringify(tree);
+    const json = JSON.stringify(tree.toJSON());
     expect(json).toContain('Chapter title');
     expect(json).not.toContain('<chapter>');
   });
 
   it('keeps jump-link behavior after the custom chapter renderer rewrite', () => {
     const onPressPageLink = jest.fn();
-    const instance = renderer.create(
+    let instance;
+    act(() => {
+      instance = renderer.create(
       <NovelViewer
         novelId={1}
         items={["<jump page='2'>2ページへ</jump>"]}
@@ -467,6 +470,7 @@ describe('NovelViewer inline images', () => {
         openModal={() => {}}
       />,
     );
+    });
 
     const jumpNode = instance.root.find(
       (node) => typeof node.props.onPress === 'function',
@@ -483,7 +487,9 @@ describe('NovelViewer inline images', () => {
     const openURL = jest
       .spyOn(Linking, 'openURL')
       .mockResolvedValue(undefined);
-    const instance = renderer.create(
+    let instance;
+    act(() => {
+      instance = renderer.create(
       <NovelViewer
         novelId={1}
         items={["<a href='https://example.com'>Example link</a>"]}
@@ -495,6 +501,7 @@ describe('NovelViewer inline images', () => {
         openModal={() => {}}
       />,
     );
+    });
 
     const linkText = findTextNode(instance.root, 'Example link');
     const linkPressTarget = findPressTarget(linkText);
@@ -515,7 +522,9 @@ describe('NovelViewer inline images', () => {
 
   it('preserves inherited text props for plain jump text', () => {
     const onPressPageLink = jest.fn();
-    const instance = renderer.create(
+    let instance;
+    act(() => {
+      instance = renderer.create(
       <NovelViewer
         novelId={1}
         items={["<jump page='2'>Next page</jump>"]}
@@ -527,6 +536,7 @@ describe('NovelViewer inline images', () => {
         openModal={() => {}}
       />,
     );
+    });
 
     const jumpText = findTextNode(instance.root, 'Next page');
     const jumpPressTarget = findPressTarget(jumpText);
@@ -549,7 +559,9 @@ describe('NovelViewer inline images', () => {
     const openURL = jest
       .spyOn(Linking, 'openURL')
       .mockResolvedValue(undefined);
-    const instance = renderer.create(
+    let instance;
+    act(() => {
+      instance = renderer.create(
       <NovelViewer
         novelId={1}
         items={["<a href='https://example.com'><b>Bold link</b></a>"]}
@@ -561,6 +573,7 @@ describe('NovelViewer inline images', () => {
         openModal={() => {}}
       />,
     );
+    });
 
     const linkText = findTextNode(instance.root, 'Bold link');
     const linkPressTarget = findPressTarget(linkText);
@@ -576,7 +589,9 @@ describe('NovelViewer inline images', () => {
 
   it('preserves jump press behavior for nested markup inside jump content', () => {
     const onPressPageLink = jest.fn();
-    const instance = renderer.create(
+    let instance;
+    act(() => {
+      instance = renderer.create(
       <NovelViewer
         novelId={1}
         items={["<jump page='2'><b>Next page</b></jump>"]}
@@ -588,6 +603,7 @@ describe('NovelViewer inline images', () => {
         openModal={() => {}}
       />,
     );
+    });
 
     const jumpText = findTextNode(instance.root, 'Next page');
     const jumpPressTarget = findPressTarget(jumpText);
@@ -602,7 +618,9 @@ describe('NovelViewer inline images', () => {
   });
 
   it('preserves chapter styling for nested markup inside chapter content', () => {
-    const instance = renderer.create(
+    let instance;
+    act(() => {
+      instance = renderer.create(
       <NovelViewer
         novelId={1}
         items={['<chapter><b>Chapter title</b></chapter>']}
@@ -614,6 +632,7 @@ describe('NovelViewer inline images', () => {
         openModal={() => {}}
       />,
     );
+    });
 
     const chapterText = findTextNode(instance.root, 'Chapter title');
     const chapterTextPropsTarget = findNodeWithTextProps(chapterText, {
@@ -625,7 +644,9 @@ describe('NovelViewer inline images', () => {
   });
 
   it('decodes html entities in custom chapter text rendering', () => {
-    const instance = renderer.create(
+    let instance;
+    act(() => {
+      instance = renderer.create(
       <NovelViewer
         novelId={1}
         items={['<chapter>Fish &amp; Chips</chapter>']}
@@ -637,12 +658,15 @@ describe('NovelViewer inline images', () => {
         openModal={() => {}}
       />,
     );
+    });
 
     expect(findTextNode(instance.root, 'Fish & Chips')).toBeDefined();
   });
 
   it('decodes html entities in custom jump text rendering', () => {
-    const instance = renderer.create(
+    let instance;
+    act(() => {
+      instance = renderer.create(
       <NovelViewer
         novelId={1}
         items={["<jump page='2'>Tom &amp; Jerry</jump>"]}
@@ -654,6 +678,7 @@ describe('NovelViewer inline images', () => {
         openModal={() => {}}
       />,
     );
+    });
 
     expect(findTextNode(instance.root, 'Tom & Jerry')).toBeDefined();
   });
@@ -662,7 +687,9 @@ describe('NovelViewer inline images', () => {
     const openURL = jest
       .spyOn(Linking, 'openURL')
       .mockResolvedValue(undefined);
-    const instance = renderer.create(
+    let instance;
+    act(() => {
+      instance = renderer.create(
       <NovelViewer
         novelId={1}
         items={[
@@ -676,6 +703,7 @@ describe('NovelViewer inline images', () => {
         openModal={() => {}}
       />,
     );
+    });
 
     const linkText = findTextNode(instance.root, 'A & B');
     const linkPressTarget = findPressTarget(linkText);
@@ -692,7 +720,7 @@ describe('NovelViewer inline images', () => {
   });
 
   it('keeps anchor text and inline images in the same text flow container', async () => {
-    illustDetail.mockResolvedValueOnce({
+    mockIllustDetail.mockResolvedValueOnce({
       illust: {
         width: 100,
         height: 100,
@@ -744,7 +772,7 @@ describe('NovelViewer inline images', () => {
   });
 
   it('preserves anchor presses when the tap starts from the inline image node itself', async () => {
-    illustDetail.mockResolvedValueOnce({
+    mockIllustDetail.mockResolvedValueOnce({
       illust: {
         width: 100,
         height: 100,
@@ -791,7 +819,7 @@ describe('NovelViewer inline images', () => {
   });
 
   it('preserves jump presses when the tap starts from the inline image fallback itself', async () => {
-    illustDetail.mockResolvedValueOnce({ illust: {} });
+    mockIllustDetail.mockResolvedValueOnce({ illust: {} });
     const onPressPageLink = jest.fn();
     let instance;
 
