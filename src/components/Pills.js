@@ -1,7 +1,6 @@
-import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+﻿import React from 'react';
+import { View, StyleSheet, Platform, TouchableOpacity, Text } from 'react-native';
 import { withTheme } from 'react-native-paper';
-import { Button } from 'react-native-elements';
 import { globalStyleVariables } from '../styles';
 
 const styles = StyleSheet.create({
@@ -32,6 +31,13 @@ const styles = StyleSheet.create({
   pillButton: {
     padding: 10,
     paddingHorizontal: 10,
+    marginHorizontal: 15,
+  },
+  pillButtonSelected: {
+    borderRadius: 20,
+  },
+  pillText: {
+    fontSize: 14,
   },
 });
 
@@ -55,23 +61,35 @@ const Pills = (props) => {
       ]}
     >
       <View style={styles.subContainer}>
-        {items.map((item, index) => (
-          <Button
-            key={item.title}
-            title={item.title}
-            buttonStyle={styles.pillButton}
-            fontSize={14}
-            rounded={index === selectedIndex}
-            onPress={() => onPressItem(index)}
-            backgroundColor={
-              index === selectedIndex
-                ? theme.colors.headerBackground
-                : globalStyleVariables.BACKGROUND_COLOR
-            }
-            color={index !== selectedIndex ? 'gray' : '#fff'}
-            transparent={index !== selectedIndex}
-          />
-        ))}
+        {items.map((item, index) => {
+          const isSelected = index === selectedIndex;
+          return (
+            <TouchableOpacity
+              key={item.title}
+              onPress={() => onPressItem(index)}
+              style={[
+                styles.pillButton,
+                isSelected && styles.pillButtonSelected,
+                {
+                  backgroundColor: isSelected
+                    ? theme.colors.headerBackground
+                    : globalStyleVariables.BACKGROUND_COLOR,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.pillText,
+                  {
+                    color: isSelected ? '#fff' : 'gray',
+                  },
+                ]}
+              >
+                {item.title}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
       {renderRightButton && renderRightButton()}
     </View>
