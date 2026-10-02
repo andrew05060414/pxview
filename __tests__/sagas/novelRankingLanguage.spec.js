@@ -1,4 +1,4 @@
-import { all, apply, call, put } from 'redux-saga/effects';
+import { all, apply, call, delay, put } from 'redux-saga/effects';
 import pixiv from '../../src/common/helpers/apiClient';
 import {
   RANKING_FOR_UI,
@@ -19,35 +19,41 @@ const novel = (id, extra = {}) => ({
 });
 
 describe('novel ranking language filtering', () => {
-  test('strips local language state from the upstream request and filters by body', () => {
-    const action = {
-      payload: {
-        rankingMode: RANKING_FOR_UI.DAILY_MALE_NOVEL,
-        options: { language: NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE },
-      },
-    };
-    const generator = handleFetchRanking(action);
-    const novels = [novel(1), novel(2)];
+  test.each([
+    [RANKING_FOR_UI.DAILY_MALE_NOVEL, 'day_male'],
+    [RANKING_FOR_UI.DAILY_FEMALE_NOVEL, 'day_female'],
+  ])(
+    'filters %s without sending language state upstream',
+    (rankingMode, apiMode) => {
+      const action = {
+        payload: {
+          rankingMode,
+          options: { language: NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE },
+        },
+      };
+      const generator = handleFetchRanking(action);
+      const novels = [novel(1), novel(2)];
 
-    expect(generator.next().value).toEqual(
-      apply(pixiv, pixiv.novelRanking, [{ mode: 'day_male' }]),
-    );
-    expect(generator.next({ novels }).value).toEqual(
-      call(filterSimplifiedChineseNovels, novels),
-    );
-    expect(generator.next([novels[0]]).value).toEqual(
-      put(
-        expect.objectContaining({
-          type: 'PIXIV/RANKING_SUCCESS',
-          payload: expect.objectContaining({
-            items: [1],
-            rankingMode: RANKING_FOR_UI.DAILY_MALE_NOVEL,
-            nextUrl: undefined,
+      expect(generator.next().value).toEqual(
+        apply(pixiv, pixiv.novelRanking, [{ mode: apiMode }]),
+      );
+      expect(generator.next({ novels }).value).toEqual(
+        call(filterSimplifiedChineseNovels, novels),
+      );
+      expect(generator.next([novels[0]]).value).toEqual(
+        put(
+          expect.objectContaining({
+            type: 'PIXIV/RANKING_SUCCESS',
+            payload: expect.objectContaining({
+              items: [1],
+              rankingMode,
+              nextUrl: undefined,
+            }),
           }),
-        }),
-      ),
-    );
-  });
+        ),
+      );
+    },
+  );
 
   test('keeps all languages without requesting novel bodies', () => {
     const action = {
@@ -89,6 +95,26 @@ describe('novel ranking language filtering', () => {
     ).toEqual([novels[0]]);
   });
 
+  test('looks up pages in batches of four with a pause between batches', () => {
+    const novels = [1, 2, 3, 4, 5].map((id) => novel(id));
+    const generator = filterSimplifiedChineseNovels(novels);
+
+    expect(generator.next().value).toEqual(
+      all(
+        novels.slice(0, 4).map((item) => call(getNovelRankingLanguage, item)),
+      ),
+    );
+    expect(
+      generator.next(Array(4).fill(NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE))
+        .value,
+    ).toEqual(delay(700));
+    expect(generator.next().value).toEqual(
+      all([call(getNovelRankingLanguage, novels[4])]),
+    );
+    expect(
+      generator.next([NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE]).value,
+    ).toEqual(novels);
+  });
   test('falls back to the existing novel webview body when metadata is absent', () => {
     const generator = getNovelRankingLanguage(novel(7));
     expect(generator.next().value).toEqual(
