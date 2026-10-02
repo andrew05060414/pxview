@@ -48,7 +48,6 @@
     "react-native-blob-util": "^0.25.1",
     "react-native-bootsplash": "^7.3.4",
     "react-native-device-info": "latest",
-    "react-native-elements": "latest",
     "react-native-flash-message": "latest",
     "react-native-gesture-handler": "latest",
     "react-native-htmlview": "latest",
