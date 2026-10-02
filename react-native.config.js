@@ -3,6 +3,5 @@ const off = { platforms: { android: null, ios: null } };
 module.exports = {
   dependencies: {
     'react-native-photo-view-ex': off,
-    'react-native-splash-screen': off,
   },
 };
