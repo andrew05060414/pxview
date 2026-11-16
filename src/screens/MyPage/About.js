@@ -1,8 +1,8 @@
-import React, { Component } from 'react';
+﻿import React, { Component } from 'react';
 import { View, StyleSheet, Image, Platform, Linking } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import { withTheme, Text } from 'react-native-paper';
-import { Icon } from 'react-native-elements';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { connectLocalization } from '../../components/Localization';
 import PXListItem from '../../components/PXListItem';
 import { globalStyles } from '../../styles';
@@ -117,11 +117,10 @@ class About extends Component {
                 Platform.OS === 'ios' ? 'App Store' : 'Google Play',
               )}
               left={({ color }) => (
-                <Icon
+                <FontAwesome
                   name={item.icon}
-                  type={item.type}
                   color={color}
-                  size={item.size}
+                  size={item.size || 24}
                 />
               )}
               onPress={() => this.handleOnPressListItem(item)}

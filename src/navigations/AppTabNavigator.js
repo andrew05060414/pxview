@@ -1,6 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 import { createMaterialBottomTabNavigator } from '@react-navigation/material-bottom-tabs';
-import { Icon } from 'react-native-elements';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from 'react-native-paper';
 import Recommended from '../screens/Recommended/Recommended';
 import RankingPreview from '../screens/Ranking/RankingPreview';
@@ -12,9 +13,10 @@ import { useLocalization } from '../components/Localization';
 
 const Tab = createMaterialBottomTabNavigator();
 
-const TabBarIcon = ({ color, name, iconType }) => (
-  <Icon name={name} type={iconType || 'font-awesome'} size={24} color={color} />
-);
+const TabBarIcon = ({ color, name, iconType }) => {
+  const IconComponent = iconType === 'material' ? MaterialIcons : FontAwesome;
+  return <IconComponent name={name} size={24} color={color} />;
+};
 
 const AppTabNavigator = ({ initialRouteName }) => {
   const { i18n } = useLocalization();
