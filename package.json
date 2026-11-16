@@ -61,7 +61,6 @@
     "react-native-offline": "latest",
     "react-native-pager-view": "latest",
     "react-native-paper": "latest",
-    "react-native-photo-view-ex": "latest",
     "react-native-pkce-challenge": "latest",
     "react-native-progress": "latest",
     "react-native-reanimated": "latest",
@@ -85,7 +84,8 @@
     "redux-saga": "latest",
     "reselect": "latest",
     "sanitize-filename": "latest",
-    "shallow-equals": "latest"
+    "shallow-equals": "latest",
+    "react-native-zoom-toolkit": "^5.1.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
