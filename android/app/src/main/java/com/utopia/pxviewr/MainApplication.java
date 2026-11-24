@@ -6,16 +6,21 @@ import android.util.Log;
 
 import com.squareup.leakcanary.LeakCanary;
 // import com.psykar.cookiemanager.CookieManagerPackage;
+import com.facebook.imagepipeline.core.ImagePipelineConfig;
 import com.facebook.react.PackageList;
 import com.facebook.hermes.reactexecutor.HermesExecutorFactory;
 import com.facebook.react.bridge.JavaScriptExecutorFactory;
+import com.facebook.react.bridge.NativeModule;
+import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.ReactApplication;
 import com.facebook.react.ReactInstanceManager;
 import com.facebook.react.ReactNativeHost;
 import com.facebook.react.ReactPackage;
+import com.facebook.react.modules.fresco.FrescoModule;
 import com.facebook.react.shell.MainReactPackage;
 import com.facebook.soloader.SoLoader;
 import java.lang.reflect.InvocationTargetException;
+import com.utopia.pxviewr.SystemBars.SystemBarsPackage;
 import com.utopia.pxviewr.UgoiraView.UgoiraViewPackage;
 
 import java.util.Arrays;
@@ -33,11 +38,27 @@ public class MainApplication extends Application implements ReactApplication {
     protected List<ReactPackage> getPackages() {
       @SuppressWarnings("UnnecessaryLocalVariable")
       List<ReactPackage> packages = new PackageList(this).getPackages();
-      // // Packages that cannot be autolinked yet can be added manually here, for example:
-      // // packages.add(new MyReactNativePackage());
-      // packages.add(new RNFetchBlobPackage());
-      // packages.add(new CameraRollPackage());
+      // Enable Fresco downsampling so PNG/WebP/JPEG inline images respect resizeMethod="resize"
+      // while preserving React Native's default OkHttp network fetcher and cookie/header handling.
+      for (int i = 0; i < packages.size(); i++) {
+        if (packages.get(i) instanceof MainReactPackage) {
+          packages.set(i, new MainReactPackage() {
+            @Override
+            public NativeModule getModule(String name, ReactApplicationContext context) {
+              if (FrescoModule.NAME.equals(name)) {
+                ImagePipelineConfig config = FrescoModule.getDefaultConfigBuilder(context)
+                    .setDownsampleEnabled(true)
+                    .build();
+                return new FrescoModule(context, true, config);
+              }
+              return super.getModule(name, context);
+            }
+          });
+          break;
+        }
+      }
       packages.add(new UgoiraViewPackage());
+      packages.add(new SystemBarsPackage());
       return packages;
     }
 

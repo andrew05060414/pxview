@@ -1,10 +1,12 @@
 package com.utopia.pxviewr;
 
+import android.content.res.Configuration;
 import android.os.Bundle;
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;
 import com.facebook.react.ReactRootView;
 import com.swmansion.gesturehandler.react.RNGestureHandlerEnabledRootView;
+import com.utopia.pxviewr.SystemBars.SystemBarsModule;
 import org.devio.rn.splashscreen.SplashScreen; 
 
 public class MainActivity extends ReactActivity {
@@ -25,6 +27,10 @@ public class MainActivity extends ReactActivity {
         // https://github.com/kmagiera/react-native-screens/issues/114
         super.onCreate(null);
         // super.onCreate(savedInstanceState);
+        int nightModeFlags =
+            getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        boolean isSystemDark = nightModeFlags == Configuration.UI_MODE_NIGHT_YES;
+        SystemBarsModule.applyTransparentNavigationBar(this, isSystemDark);
         SplashScreen.show(this);
     }
 

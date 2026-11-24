@@ -4,12 +4,22 @@
  *
  * @format
  */
+const path = require('path');
+
 let createExclusionList;
 try {
   createExclusionList = require('metro-config/src/defaults/exclusionList');
 } catch (error) {
   createExclusionList = require('metro-config/src/defaults/blacklist');
 }
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const nestedWorktreesDir = path
+  .resolve(__dirname, '.worktrees')
+  .replace(/\\/g, '/');
+const nestedWorktreesPattern = new RegExp(
+  `^${escapeRegExp(nestedWorktreesDir)}/.*`,
+);
 
 module.exports = {
   transformer: {
@@ -21,8 +31,6 @@ module.exports = {
     }),
   },
   resolver: {
-    blacklistRE: createExclusionList([
-      /.*\/\.worktrees\/.*/,
-    ]),
+    blacklistRE: createExclusionList([nestedWorktreesPattern]),
   },
 };

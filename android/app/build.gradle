@@ -146,6 +146,12 @@ def enableHermes = project.ext.react.get("enableHermes", true);
 
 android {
     compileSdkVersion rootProject.ext.compileSdkVersion
+    // AGP 3.5 requires the legacy arm-linux-androideabi toolchain. Prefer NDK 21
+    // when installed locally so AGP does not silently select NDK 26+, while remaining
+    // compatible with CI runners that remove all NDK folders.
+    if (System.getenv("ANDROID_HOME") && file("${System.getenv('ANDROID_HOME')}/ndk/21.4.7075529").exists()) {
+        ndkVersion "21.4.7075529"
+    }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -156,8 +162,8 @@ android {
         applicationId "com.utopia.pxviewr"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 407
-        versionName "5.3.4"
+        versionCode 408
+        versionName "5.3.5"
     }
     signingConfigs {
         release {
