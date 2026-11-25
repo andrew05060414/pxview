@@ -794,19 +794,27 @@ export const makeGetNovelSeriesItems = () =>
     },
   );
 
+const selectCurrentNovelRawText = (state, props) => {
+  const novelId =
+    props.novelId ||
+    (props.route && props.route.params && props.route.params.novelId);
+  return state.novelText && novelId && state.novelText[novelId]
+    ? state.novelText[novelId].text || null
+    : null;
+};
+
+const selectNovelReadingDirection = (state) =>
+  state.readingSettings && state.readingSettings.novelReadingDirection;
+
 export const makeGetParsedNovelText = () =>
   createSelector(
-    [selectNovelText, selectReadingSettings, getProps],
-    (novelText, readingSettings, props) => {
-      const novelId = props.novelId || props.route.params.novelId;
-      if (novelText[novelId] && novelText[novelId].text) {
-        if (
-          readingSettings.novelReadingDirection ===
-          READING_DIRECTION_TYPES.RIGHT_TO_LEFT
-        ) {
-          return parseNovelText(novelText[novelId].text).reverse();
+    [selectCurrentNovelRawText, selectNovelReadingDirection],
+    (rawText, novelReadingDirection) => {
+      if (rawText) {
+        if (novelReadingDirection === READING_DIRECTION_TYPES.RIGHT_TO_LEFT) {
+          return parseNovelText(rawText).reverse();
         }
-        return parseNovelText(novelText[novelId].text);
+        return parseNovelText(rawText);
       }
       return null;
     },

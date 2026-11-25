@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, InteractionManager } from 'react-native';
+import { View, StyleSheet, InteractionManager } from 'react-native';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { withTheme, Button } from 'react-native-paper';
@@ -7,8 +7,10 @@ import NovelViewer from '../../components/NovelViewer';
 import PXHeader from '../../components/PXHeader';
 import HeaderTextTitle from '../../components/HeaderTextTitle';
 import HeaderSettingsButton from '../../components/HeaderSettingsButton';
+import BookmarkNovelButton from '../../components/BookmarkNovelButton';
 import Loader from '../../components/Loader';
 import EmptyStateView from '../../components/EmptyStateView';
+import withWindowWidth from '../../components/withWindowWidth';
 import { connectLocalization } from '../../components/Localization';
 import * as novelTextActionCreators from '../../common/actions/novelText';
 import * as modalActionCreators from '../../common/actions/modal';
@@ -16,6 +18,25 @@ import { makeGetParsedNovelText } from '../../common/selectors';
 import { MODAL_TYPES, READING_DIRECTION_TYPES } from '../../common/constants';
 import { READING_PROGRESS } from '../../common/constants/actionTypes';
 import { globalStyles } from '../../styles';
+
+const styles = StyleSheet.create({
+  floatingHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    elevation: 6,
+  },
+  headerRightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBookmarkContainer: {
+    marginRight: 8,
+    padding: 8,
+  },
+});
 
 class NovelReader extends Component {
   constructor(props) {
@@ -35,7 +56,10 @@ class NovelReader extends Component {
         index = parsedNovelText.length - 1;
       }
     }
-    this.state = { index };
+    this.state = {
+      index,
+      showHeader: false,
+    };
   }
 
   componentDidMount() {
@@ -106,6 +130,12 @@ class NovelReader extends Component {
     openModal(MODAL_TYPES.NOVEL_SETTINGS);
   };
 
+  handleToggleHeader = () => {
+    this.setState((prevState) => ({
+      showHeader: !prevState.showHeader,
+    }));
+  };
+
   renderHeaderTitle = () => {
     const { parsedNovelText, novelReadingDirection } = this.props;
     const { index } = this.state;
@@ -120,9 +150,19 @@ class NovelReader extends Component {
     );
   };
 
-  renderHeaderRight = () => (
-    <HeaderSettingsButton onPress={this.handleOnPressOpenSettings} />
-  );
+  renderHeaderRight = () => {
+    const { novelItem } = this.props;
+    return (
+      <View style={styles.headerRightContainer}>
+        {novelItem && (
+          <View style={styles.headerBookmarkContainer}>
+            <BookmarkNovelButton item={novelItem} size={24} />
+          </View>
+        )}
+        <HeaderSettingsButton onPress={this.handleOnPressOpenSettings} />
+      </View>
+    );
+  };
 
   render() {
     const {
@@ -133,7 +173,7 @@ class NovelReader extends Component {
       i18n,
       theme,
     } = this.props;
-    const { index } = this.state;
+    const { index, showHeader } = this.state;
     const isLoading =
       !novelText ||
       !novelText.loaded ||
@@ -142,6 +182,7 @@ class NovelReader extends Component {
     const isErrorOrEmpty =
       !isLoading &&
       (!parsedNovelText || !parsedNovelText.length);
+    const isHeaderVisible = showHeader || isLoading || isErrorOrEmpty;
 
     return (
       <View
@@ -150,13 +191,6 @@ class NovelReader extends Component {
           { backgroundColor: theme.colors.background },
         ]}
       >
-        <PXHeader
-          darkTheme
-          withShadow
-          showBackButton
-          headerTitle={parsedNovelText && this.renderHeaderTitle()}
-          headerRight={this.renderHeaderRight()}
-        />
         {isLoading && <Loader />}
         {isErrorOrEmpty && (
           <EmptyStateView
@@ -184,55 +218,76 @@ class NovelReader extends Component {
             index={index}
             fontSize={fontSize}
             lineHeight={lineHeight}
+            windowWidth={this.props.windowWidth}
             onIndexChange={this.handleOnIndexChange}
             onPressPageLink={this.handleOnPressPageLink}
+            onToggleHeader={this.handleToggleHeader}
             sliderSide={this.props.sliderSide}
             sliderPercentageSide={this.props.sliderPercentageSide}
           />
+        )}
+        {isHeaderVisible && (
+          <View style={styles.floatingHeader}>
+            <PXHeader
+              darkTheme
+              withShadow
+              showBackButton
+              headerTitle={parsedNovelText && this.renderHeaderTitle()}
+              headerRight={this.renderHeaderRight()}
+            />
+          </View>
         )}
       </View>
     );
   }
 }
 
-export default withTheme(
-  connectLocalization(
-    connect(
-    () => {
-      const getParsedNovelText = makeGetParsedNovelText();
-      return (state, props) => {
-        const {
-          novelText,
-          novelSettings,
-          readingSettings,
-          readingProgress,
-        } = state;
-        const parsedNovelText = getParsedNovelText(state, props);
-        const novelId = props.novelId || props.route.params.novelId;
-        return {
-          novelText: novelText[novelId],
-          novelId,
-          parsedNovelText,
-          novelSettings,
-          novelReadingDirection: readingSettings.novelReadingDirection,
-          sliderSide: readingSettings.sliderSide || 'right',
-          sliderPercentageSide:
-            readingSettings.sliderPercentageSide ||
-            readingSettings.sliderSide ||
-            'right',
-          savedPageIndex:
-            readingProgress[novelId] != null
-              ? readingProgress[novelId].pageIndex
-              : null,
-        };
-      };
-    },
-    (dispatch) => ({
-      dispatch,
-      ...bindActionCreators(
-        { ...novelTextActionCreators, ...modalActionCreators },
-        dispatch,
-      ),
-    }),
-  )(NovelReader)),
+export default withWindowWidth(
+  withTheme(
+    connectLocalization(
+      connect(
+        () => {
+          const getParsedNovelText = makeGetParsedNovelText();
+          return (state, props) => {
+            const {
+              entities,
+              novelText,
+              novelSettings,
+              readingSettings,
+              readingProgress,
+            } = state;
+            const parsedNovelText = getParsedNovelText(state, props);
+            const novelId = props.novelId || props.route.params.novelId;
+            const novelItem =
+              (entities && entities.novels && entities.novels[novelId]) ||
+              (novelId ? { id: novelId, is_bookmarked: false } : null);
+            return {
+              novelText: novelText[novelId],
+              novelId,
+              novelItem,
+              parsedNovelText,
+              novelSettings,
+              novelReadingDirection: readingSettings.novelReadingDirection,
+              sliderSide: readingSettings.sliderSide || 'right',
+              sliderPercentageSide:
+                readingSettings.sliderPercentageSide ||
+                readingSettings.sliderSide ||
+                'right',
+              savedPageIndex:
+                readingProgress[novelId] != null
+                  ? readingProgress[novelId].pageIndex
+                  : null,
+            };
+          };
+        },
+        (dispatch) => ({
+          dispatch,
+          ...bindActionCreators(
+            { ...novelTextActionCreators, ...modalActionCreators },
+            dispatch,
+          ),
+        }),
+      )(NovelReader),
+    ),
+  ),
 );

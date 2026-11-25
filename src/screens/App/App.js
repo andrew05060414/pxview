@@ -5,6 +5,8 @@ import {
   StatusBar,
   Platform,
   Dimensions,
+  AppState,
+  NativeModules,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import {
@@ -141,18 +143,53 @@ const App = () => {
   }, [prevRehydrated, rehydrated]);
 
   useEffect(() => {
+    const syncNavigationBar = () => {
+      if (
+        Platform.OS === 'android' &&
+        NativeModules.SystemBars &&
+        typeof NativeModules.SystemBars.setNavigationBarTheme === 'function'
+      ) {
+        NativeModules.SystemBars.setNavigationBarTheme(
+          themeName === THEME_TYPES.DARK,
+        );
+      }
+    };
+
+    syncNavigationBar();
+
     const handleChange = () => {
       forceUpdate((n) => n + 1);
+      syncNavigationBar();
     };
     const subscription = Dimensions.addEventListener('change', handleChange);
+
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === 'active') {
+        forceUpdate((n) => n + 1);
+        syncNavigationBar();
+      }
+    };
+    const appStateSubscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange,
+    );
+
     return () => {
       if (subscription && typeof subscription.remove === 'function') {
         subscription.remove();
       } else {
         Dimensions.removeEventListener('change', handleChange);
       }
+      if (
+        appStateSubscription &&
+        typeof appStateSubscription.remove === 'function'
+      ) {
+        appStateSubscription.remove();
+      } else {
+        AppState.removeEventListener('change', handleAppStateChange);
+      }
     };
-  }, []);
+  }, [themeName]);
 
   const handleOnNavigationStateChange = (state) => {
     const previousRouteName = routeNameRef.current;
