@@ -84,6 +84,8 @@ Toolchain requirements: **Node 24** (`>= 22.11.0`), **JDK 21**, Android SDK (`co
 $ npm test
 ```
 
+For offline analysis of a saved Android frame capture, see the [reader framestats guide (中文)](docs/android-framestats-baseline-zh.md).
+
 ## Related Projects
 [pixiv-api-client](https://github.com/alphasp/pixiv-api-client) - Api client for Pixiv
 

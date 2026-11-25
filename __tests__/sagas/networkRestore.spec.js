@@ -28,6 +28,7 @@ describe('watchNetworkRestore', () => {
       newNovels: { error: true },
       ranking: {
         day: { error: true },
+        DAILY_MALE_NOVEL: { error: true, options: { language: 'zh-CN' } },
         week: { error: false },
       },
     };
@@ -43,6 +44,16 @@ describe('watchNetworkRestore', () => {
     );
     expect(generator.next().value).toEqual(
       put(fetchRanking('day', undefined, undefined, true)),
+    );
+    expect(generator.next().value).toEqual(
+      put(
+        fetchRanking(
+          'DAILY_MALE_NOVEL',
+          { language: 'zh-CN' },
+          undefined,
+          true,
+        ),
+      ),
     );
     expect(generator.next().value).toEqual(take(CONNECTION_CHANGE));
   });
