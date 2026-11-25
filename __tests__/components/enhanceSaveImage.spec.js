@@ -55,6 +55,7 @@ describe('saved image filenames', () => {
       { fileName: FILE.WORK_TITLE },
       0,
     );
+    expect(result.startsWith('春🌸'.repeat(30))).toBe(true);
     expect(Buffer.byteLength(result, 'utf8')).toBeLessThanOrEqual(255);
     expect(Buffer.from(result, 'utf8').toString('utf8')).toBe(result);
     expect(result).not.toContain('\ufffd');

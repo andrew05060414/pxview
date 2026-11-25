@@ -6,7 +6,7 @@
 
 ## 基线与已有工作
 
-- 范围来自 [Issue #15](https://github.com/andrew05060414/pxview/issues/15)。沿用[已关闭的草稿 PR #20](https://github.com/andrew05060414/pxview/pull/20) 的分支 `chore/leaf-dependency-pilot-sanitize-filename`，在独立 worktree 合入 `main` 的 `5d5b69e`，合并前再合入 `068aa4a`（PR #36，小说排行榜）。下方不沿用旧草稿的测试或 APK 结果。
+- 范围来自 [Issue #15](https://github.com/andrew05060414/pxview/issues/15)。沿用[已关闭的草稿 PR #20](https://github.com/andrew05060414/pxview/pull/20) 的分支 `chore/leaf-dependency-pilot-sanitize-filename`，在独立 worktree 合入 `main` 的 `5d5b69e`，合并前再合入 `068aa4a`（PR #36，小说排行榜）和 `205ae05`（PR #37，仅文档）。下方不沿用旧草稿的测试或 APK 结果。
 - npm lockfile v3；Node 14.21.3 / npm 9.9.4，React 16.13.1 / React Native 0.63.5，JDK 11，AGP 3.5.3 / Gradle 6.2，Android SDK 29 / build-tools 29.0.2。不升级已有工具链。
 
 ## 候选矩阵
@@ -52,6 +52,13 @@ sh ./scripts/test-jest.sh --runTestsByPath __tests__/components/enhanceSaveImage
 # D / R：分开构建，先把 Debug APK 复制到构建目录外，再执行 Release
 sh ./scripts/build-android-debug.sh
 sh ./scripts/build-android-release.sh
+# 两个脚本目前在同一次 Gradle 调用里执行 clean 和 assemble，可能触发构建说明记录的
+# “PackageList cannot find symbol”。本次复验是把 clean 与 assemble 拆成两次调用后通过的，
+# 对应写法（在 android/ 下，先执行 sh ./scripts/bundle-android-release.sh 生成 bundle）：
+#   ./gradlew clean --no-daemon
+#   ./gradlew assembleDebug --no-daemon -x bundleDebugJsAndAssets
+#   ./gradlew clean --no-daemon
+#   ./gradlew assembleRelease --no-daemon -x bundleReleaseJsAndAssets   # 加脚本里的四个 -PPXVIEWR_RELEASE_* 签名参数
 # 生成目录：android/app/build/outputs/apk/{debug,release}/
 # 在设备覆盖安装前，先用 SDK 的 apksigner verify --print-certs 核对签名
 
@@ -70,7 +77,7 @@ adb install -r /path/to/app-release.apk
 | Metro Android release bundle | 合入 `068aa4a` 后用 Node 14 重新打包通过（只验证 JS 打包，未重新生成 APK） |
 | Android 真机 / iOS | 未验证；没有安装任何 APK 或改动设备数据 |
 
-首次 Gradle 下载因 Maven Central 限流失败。改用官方镜像（仅本地 Gradle 配置），复用刚生成的 Metro bundle，按 CI 流程将 `clean` 与各自的 `assembleDebug` / `assembleRelease` 分开执行，跳过重复打包。两包均为 `com.utopia.pxviewr`，内置 JS 与本次 Metro 输出逐字节一致。未提交或发布构建产物。
+首次 Gradle 下载因 Maven Central 限流失败。改用官方镜像（仅本地 Gradle 配置），复用刚生成的 Metro bundle，按 CI 流程将 `clean` 与各自的 `assembleDebug` / `assembleRelease` 分开执行，跳过重复打包。两包均为 `com.utopia.pxviewr`，内置 JS 与构建这两个 APK 时（基于 `5d5b69e`）生成的 Metro bundle 逐字节一致；合入 `068aa4a` 之后重新生成的 bundle 没有打进任何 APK，也没有与这两个包比对。未提交或发布构建产物。
 
 单元测试只证明命名和路径计算。写入权限、图库扫描和覆盖安装后数据是否保留，按下节在真机验证。现有超长名称可能截断扩展名；本次不改变该行为。
 
