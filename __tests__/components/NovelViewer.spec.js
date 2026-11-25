@@ -935,7 +935,7 @@ describe('NovelViewer inline images', () => {
     });
 
     const flatList = instance.root.findByType(FlatList);
-    expect(flatList.props.windowSize).toBe(3);
+    expect(flatList.props.windowSize).toBe(5);
     expect(flatList.props.data).toHaveLength(3);
   });
 
@@ -1075,6 +1075,47 @@ describe('NovelViewer inline images', () => {
       require('../../src/components/NovelInlineImage').default,
     );
     expect(inlineImage.props.maxWidth).toBe(780);
+    instance.unmount();
+  });
+
+  it('prefetches metadata for up to 3 upcoming pixivimage blocks ahead and marks chapter images inline', async () => {
+    const htmlWithFiveImages = [
+      "<chapter>ch<px-image data-illust-id='9000' data-image-kind='pixivimage'></px-image></chapter>",
+      "<px-image data-illust-id='9001' data-image-kind='pixivimage'></px-image>",
+      "<px-image data-illust-id='9002' data-image-kind='pixivimage'></px-image>",
+      "<px-image data-illust-id='9003' data-image-kind='pixivimage'></px-image>",
+      "<px-image data-illust-id='9004' data-image-kind='pixivimage'></px-image>",
+    ].join('text');
+
+    let instance;
+    await act(async () => {
+      instance = renderer.create(
+        <NovelViewer
+          novelId={1}
+          items={[htmlWithFiveImages]}
+          index={0}
+          fontSize={16}
+          lineHeight={1.6}
+          onIndexChange={() => {}}
+          onPressPageLink={() => {}}
+          openModal={() => {}}
+        />,
+      );
+      await flushPromises();
+    });
+
+    const calledIds = illustDetail.mock.calls.map((args) => String(args[0]));
+    expect(calledIds).toContain('9001');
+    expect(calledIds).toContain('9002');
+    expect(calledIds).toContain('9003');
+    // Check inline prop on chapter image
+    const inlineImages = instance.root.findAllByType(
+      require('../../src/components/NovelInlineImage').default,
+    );
+    const chapterInline = inlineImages.find(
+      (n) => String(n.props.imageId) === '9000',
+    );
+    expect(chapterInline.props.inline).toBe(true);
     instance.unmount();
   });
 });

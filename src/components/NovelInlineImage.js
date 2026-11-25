@@ -1,5 +1,11 @@
 import React, { PureComponent } from 'react';
-import { StyleSheet, Text, Dimensions } from 'react-native';
+import {
+  ActivityIndicator,
+  Dimensions,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import PXImage from './PXImage';
 import pixiv from '../common/helpers/apiClient';
 import {
@@ -24,6 +30,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(128,128,128,0.12)',
     marginVertical: 6,
   },
+  progressiveContainer: {
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  transparentBackground: {
+    backgroundColor: 'transparent',
+  },
   fallback: {
     color: '#666',
     fontStyle: 'italic',
@@ -44,14 +63,26 @@ const setBoundedCache = (cache, key, value) => {
   cache.set(key, value);
 };
 
+const addBoundedSet = (set, key) => {
+  if (set.has(key)) {
+    set.delete(key);
+  } else if (set.size >= MAX_CACHE_ENTRIES) {
+    const oldestKey = set.values().next().value;
+    set.delete(oldestKey);
+  }
+  set.add(key);
+};
+
 const resolvedAspectRatioCache = new Map();
 const resolvedIllustDetailCache = new Map();
 const pendingIllustDetailRequests = new Map();
+const loadedImageUrlsCache = new Set();
 
 export const clearNovelInlineImageCache = () => {
   resolvedAspectRatioCache.clear();
   resolvedIllustDetailCache.clear();
   pendingIllustDetailRequests.clear();
+  loadedImageUrlsCache.clear();
 };
 
 const areStringArraysEqual = (a = [], b = []) =>
@@ -66,6 +97,9 @@ const buildLoadedState = (imageUrls, metadataRatio, emptyFailureReason) => {
       urlIndex: 0,
       isFailed: true,
       isLoading: false,
+      isPrimaryLoaded: false,
+      isPreviewLoaded: false,
+      previewFailed: false,
       imageAspectRatio: 1,
       retryNonce: 0,
     };
@@ -85,6 +119,9 @@ const buildLoadedState = (imageUrls, metadataRatio, emptyFailureReason) => {
     urlIndex: 0,
     isFailed: false,
     isLoading: false,
+    isPrimaryLoaded: loadedImageUrlsCache.has(primaryUrl),
+    isPreviewLoaded: false,
+    previewFailed: false,
     imageAspectRatio: resolvedRatio,
     retryNonce: 0,
   };
@@ -125,6 +162,13 @@ const fetchIllustDetail = (imageId) => {
   return request;
 };
 
+export const prefetchIllustDetail = (imageId) => {
+  if (!imageId) {
+    return Promise.resolve(null);
+  }
+  return fetchIllustDetail(imageId).catch(() => null);
+};
+
 const resolveInitialStateFromProps = (props) => {
   const imageId = getImageIdFromProps(props);
   const imageKind = getImageKindFromProps(props);
@@ -136,6 +180,9 @@ const resolveInitialStateFromProps = (props) => {
       urlIndex: 0,
       isFailed: true,
       isLoading: false,
+      isPrimaryLoaded: false,
+      isPreviewLoaded: false,
+      previewFailed: false,
       imageAspectRatio: 1,
       retryNonce: 0,
     };
@@ -161,6 +208,9 @@ const resolveInitialStateFromProps = (props) => {
       urlIndex: 0,
       isFailed: true,
       isLoading: false,
+      isPrimaryLoaded: false,
+      isPreviewLoaded: false,
+      previewFailed: false,
       imageAspectRatio: 1,
       retryNonce: 0,
     };
@@ -183,6 +233,9 @@ const resolveInitialStateFromProps = (props) => {
     urlIndex: 0,
     isFailed: false,
     isLoading: true,
+    isPrimaryLoaded: false,
+    isPreviewLoaded: false,
+    previewFailed: false,
     imageAspectRatio: null,
     retryNonce: 0,
   };
@@ -243,6 +296,15 @@ class NovelInlineImage extends PureComponent {
   componentWillUnmount() {
     this.unmounted = true;
   }
+
+  getPreviewUrl = () => {
+    const { inline } = this.props;
+    const { imageUrls = [], urlIndex = 0, isPrimaryLoaded } = this.state;
+    if (!inline && !isPrimaryLoaded && urlIndex === 0 && imageUrls.length > 1) {
+      return imageUrls[1];
+    }
+    return null;
+  };
 
   loadImage = async () => {
     const requestId = this.requestId + 1;
@@ -315,6 +377,56 @@ class NovelInlineImage extends PureComponent {
     }
   };
 
+  handlePreviewLoad = (event) => {
+    if (this.unmounted) {
+      return;
+    }
+
+    const previewUrl = this.getPreviewUrl();
+    const { imageAspectRatio, imageUrl, isPreviewLoaded } = this.state;
+    const source = event && event.nativeEvent && event.nativeEvent.source;
+    const uriMatches = !(
+      source &&
+      source.uri &&
+      previewUrl &&
+      source.uri !== previewUrl
+    );
+    const actualRatio =
+      uriMatches && source
+        ? normalizeAspectRatio(source.width, source.height)
+        : null;
+
+    if (actualRatio) {
+      if (previewUrl) {
+        setBoundedCache(resolvedAspectRatioCache, previewUrl, actualRatio);
+      }
+      if (imageUrl && !resolvedAspectRatioCache.has(imageUrl)) {
+        setBoundedCache(resolvedAspectRatioCache, imageUrl, actualRatio);
+      }
+      if (
+        imageAspectRatio === null ||
+        Math.abs(actualRatio - imageAspectRatio) > 0.01
+      ) {
+        this.setState({
+          imageAspectRatio: actualRatio,
+          isPreviewLoaded: true,
+        });
+        return;
+      }
+    }
+
+    if (!isPreviewLoaded) {
+      this.setState({ isPreviewLoaded: true });
+    }
+  };
+
+  handlePreviewError = () => {
+    if (this.unmounted || this.state.previewFailed) {
+      return;
+    }
+    this.setState({ previewFailed: true });
+  };
+
   handleImageError = () => {
     if (this.unmounted) {
       return;
@@ -329,6 +441,9 @@ class NovelInlineImage extends PureComponent {
         urlIndex: nextIndex,
         imageUrl: nextUrl,
         imageAspectRatio: cachedRatio,
+        isPrimaryLoaded: loadedImageUrlsCache.has(nextUrl),
+        isPreviewLoaded: false,
+        previewFailed: false,
         isFailed: false,
         failureReason: null,
       });
@@ -339,6 +454,9 @@ class NovelInlineImage extends PureComponent {
       failureReason: 'image request failed',
       isFailed: true,
       isLoading: false,
+      isPrimaryLoaded: false,
+      isPreviewLoaded: false,
+      previewFailed: false,
     });
   };
 
@@ -347,10 +465,14 @@ class NovelInlineImage extends PureComponent {
       return;
     }
 
-    const { imageAspectRatio, imageUrl } = this.state;
+    const { imageAspectRatio, imageUrl, isPrimaryLoaded } = this.state;
     const source = event && event.nativeEvent && event.nativeEvent.source;
     if (source && source.uri && imageUrl && source.uri !== imageUrl) {
       return;
+    }
+
+    if (imageUrl) {
+      addBoundedSet(loadedImageUrlsCache, imageUrl);
     }
 
     const actualRatio = source
@@ -364,13 +486,27 @@ class NovelInlineImage extends PureComponent {
         imageAspectRatio === null ||
         Math.abs(actualRatio - imageAspectRatio) > 0.01
       ) {
-        this.setState({ imageAspectRatio: actualRatio });
+        this.setState({
+          imageAspectRatio: actualRatio,
+          isPrimaryLoaded: true,
+        });
+        return;
+      }
+      if (!isPrimaryLoaded) {
+        this.setState({ isPrimaryLoaded: true });
       }
       return;
     }
 
+    const nextState = {};
+    if (!isPrimaryLoaded) {
+      nextState.isPrimaryLoaded = true;
+    }
     if (imageAspectRatio === null) {
-      this.setState({ imageAspectRatio: 1 });
+      nextState.imageAspectRatio = 1;
+    }
+    if (Object.keys(nextState).length > 0) {
+      this.setState(nextState);
     }
   };
 
@@ -382,11 +518,15 @@ class NovelInlineImage extends PureComponent {
     const { failureReason, imageUrls = [], retryNonce = 0 } = this.state;
     if (failureReason === 'image request failed' && imageUrls.length > 0) {
       const primaryUrl = imageUrls[0];
+      loadedImageUrlsCache.delete(primaryUrl);
       const cachedRatio = resolvedAspectRatioCache.get(primaryUrl) || null;
       this.setState({
         urlIndex: 0,
         imageUrl: primaryUrl,
         imageAspectRatio: cachedRatio,
+        isPrimaryLoaded: false,
+        isPreviewLoaded: false,
+        previewFailed: false,
         isFailed: false,
         isLoading: false,
         failureReason: null,
@@ -415,6 +555,8 @@ class NovelInlineImage extends PureComponent {
       imageUrl,
       isFailed,
       isLoading,
+      isPreviewLoaded,
+      previewFailed,
       imageAspectRatio,
       retryNonce = 0,
     } = this.state;
@@ -467,19 +609,56 @@ class NovelInlineImage extends PureComponent {
               DEFAULT_PLACEHOLDER_ASPECT_RATIO,
             ),
           };
+    const previewUrl = this.getPreviewUrl();
+
+    if (!previewUrl) {
+      return (
+        <PXImage
+          key={`${imageUrl}#${retryNonce}`}
+          accessibilityLabel={`novel-inline-image-${imageId}`}
+          uri={imageUrl}
+          resizeMode="contain"
+          resizeMethod="scale"
+          fadeDuration={0}
+          onError={this.handleImageError}
+          onLoad={this.handleImageLoad}
+          style={[styles.image, imageStyle]}
+        />
+      );
+    }
 
     return (
-      <PXImage
-        key={`${imageUrl}#${retryNonce}`}
-        accessibilityLabel={`novel-inline-image-${imageId}`}
-        uri={imageUrl}
-        resizeMode="contain"
-        resizeMethod="scale"
-        fadeDuration={0}
-        onError={this.handleImageError}
-        onLoad={this.handleImageLoad}
-        style={[styles.image, imageStyle]}
-      />
+      <View style={[styles.image, styles.progressiveContainer, imageStyle]}>
+        {!previewFailed && (
+          <PXImage
+            key={`preview-${previewUrl}`}
+            accessibilityLabel={`novel-inline-image-preview-${imageId}`}
+            uri={previewUrl}
+            resizeMode="contain"
+            resizeMethod="scale"
+            fadeDuration={0}
+            onLoad={this.handlePreviewLoad}
+            onError={this.handlePreviewError}
+            style={StyleSheet.absoluteFill}
+          />
+        )}
+        {!isPreviewLoaded && (
+          <View pointerEvents="none" style={styles.loadingOverlay}>
+            <ActivityIndicator size="small" color="#888" />
+          </View>
+        )}
+        <PXImage
+          key={`${imageUrl}#${retryNonce}`}
+          accessibilityLabel={`novel-inline-image-${imageId}`}
+          uri={imageUrl}
+          resizeMode="contain"
+          resizeMethod="scale"
+          fadeDuration={0}
+          onError={this.handleImageError}
+          onLoad={this.handleImageLoad}
+          style={[StyleSheet.absoluteFill, styles.transparentBackground]}
+        />
+      </View>
     );
   }
 

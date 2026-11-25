@@ -13,7 +13,7 @@ import HtmlView from 'react-native-htmlview';
 import entities from 'entities';
 import { Text } from 'react-native-paper';
 import PXTabView from './PXTabView';
-import NovelInlineImage from './NovelInlineImage';
+import NovelInlineImage, { prefetchIllustDetail } from './NovelInlineImage';
 import {
   computeConstrainedImageHeight,
   findEmbeddedImageById,
@@ -342,7 +342,7 @@ const MODAL_THUMB_W = 28;
 const MODAL_THUMB_H = 60;
 const MODAL_SLIDER_WIDTH = 100;
 const MODAL_SLIDER_RIGHT_PAD = 20;
-const INITIAL_NUM_TO_RENDER = 8;
+const INITIAL_NUM_TO_RENDER = 10;
 
 export const estimateBlockHeight = (
   block,
@@ -441,6 +441,7 @@ class NovelPage extends PureComponent {
     this.modalDragStartY = 0;
     this.modalDragStartThumbTop = 0;
     this.isModalDragging = false;
+    this.prefetchedImageIds = new Set();
     this.estimatedHeights = this.computeEstimatedHeights(props);
     this.highestRenderedIndex = Math.min(
       Math.max(0, (props.blocks ? props.blocks.length : 0) - 1),
@@ -453,6 +454,10 @@ class NovelPage extends PureComponent {
     };
   }
 
+  componentDidMount() {
+    this.prefetchAheadIllustMetadata(-1);
+  }
+
   componentDidUpdate(prevProps) {
     if (
       this.props.blocks !== prevProps.blocks ||
@@ -463,12 +468,42 @@ class NovelPage extends PureComponent {
     ) {
       this.estimatedHeights = this.computeEstimatedHeights(this.props);
       if (this.props.blocks !== prevProps.blocks) {
+        this.prefetchedImageIds.clear();
         this.highestRenderedIndex = Math.min(
           Math.max(0, (this.props.blocks ? this.props.blocks.length : 0) - 1),
           INITIAL_NUM_TO_RENDER - 1,
         );
+        this.prefetchAheadIllustMetadata(-1);
       }
       this.syncPercentPill();
+    }
+  }
+
+  prefetchAheadIllustMetadata(fromIndex) {
+    const { blocks = [], embeddedImages } = this.props;
+    let prefetchedCount = 0;
+    for (
+      let i = Math.max(0, fromIndex + 1);
+      i < blocks.length && prefetchedCount < 3;
+      i += 1
+    ) {
+      const block = blocks[i];
+      if (
+        block &&
+        block.type === 'image' &&
+        block.imageId &&
+        block.imageKind !== 'uploadedimage'
+      ) {
+        const cacheKey = String(block.imageId);
+        if (
+          !this.prefetchedImageIds.has(cacheKey) &&
+          !findEmbeddedImageById(embeddedImages, block.imageId)
+        ) {
+          this.prefetchedImageIds.add(cacheKey);
+          prefetchIllustDetail(block.imageId);
+        }
+        prefetchedCount += 1;
+      }
     }
   }
 
@@ -708,6 +743,7 @@ class NovelPage extends PureComponent {
     if (index > this.highestRenderedIndex) {
       this.highestRenderedIndex = index;
     }
+    this.prefetchAheadIllustMetadata(index);
     const {
       debugInfo,
       embeddedImages,
@@ -866,7 +902,7 @@ class NovelPage extends PureComponent {
           initialNumToRender={INITIAL_NUM_TO_RENDER}
           maxToRenderPerBatch={3}
           updateCellsBatchingPeriod={50}
-          windowSize={3}
+          windowSize={5}
           removeClippedSubviews={Platform.OS === 'android'}
         />
 
@@ -1087,6 +1123,7 @@ class NovelViewer extends Component {
       return (
         <NovelInlineImage
           key={index}
+          inline
           debugInfo={debugInfo}
           imageId={imageId}
           imageKind={imageKind}

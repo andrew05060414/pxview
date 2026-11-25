@@ -25,6 +25,7 @@ jest.mock('../../src/components/PXImage', () => {
 const {
   default: NovelInlineImage,
   clearNovelInlineImageCache,
+  prefetchIllustDetail,
 } = require('../../src/components/NovelInlineImage');
 
 const flushPromises = () => Promise.resolve();
@@ -1350,5 +1351,201 @@ describe('NovelInlineImage', () => {
         }),
       ]),
     );
+  });
+
+  it('renders progressive preview + ActivityIndicator first, upgrades to single-layer primary after onLoad, and skips preview on remount', async () => {
+    const { ActivityIndicator } = require('react-native');
+    const origUrl = 'https://example.com/prog-orig.png';
+    const previewUrl = 'https://example.com/prog-large.jpg';
+    let tree;
+
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115551"
+          imageKind="uploadedimage"
+          maxWidth={400}
+          embeddedImages={{
+            24115551: {
+              urls: {
+                original: origUrl,
+                large: previewUrl,
+              },
+            },
+          }}
+        />,
+      );
+    });
+
+    // Initially renders preview, spinner, and transparent primary overlay
+    const previewNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-preview-24115551',
+      'Image',
+    );
+    const primaryNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115551',
+      'Image',
+    );
+    expect(previewNode.props.uri).toBe(previewUrl);
+    expect(primaryNode.props.uri).toBe(origUrl);
+    expect(tree.root.findAllByType(ActivityIndicator)).toHaveLength(1);
+
+    // Preview loads -> hides spinner and updates aspect ratio to 0.5 (height = 800)
+    await act(async () => {
+      previewNode.props.onLoad({
+        nativeEvent: {
+          source: { uri: previewUrl, width: 600, height: 1200 },
+        },
+      });
+    });
+
+    expect(tree.root.findAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(tree.toJSON().type).toBe('View');
+    expect(tree.toJSON().props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ width: 400, height: 800, aspectRatio: 0.5 }),
+      ]),
+    );
+
+    // Primary loads -> unmounts preview layer and collapses to single Image
+    await act(async () => {
+      primaryNode.props.onLoad({
+        nativeEvent: {
+          source: { uri: origUrl, width: 1200, height: 2400 },
+        },
+      });
+    });
+
+    expect(
+      tree.root.findAll(
+        (n) =>
+          n.type === 'Image' &&
+          n.props.accessibilityLabel === 'novel-inline-image-preview-24115551',
+      ),
+    ).toHaveLength(0);
+    expect(tree.toJSON().type).toBe('Image');
+    expect(tree.toJSON().props.uri).toBe(origUrl);
+    tree.unmount();
+
+    // Remount -> already in loadedImageUrlsCache, skips preview and spinner immediately
+    let remounted;
+    await act(async () => {
+      remounted = renderer.create(
+        <NovelInlineImage
+          imageId="24115551"
+          imageKind="uploadedimage"
+          maxWidth={400}
+          embeddedImages={{
+            24115551: {
+              urls: {
+                original: origUrl,
+                large: previewUrl,
+              },
+            },
+          }}
+        />,
+      );
+    });
+
+    expect(remounted.toJSON().type).toBe('Image');
+    expect(remounted.root.findAllByType(ActivityIndicator)).toHaveLength(0);
+    remounted.unmount();
+  });
+
+  it('keeps primary image loading when preview layer errors and falls back to preview when primary errors', async () => {
+    const origUrl = 'https://example.com/prog2-orig.png';
+    const previewUrl = 'https://example.com/prog2-large.jpg';
+    let tree;
+
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115552"
+          imageKind="uploadedimage"
+          maxWidth={400}
+          embeddedImages={{
+            24115552: {
+              width: 800,
+              height: 400,
+              urls: {
+                original: origUrl,
+                large: previewUrl,
+              },
+            },
+          }}
+        />,
+      );
+    });
+
+    const previewNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-preview-24115552',
+      'Image',
+    );
+    await act(async () => {
+      previewNode.props.onError();
+    });
+
+    expect(
+      tree.root.findAll(
+        (n) =>
+          n.type === 'Image' &&
+          n.props.accessibilityLabel === 'novel-inline-image-preview-24115552',
+      ),
+    ).toHaveLength(0);
+
+    // Primary still present and if it errors, switches to urlIndex=1 (previewUrl)
+    const primaryNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115552',
+      'Image',
+    );
+    expect(primaryNode.props.uri).toBe(origUrl);
+
+    await act(async () => {
+      primaryNode.props.onError();
+    });
+
+    expect(tree.toJSON().type).toBe('Image');
+    expect(tree.toJSON().props.uri).toBe(previewUrl);
+  });
+
+  it('prefetchIllustDetail warms cache safely and swallows rejections', async () => {
+    illustDetail
+      .mockRejectedValueOnce(new Error('network error'))
+      .mockResolvedValueOnce({
+        illust: {
+          width: 900,
+          height: 600,
+          image_urls: { large: 'https://example.com/prefetched.jpg' },
+        },
+      });
+
+    await expect(prefetchIllustDetail(null)).resolves.toBeNull();
+    await expect(prefetchIllustDetail('88001')).resolves.toBeNull();
+    await expect(prefetchIllustDetail('88002')).resolves.toEqual(
+      expect.objectContaining({
+        illust: expect.objectContaining({ width: 900, height: 600 }),
+      }),
+    );
+
+    // Subsequent mount uses cached illustDetail without another API call
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage imageId="88002" imageKind="pixivimage" />,
+      );
+    });
+
+    expect(illustDetail).toHaveBeenCalledTimes(2);
+    expect(
+      findHostNodeByAccessibilityLabel(
+        tree.root,
+        'novel-inline-image-88002',
+        'Image',
+      ).props.uri,
+    ).toBe('https://example.com/prefetched.jpg');
   });
 });
