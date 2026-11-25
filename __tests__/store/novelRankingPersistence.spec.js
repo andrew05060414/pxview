@@ -12,7 +12,8 @@ jest.mock('react-native-offline', () => ({
   createNetworkMiddleware: () => () => (next) => next,
 }));
 jest.mock('@react-native-async-storage/async-storage', () => ({
-  getAllKeys: (callback) => callback(null, []),
+  getAllKeys: () => Promise.resolve([]),
+  removeMany: () => Promise.resolve(),
 }));
 jest.mock('redux-persist-filesystem-storage', () => {
   const values = new Map();

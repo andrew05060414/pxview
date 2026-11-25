@@ -1,5 +1,5 @@
 {
-  "minPassedTests": 305,
+  "minPassedTests": 308,
   "allowedFailedSuites": [],
-  "notes": "PxView v6.0.0 RN 0.87.1 full Jest gate (all 50 suites passing, zero failures)."
+  "notes": "PxView v6.0.0 RN 0.87.1 full Jest gate (all 51 suites passing, zero failures)."
 }

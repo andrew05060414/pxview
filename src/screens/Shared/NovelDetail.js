@@ -195,7 +195,7 @@ class NovelDetail extends Component {
         index,
       });
       addBrowsingHistoryNovels(items[index].id);
-      analytics?.()?.logEvent?.(`Screen_${SCREENS.NovelDetail}`, {
+      logEvent(`Screen_${SCREENS.NovelDetail}`, {
         id: items[index].id.toString(),
         fromSwipe: true,
       });

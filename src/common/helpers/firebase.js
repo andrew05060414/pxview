@@ -63,52 +63,76 @@ export const disableFirebaseCollectionIfUnconfigured = () => {
     return;
   }
   // If a placeholder FirebaseApp was auto-initialized natively, turn off
-  // telemetry collectors silently so they do not spin in background retries.
+  // telemetry collectors silently via RNFirebase v26 modular APIs so they
+  // do not spin in background retries.
   try {
     const apps = typeof getApps === 'function' ? getApps() : [];
     if (!apps || apps.length === 0) {
       return;
     }
     try {
-      const analyticsModule = require('@react-native-firebase/analytics');
-      const analyticsFn = analyticsModule && (analyticsModule.default || analyticsModule);
-      if (typeof analyticsFn === 'function') {
-        Promise.resolve(
-          analyticsFn()?.setAnalyticsCollectionEnabled?.(false),
-        ).catch(() => {});
+      const analyticsMod = require('@react-native-firebase/analytics');
+      if (typeof analyticsMod.getAnalytics === 'function') {
+        const instance = analyticsMod.getAnalytics();
+        if (typeof analyticsMod.setAnalyticsCollectionEnabled === 'function') {
+          Promise.resolve(
+            analyticsMod.setAnalyticsCollectionEnabled(instance, false),
+          ).catch(() => {});
+        } else if (instance && typeof instance.setAnalyticsCollectionEnabled === 'function') {
+          Promise.resolve(instance.setAnalyticsCollectionEnabled(false)).catch(
+            () => {},
+          );
+        }
       }
     } catch (_e) {}
     try {
-      const crashlyticsModule = require('@react-native-firebase/crashlytics');
-      const crashlyticsFn =
-        crashlyticsModule && (crashlyticsModule.default || crashlyticsModule);
-      if (typeof crashlyticsFn === 'function') {
-        Promise.resolve(
-          crashlyticsFn()?.setCrashlyticsCollectionEnabled?.(false),
-        ).catch(() => {});
+      const crashlyticsMod = require('@react-native-firebase/crashlytics');
+      if (typeof crashlyticsMod.getCrashlytics === 'function') {
+        const instance = crashlyticsMod.getCrashlytics();
+        if (typeof crashlyticsMod.setCrashlyticsCollectionEnabled === 'function') {
+          Promise.resolve(
+            crashlyticsMod.setCrashlyticsCollectionEnabled(instance, false),
+          ).catch(() => {});
+        } else if (
+          instance &&
+          typeof instance.setCrashlyticsCollectionEnabled === 'function'
+        ) {
+          Promise.resolve(instance.setCrashlyticsCollectionEnabled(false)).catch(
+            () => {},
+          );
+        }
       }
     } catch (_e) {}
     try {
-      const perfModule = require('@react-native-firebase/perf');
-      const perfFn = perfModule && (perfModule.default || perfModule);
-      if (typeof perfFn === 'function') {
-        Promise.resolve(perfFn()?.setPerformanceCollectionEnabled?.(false)).catch(
-          () => {},
-        );
+      const perfMod = require('@react-native-firebase/perf');
+      if (typeof perfMod.getPerformance === 'function') {
+        const instance = perfMod.getPerformance();
+        if (instance) {
+          if (typeof instance.setPerformanceCollectionEnabled === 'function') {
+            Promise.resolve(instance.setPerformanceCollectionEnabled(false)).catch(
+              () => {},
+            );
+          } else {
+            instance.dataCollectionEnabled = false;
+            instance.instrumentationEnabled = false;
+          }
+        }
       }
     } catch (_e) {}
   } catch (_e) {}
 };
 
-const getAnalyticsInstance = () => {
+const getAnalyticsModular = () => {
   if (!isFirebaseConfigured()) {
     return null;
   }
   try {
-    const analyticsModule = require('@react-native-firebase/analytics');
-    const analyticsFn = analyticsModule && (analyticsModule.default || analyticsModule);
-    if (typeof analyticsFn === 'function') {
-      return analyticsFn();
+    const analyticsMod = require('@react-native-firebase/analytics');
+    if (typeof analyticsMod.getAnalytics === 'function') {
+      return {
+        mod: analyticsMod,
+        instance: analyticsMod.getAnalytics(),
+      };
     }
   } catch (_e) {}
   return null;
@@ -116,13 +140,21 @@ const getAnalyticsInstance = () => {
 
 export const logScreenView = (screenName, screenClass) => {
   try {
-    const instance = getAnalyticsInstance();
-    if (instance && typeof instance.logScreenView === 'function') {
+    const resolved = getAnalyticsModular();
+    if (!resolved || !resolved.instance) {
+      return;
+    }
+    const payload = {
+      screen_name: screenName,
+      screen_class: screenClass || screenName,
+    };
+    if (typeof resolved.mod.logScreenView === 'function') {
       Promise.resolve(
-        instance.logScreenView({
-          screen_name: screenName,
-          screen_class: screenClass || screenName,
-        }),
+        resolved.mod.logScreenView(resolved.instance, payload),
+      ).catch(() => {});
+    } else if (typeof resolved.mod.logEvent === 'function') {
+      Promise.resolve(
+        resolved.mod.logEvent(resolved.instance, 'screen_view', payload),
       ).catch(() => {});
     }
   } catch (_e) {}
@@ -130,9 +162,14 @@ export const logScreenView = (screenName, screenClass) => {
 
 export const logEvent = (eventName, params) => {
   try {
-    const instance = getAnalyticsInstance();
-    if (instance && typeof instance.logEvent === 'function') {
-      Promise.resolve(instance.logEvent(eventName, params)).catch(() => {});
+    const resolved = getAnalyticsModular();
+    if (!resolved || !resolved.instance) {
+      return;
+    }
+    if (typeof resolved.mod.logEvent === 'function') {
+      Promise.resolve(
+        resolved.mod.logEvent(resolved.instance, eventName, params),
+      ).catch(() => {});
     }
   } catch (_e) {}
 };
@@ -142,21 +179,40 @@ export const getDatabaseRef = (path) => {
     return null;
   }
   try {
-    const dbModule = require('@react-native-firebase/database');
-    const dbFn = dbModule && (dbModule.default || dbModule);
-    if (typeof dbFn === 'function') {
-      return dbFn().ref(path);
+    const dbMod = require('@react-native-firebase/database');
+    if (typeof dbMod.getDatabase === 'function' && typeof dbMod.ref === 'function') {
+      const db = dbMod.getDatabase();
+      return dbMod.ref(db, path);
     }
   } catch (_e) {}
   return null;
 };
 
+export const pushDatabaseValue = async (path, value) => {
+  if (!isFirebaseConfigured()) {
+    throw new Error('Firebase is not configured');
+  }
+  const dbMod = require('@react-native-firebase/database');
+  if (
+    typeof dbMod.getDatabase !== 'function' ||
+    typeof dbMod.ref !== 'function' ||
+    typeof dbMod.push !== 'function' ||
+    typeof dbMod.set !== 'function'
+  ) {
+    throw new Error('Firebase Realtime Database modular API unavailable');
+  }
+  const db = dbMod.getDatabase();
+  const parentRef = dbMod.ref(db, path);
+  const childRef = dbMod.push(parentRef);
+  await dbMod.set(childRef, value);
+  return childRef;
+};
+
 export const getDatabaseServerTimestamp = () => {
   try {
-    const dbModule = require('@react-native-firebase/database');
-    const dbFn = dbModule && (dbModule.default || dbModule);
-    if (dbFn && dbFn.ServerValue) {
-      return dbFn.ServerValue.TIMESTAMP;
+    const dbMod = require('@react-native-firebase/database');
+    if (typeof dbMod.serverTimestamp === 'function') {
+      return dbMod.serverTimestamp();
     }
   } catch (_e) {}
   return Date.now();

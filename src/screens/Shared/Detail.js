@@ -195,7 +195,7 @@ class Detail extends Component {
       setParams({
         index,
       });
-      analytics?.()?.logEvent?.(`Screen_${SCREENS.Detail}`, {
+      logEvent(`Screen_${SCREENS.Detail}`, {
         id: items[index].id.toString(),
         fromSwipe: true,
       });

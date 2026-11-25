@@ -2,6 +2,26 @@ import React, { Component } from 'react';
 import { View, Image } from 'react-native';
 import { globalStyleVariables } from '../styles';
 
+const haveImagesChanged = (images, prevImages) => {
+  if (images === prevImages) {
+    return false;
+  }
+  if (!Array.isArray(images) || !Array.isArray(prevImages)) {
+    return true;
+  }
+  if (images.length !== prevImages.length) {
+    return true;
+  }
+  for (let i = 0; i < images.length; i += 1) {
+    const curr = images[i];
+    const prev = prevImages[i];
+    if (!curr || !prev || curr.uri !== prev.uri || curr.delay !== prev.delay) {
+      return true;
+    }
+  }
+  return false;
+};
+
 class UgoiraView extends Component {
   constructor(props) {
     super(props);
@@ -23,7 +43,7 @@ class UgoiraView extends Component {
   componentDidUpdate(prevProps) {
     const { paused, images } = this.props;
     const { paused: prevPaused, images: prevImages } = prevProps;
-    if (images !== prevImages) {
+    if (haveImagesChanged(images, prevImages)) {
       this.currentFramePlayedTime = 0;
       this.lastFrameTime = Date.now();
       this.setState({ imageIndex: 0 });

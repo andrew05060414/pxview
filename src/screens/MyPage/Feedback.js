@@ -7,7 +7,8 @@ import {
 } from 'react-native';
 import { connect } from 'react-redux';
 import {
-  getDatabaseRef,
+  isFirebaseConfigured,
+  pushDatabaseValue,
   getDatabaseServerTimestamp,
 } from '../../common/helpers/firebase';
 import { withTheme, TextInput } from 'react-native-paper';
@@ -51,14 +52,9 @@ class Feedback extends Component {
 
   componentDidMount() {
     this.setHeaderRight();
-    this.ref = getDatabaseRef('feedback');
   }
 
-  componentWillUnmount() {
-    if (this.ref && typeof this.ref.off === 'function') {
-      this.ref.off();
-    }
-  }
+  componentWillUnmount() {}
 
   setHeaderRight = () => {
     const {
@@ -106,27 +102,25 @@ class Feedback extends Component {
     Keyboard.dismiss();
     this.setState({ loading: true });
     const manufacturer = await DeviceInfo.getManufacturer();
-    if (!this.ref) {
+    if (!isFirebaseConfigured()) {
       this.setState({ loading: false });
       addError(i18n.feedbackError);
       return;
     }
-    this.ref
-      .push()
-      .set({
-        platform: DeviceInfo.getSystemName(),
-        manufacturer,
-        brand: DeviceInfo.getBrand(),
-        model: DeviceInfo.getModel(),
-        systemVersion: DeviceInfo.getSystemVersion(),
-        appVersion: DeviceInfo.getVersion(),
-        appBuildNumber: DeviceInfo.getBuildNumber(),
-        locale: RNLocalize.getLocales()[0].languageTag,
-        country: RNLocalize.getCountry(),
-        createdAt: getDatabaseServerTimestamp(),
-        feedback,
-        email,
-      })
+    pushDatabaseValue('feedback', {
+      platform: DeviceInfo.getSystemName(),
+      manufacturer,
+      brand: DeviceInfo.getBrand(),
+      model: DeviceInfo.getModel(),
+      systemVersion: DeviceInfo.getSystemVersion(),
+      appVersion: DeviceInfo.getVersion(),
+      appBuildNumber: DeviceInfo.getBuildNumber(),
+      locale: RNLocalize.getLocales()[0].languageTag,
+      country: RNLocalize.getCountry(),
+      createdAt: getDatabaseServerTimestamp(),
+      feedback,
+      email,
+    })
       .then(() => {
         this.setState({ loading: false });
         goBack();

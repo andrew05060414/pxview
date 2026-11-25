@@ -1,6 +1,11 @@
 import React from 'react';
 import renderer, { act } from 'react-test-renderer';
-import { Platform, PermissionsAndroid, DeviceEventEmitter } from 'react-native';
+import {
+  Platform,
+  PermissionsAndroid,
+  DeviceEventEmitter,
+  NativeModules,
+} from 'react-native';
 import {
   SAVE_FILE_NAME_FORMAT as FILE,
   SAVE_FILE_NAME_USER_FOLDER_FORMAT as FOLDER,
@@ -192,6 +197,40 @@ describe('enhanceSaveImage (CameraRoll v7 MediaStore & sanitize-filename contrac
       PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
     );
     expect(mockSaveAsset).not.toHaveBeenCalled();
+  });
+
+  it('uses add-only native PXPhotoSaver on iOS without querying albums', async () => {
+    Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+    const mockNativeSave = jest.fn(() => Promise.resolve(true));
+    NativeModules.PXPhotoSaver = { saveImage: mockNativeSave };
+    try {
+      let capturedSaveImage;
+      const Dummy = ({ saveImage }) => {
+        capturedSaveImage = saveImage;
+        return null;
+      };
+      const Wrapped = enhanceSaveImage(Dummy);
+      act(() => {
+        renderer.create(<Wrapped saveImageSettings={{}} />);
+      });
+
+      await capturedSaveImage({
+        imageUrls: ['https://i.pximg.net/img-original/img/12345_p0.png'],
+        imageIndex: 0,
+        workId: 12345,
+        workTitle: 'Test',
+        workType: 'illust',
+        userId: 99,
+        userName: 'Artist',
+      });
+
+      expect(mockNativeSave).toHaveBeenCalledWith(
+        'file:///data/user/0/com.utopia.pxviewr/cache/pxviewr_save/12345_p0.png',
+      );
+      expect(mockSaveAsset).not.toHaveBeenCalled();
+    } finally {
+      delete NativeModules.PXPhotoSaver;
+    }
   });
 
   describe('saved image filenames (real sanitize-filename)', () => {

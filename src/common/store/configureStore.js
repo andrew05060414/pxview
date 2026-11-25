@@ -141,25 +141,64 @@ const myTransform = createTransform(
   },
 );
 
-const clearV4PersistedContents = () =>
-  AsyncStorage.getAllKeys((err, keys) => {
-    if (!err && keys && keys.length) {
-      const keyPrefix = 'persist:root';
-      const v5PersistKeys = keys.filter((key) => key.indexOf(keyPrefix) === 0);
-      if (v5PersistKeys.length) {
-        AsyncStorage.multiRemove(v5PersistKeys, () => Promise.resolve());
-      } else {
-        const v4KeyPrefix = 'reduxPersist:';
-        const v4PersistKeys = keys.filter(
-          (key) => key.indexOf(v4KeyPrefix) === 0,
-        );
-        if (v4PersistKeys.length) {
-          AsyncStorage.multiRemove(v4PersistKeys, () => Promise.resolve());
-        }
+const removeAsyncStorageKeys = async (keys) => {
+  if (!keys || !keys.length) {
+    return;
+  }
+  if (typeof AsyncStorage.removeMany === 'function') {
+    await AsyncStorage.removeMany(keys);
+    return;
+  }
+  if (typeof AsyncStorage.multiRemove === 'function') {
+    await AsyncStorage.multiRemove(keys);
+    return;
+  }
+  if (typeof AsyncStorage.removeItem === 'function') {
+    await Promise.all(keys.map((key) => AsyncStorage.removeItem(key)));
+  }
+};
+
+const clearV4PersistedContents = async () => {
+  try {
+    if (typeof AsyncStorage.getAllKeys !== 'function') {
+      return;
+    }
+    const keys = await new Promise((resolve, reject) => {
+      let settled = false;
+      const done = (err, result) => {
+        if (settled) return;
+        settled = true;
+        if (err) reject(err);
+        else resolve(result || []);
+      };
+      const maybePromise =
+        AsyncStorage.getAllKeys.length > 0
+          ? AsyncStorage.getAllKeys(done)
+          : AsyncStorage.getAllKeys();
+      if (maybePromise && typeof maybePromise.then === 'function') {
+        maybePromise.then((res) => done(null, res), (err) => done(err));
+      } else if (AsyncStorage.getAllKeys.length === 0) {
+        done(null, maybePromise);
+      }
+    });
+    if (!keys || !keys.length) {
+      return;
+    }
+    const keyPrefix = 'persist:root';
+    const v5PersistKeys = keys.filter((key) => key.indexOf(keyPrefix) === 0);
+    if (v5PersistKeys.length) {
+      await removeAsyncStorageKeys(v5PersistKeys);
+    } else {
+      const v4KeyPrefix = 'reduxPersist:';
+      const v4PersistKeys = keys.filter(
+        (key) => key.indexOf(v4KeyPrefix) === 0,
+      );
+      if (v4PersistKeys.length) {
+        await removeAsyncStorageKeys(v4PersistKeys);
       }
     }
-    return Promise.resolve();
-  });
+  } catch (_e) {}
+};
 
 export default function configureStore() {
   let enhancer;

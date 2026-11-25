@@ -55,4 +55,78 @@ describe('UgoiraView (cross-platform JS frame player)', () => {
     });
     expect(tree.toJSON()).toBeNull();
   });
+
+  it('preserves current frame index on pause and resume when parent re-creates images array with same frames', () => {
+    let rafCallback = null;
+    let now = 1000;
+    jest.spyOn(Date, 'now').mockImplementation(() => now);
+    global.requestAnimationFrame = jest.fn((cb) => {
+      rafCallback = cb;
+      return 1;
+    });
+
+    const makeFrames = () => [
+      { uri: 'file:///cache/000000.jpg', delay: 100 },
+      { uri: 'file:///cache/000001.jpg', delay: 100 },
+      { uri: 'file:///cache/000002.jpg', delay: 100 },
+    ];
+
+    let tree;
+    act(() => {
+      tree = renderer.create(
+        <UgoiraView
+          images={makeFrames()}
+          paused={false}
+          width={300}
+          height={200}
+          resizeMode="contain"
+        />,
+      );
+    });
+
+    // Advance one frame to index 1
+    now += 120;
+    act(() => {
+      rafCallback();
+    });
+    expect(tree.root.findByType('Image').props.source).toEqual({
+      uri: 'file:///cache/000001.jpg',
+    });
+
+    // Parent re-renders with paused=true and a brand-new mapped images array
+    act(() => {
+      tree.update(
+        <UgoiraView
+          images={makeFrames()}
+          paused
+          width={300}
+          height={200}
+          resizeMode="contain"
+        />,
+      );
+    });
+    expect(tree.root.findByType('Image').props.source).toEqual({
+      uri: 'file:///cache/000001.jpg',
+    });
+
+    // Parent resumes with yet another mapped images array
+    act(() => {
+      tree.update(
+        <UgoiraView
+          images={makeFrames()}
+          paused={false}
+          width={300}
+          height={200}
+          resizeMode="contain"
+        />,
+      );
+    });
+    expect(tree.root.findByType('Image').props.source).toEqual({
+      uri: 'file:///cache/000001.jpg',
+    });
+
+    act(() => {
+      tree.unmount();
+    });
+  });
 });

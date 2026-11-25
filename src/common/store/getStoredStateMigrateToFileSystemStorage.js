@@ -77,89 +77,130 @@ const createAsyncLocalStorage = () => {
   };
 };
 
-function getStoredStateV4(v4Config) {
+function callStorageMethod(storage, methodName, ...args) {
   return new Promise((resolve, reject) => {
-    let storage = v4Config.storage || createAsyncLocalStorage();
-    const deserializer =
-      v4Config.serialize === false
-        ? (data) => data
-        : (serial: string) => JSON.parse(serial);
-    const blacklist = v4Config.blacklist || [];
-    const whitelist = v4Config.whitelist || false;
-    const transforms = v4Config.transforms || [];
-    const keyPrefix =
-      v4Config.keyPrefix !== undefined ? v4Config.keyPrefix : KEY_PREFIX;
-
-    // fallback getAllKeys to `keys` if present (LocalForage compatability)
-    if (storage.keys && !storage.getAllKeys)
-      storage = { ...storage, getAllKeys: storage.keys };
-
-    const restoredState = {};
-    let completionCount = 0;
-
-    function rehydrate(key: string, serialized: ?string) {
-      let state = null;
-
-      try {
-        const data = serialized ? deserializer(serialized) : undefined;
-        state = transforms.reduceRight(
-          (subState, transformer) => transformer.out(subState, key),
-          data,
+    const fn = storage && storage[methodName];
+    if (typeof fn !== 'function') {
+      resolve(undefined);
+      return;
+    }
+    let settled = false;
+    const done = (err, result) => {
+      if (settled) return;
+      settled = true;
+      if (err) reject(err);
+      else resolve(result);
+    };
+    try {
+      const maybePromise =
+        fn.length > args.length
+          ? fn.call(storage, ...args, done)
+          : fn.call(storage, ...args);
+      if (maybePromise && typeof maybePromise.then === 'function') {
+        maybePromise.then(
+          (res) => done(null, res),
+          (err) => done(err),
         );
+      } else if (fn.length <= args.length) {
+        done(null, maybePromise);
+      }
+    } catch (err) {
+      done(err);
+    }
+  });
+}
+
+async function getStoredStateV4(v4Config) {
+  let storage = v4Config.storage || createAsyncLocalStorage();
+  const deserializer =
+    v4Config.serialize === false
+      ? (data) => data
+      : (serial: string) => JSON.parse(serial);
+  const blacklist = v4Config.blacklist || [];
+  const whitelist = v4Config.whitelist || false;
+  const transforms = v4Config.transforms || [];
+  const keyPrefix =
+    v4Config.keyPrefix !== undefined ? v4Config.keyPrefix : KEY_PREFIX;
+
+  // fallback getAllKeys to `keys` if present (LocalForage compatability)
+  if (storage.keys && !storage.getAllKeys) {
+    storage = { ...storage, getAllKeys: storage.keys };
+  }
+
+  function rehydrate(key: string, serialized: ?string) {
+    let state = null;
+
+    try {
+      const data = serialized ? deserializer(serialized) : undefined;
+      state = transforms.reduceRight(
+        (subState, transformer) => transformer.out(subState, key),
+        data,
+      );
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'production')
+        console.warn(
+          'redux-persist/getStoredState: Error restoring data for key:',
+          key,
+          err,
+        );
+    }
+
+    return state;
+  }
+
+  function passWhitelistBlacklist(key) {
+    if (whitelist && whitelist.indexOf(key) === -1) return false;
+    if (blacklist.indexOf(key) !== -1) return false;
+    return true;
+  }
+
+  function createStorageKey(key) {
+    return `${keyPrefix}${key}`;
+  }
+
+  let allKeys;
+  try {
+    allKeys = (await callStorageMethod(storage, 'getAllKeys')) || [];
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        'redux-persist/getStoredState: Error in storage.getAllKeys',
+      );
+    }
+    throw error;
+  }
+
+  const persistKeys = allKeys
+    .filter((key) => typeof key === 'string' && key.indexOf(keyPrefix) === 0)
+    .map((key) => key.slice(keyPrefix.length));
+  const keysToRestore = persistKeys.filter(passWhitelistBlacklist);
+
+  if (keysToRestore.length === 0) {
+    return undefined;
+  }
+
+  const restoredState = {};
+  await Promise.all(
+    keysToRestore.map(async (key) => {
+      try {
+        const serialized = await callStorageMethod(
+          storage,
+          'getItem',
+          createStorageKey(key),
+        );
+        restoredState[key] = rehydrate(key, serialized);
       } catch (err) {
-        if (process.env.NODE_ENV !== 'production')
+        if (process.env.NODE_ENV !== 'production') {
           console.warn(
             'redux-persist/getStoredState: Error restoring data for key:',
             key,
             err,
           );
+        }
       }
-
-      return state;
-    }
-
-    function passWhitelistBlacklist(key) {
-      if (whitelist && whitelist.indexOf(key) === -1) return false;
-      if (blacklist.indexOf(key) !== -1) return false;
-      return true;
-    }
-
-    function createStorageKey(key) {
-      return `${keyPrefix}${key}`;
-    }
-
-    // eslint-disable-next-line consistent-return
-    storage.getAllKeys((error, allKeys = []) => {
-      if (error) {
-        if (process.env.NODE_ENV !== 'production')
-          console.warn(
-            'redux-persist/getStoredState: Error in storage.getAllKeys',
-          );
-        return reject(error);
-      }
-
-      const persistKeys = allKeys
-        .filter((key) => key.indexOf(keyPrefix) === 0)
-        .map((key) => key.slice(keyPrefix.length));
-      const keysToRestore = persistKeys.filter(passWhitelistBlacklist);
-
-      const restoreCount = keysToRestore.length;
-      if (restoreCount === 0) resolve(undefined);
-      keysToRestore.forEach((key) => {
-        storage.getItem(createStorageKey(key), (err, serialized) => {
-          if (err && process.env.NODE_ENV !== 'production')
-            console.warn(
-              'redux-persist/getStoredState: Error restoring data for key:',
-              key,
-              err,
-            );
-          else restoredState[key] = rehydrate(key, serialized);
-          completionCount += 1;
-          if (completionCount === restoreCount) resolve(restoredState);
-        });
-      });
-    });
-  });
+    }),
+  );
+  return restoredState;
 }
 
 export default function getStoredStateMigrateToFileSystemStorage(

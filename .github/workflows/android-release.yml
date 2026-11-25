@@ -39,16 +39,29 @@ jobs:
           java-version: '21'
           cache: 'gradle'
 
-      - name: Build release APK
+      - name: Build universal release APK (all 4 ABIs)
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon \
-            -PreactNativeArchitectures=arm64-v8a,x86_64 \
-            "-PPXVIEWR_RELEASE_STORE_FILE=$PWD/app/debug.keystore" \
-            "-PPXVIEWR_RELEASE_STORE_PASSWORD=android" \
-            "-PPXVIEWR_RELEASE_KEY_ALIAS=androiddebugkey" \
-            "-PPXVIEWR_RELEASE_KEY_PASSWORD=android"
+          for attempt in 1 2; do
+            ./gradlew assembleRelease --no-daemon \
+              "-PPXVIEWR_RELEASE_STORE_FILE=$PWD/app/debug.keystore" \
+              "-PPXVIEWR_RELEASE_STORE_PASSWORD=android" \
+              "-PPXVIEWR_RELEASE_KEY_ALIAS=androiddebugkey" \
+              "-PPXVIEWR_RELEASE_KEY_PASSWORD=android" && break
+            if [ "$attempt" -eq 2 ]; then
+              exit 1
+            fi
+            echo "Gradle build failed on attempt $attempt; retrying in 15s..."
+            sleep 15
+          done
+
+      - name: Verify APK ABI coverage (32-bit and 64-bit)
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          for abi in armeabi-v7a arm64-v8a x86 x86_64; do
+            unzip -l "$APK" | grep -q "lib/$abi/" || { echo "Missing ABI $abi in $APK"; exit 1; }
+          done
 
       - name: Rename APK
         run: |

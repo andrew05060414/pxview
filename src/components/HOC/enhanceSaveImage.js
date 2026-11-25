@@ -7,6 +7,7 @@ import {
   PermissionsAndroid,
   DeviceEventEmitter,
   Linking,
+  NativeModules,
 } from 'react-native';
 import { connect } from 'react-redux';
 import { CameraRoll } from '@react-native-camera-roll/camera-roll';
@@ -122,7 +123,16 @@ const enhanceSaveImage = (WrappedComponent) => {
       const fileUri = filePath.startsWith('file://')
         ? filePath
         : `file://${filePath}`;
-      const options = { type: 'photo', album };
+      if (
+        Platform.OS === 'ios' &&
+        NativeModules &&
+        NativeModules.PXPhotoSaver &&
+        typeof NativeModules.PXPhotoSaver.saveImage === 'function'
+      ) {
+        return NativeModules.PXPhotoSaver.saveImage(fileUri);
+      }
+      const options =
+        Platform.OS === 'ios' ? { type: 'photo' } : { type: 'photo', album };
       if (typeof CameraRoll.saveAsset === 'function') {
         return CameraRoll.saveAsset(fileUri, options);
       }
