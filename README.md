@@ -44,7 +44,7 @@ PxView also know as PxView R is an unofficial Pixiv app client for Android and i
 
 ## Project Status (this fork)
 
-As of **v6.0.0**, this fork runs on the modern **React Native 0.87.1 New Architecture** toolchain (React 19.2.3, Hermes, Node 24, JDK 21, AGP 8/Gradle 9.4, Android `compileSdk 37` / `targetSdk 36` with Edge-to-Edge, iOS 15.1+ / Swift `AppDelegate` / CocoaPods static frameworks / Xcode 27.2).
+As of **v6.0.0**, this fork runs on the modern **React Native 0.87.1 New Architecture** toolchain (React 19.2.3, Hermes, Node 24, JDK 21, AGP 8/Gradle 9.4, Android `compileSdk 37` / `targetSdk 36` with Edge-to-Edge, iOS 15.5+ / Swift `AppDelegate` & `SceneDelegate` / CocoaPods static frameworks / Xcode 27.2).
 
 - Dependency upgrade assessment (historical M6 context): [`docs/2026-09-29-dependency-upgrade-assessment-zh.md`](./docs/2026-09-29-dependency-upgrade-assessment-zh.md)
 - Repo build scripts: [`scripts/`](./scripts)

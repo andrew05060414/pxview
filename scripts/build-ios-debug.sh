@@ -15,6 +15,7 @@ XCODEBUILD="${XCODEBUILD:-/usr/bin/xcodebuild}"
 XCODE_SDK="${PXVIEW_IOS_SDK:-iphonesimulator}"
 XCODE_DESTINATION="${PXVIEW_IOS_DESTINATION:-generic/platform=iOS Simulator}"
 DERIVED_DATA="${PXVIEW_IOS_DERIVED_DATA:-build}"
+XCODE_ARCHS="${PXVIEW_IOS_ARCHS:-arm64}"
 
 cd "$REPO_ROOT/ios"
 "$XCODEBUILD" \
@@ -24,6 +25,8 @@ cd "$REPO_ROOT/ios"
   -sdk "$XCODE_SDK" \
   -destination "$XCODE_DESTINATION" \
   -derivedDataPath "$DERIVED_DATA" \
+  ARCHS="$XCODE_ARCHS" \
+  ONLY_ACTIVE_ARCH=YES \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGN_IDENTITY="" \
