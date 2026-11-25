@@ -827,4 +827,246 @@ describe('NovelInlineImage', () => {
       ).props.children,
     ).toBe('Image unavailable (image request failed)');
   });
+
+  it('does not lock multi-page pixivimage page 2+ to page 1 illust dimensions and caches actual onLoad ratio', async () => {
+    const page1Url = 'https://example.com/multi-page-1.jpg';
+    const page2Url = 'https://example.com/multi-page-2.jpg';
+    illustDetail.mockResolvedValueOnce({
+      illust: {
+        width: 1536,
+        height: 1024,
+        meta_pages: [
+          { image_urls: { original: page1Url } },
+          { image_urls: { original: page2Url } },
+        ],
+      },
+    });
+
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="147842449"
+          imageKind="pixivimage"
+          pageNumber={2}
+          maxWidth={400}
+        />,
+      );
+      await flushPromises();
+    });
+
+    let imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-147842449',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe(page2Url);
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 400,
+          height: Math.round(400 / (4 / 3)),
+        }),
+      ]),
+    );
+    expect(imageNode.props.style).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ aspectRatio: 1.5 }),
+      ]),
+    );
+
+    const portraitRatio = 832 / 1216;
+    await act(async () => {
+      imageNode.props.onLoad({
+        nativeEvent: {
+          source: { uri: page2Url, width: 832, height: 1216 },
+        },
+      });
+    });
+
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-147842449',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 400,
+          height: Math.round(400 / portraitRatio),
+          aspectRatio: portraitRatio,
+        }),
+      ]),
+    );
+    tree.unmount();
+
+    let remounted;
+    await act(async () => {
+      remounted = renderer.create(
+        <NovelInlineImage
+          imageId="147842449"
+          imageKind="pixivimage"
+          pageNumber={2}
+          maxWidth={400}
+        />,
+      );
+      await flushPromises();
+    });
+
+    const remountedNode = findHostNodeByAccessibilityLabel(
+      remounted.root,
+      'novel-inline-image-147842449',
+      'Image',
+    );
+    expect(remountedNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 400,
+          height: Math.round(400 / portraitRatio),
+          aspectRatio: portraitRatio,
+        }),
+      ]),
+    );
+    expect(illustDetail).toHaveBeenCalledTimes(1);
+    remounted.unmount();
+  });
+
+  it('corrects aspect ratio from onLoad even when metadata ratio differs and ignores mismatched source uri', async () => {
+    const targetUrl = 'https://example.com/mismatch-check.jpg';
+    illustDetail.mockResolvedValueOnce({
+      illust: {
+        width: 1500,
+        height: 1000,
+        image_urls: { large: targetUrl },
+      },
+    });
+
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="998877"
+          imageKind="pixivimage"
+          maxWidth={300}
+        />,
+      );
+      await flushPromises();
+    });
+
+    let imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-998877',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ aspectRatio: 1.5, height: 200 }),
+      ]),
+    );
+
+    // Mismatched URI should be ignored
+    await act(async () => {
+      imageNode.props.onLoad({
+        nativeEvent: {
+          source: {
+            uri: 'https://example.com/other.jpg',
+            width: 500,
+            height: 1000,
+          },
+        },
+      });
+    });
+
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-998877',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ aspectRatio: 1.5, height: 200 }),
+      ]),
+    );
+
+    // Matching URI with different actual dimensions updates state and cache
+    await act(async () => {
+      imageNode.props.onLoad({
+        nativeEvent: {
+          source: { uri: targetUrl, width: 600, height: 1200 },
+        },
+      });
+    });
+
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-998877',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 300,
+          height: 600,
+          aspectRatio: 0.5,
+        }),
+      ]),
+    );
+
+    tree.unmount();
+  });
+
+  it('does not lock pixivimage without metadata dimensions to 1:1 and resolves ratio on onLoad', async () => {
+    const targetUrl = 'https://example.com/no-dims.jpg';
+    illustDetail.mockResolvedValueOnce({
+      illust: {
+        image_urls: { large: targetUrl },
+      },
+    });
+
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="776655"
+          imageKind="pixivimage"
+          maxWidth={400}
+        />,
+      );
+      await flushPromises();
+    });
+
+    let imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-776655',
+      'Image',
+    );
+    expect(imageNode.props.style).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ aspectRatio: 1 }),
+      ]),
+    );
+
+    await act(async () => {
+      imageNode.props.onLoad({
+        nativeEvent: {
+          source: { uri: targetUrl, width: 1000, height: 2000 },
+        },
+      });
+    });
+
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-776655',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 400,
+          height: 800,
+          aspectRatio: 0.5,
+        }),
+      ]),
+    );
+  });
 });

@@ -164,6 +164,36 @@ const resolveIllustImageUrl = (illust, pageNumber) => {
   return null;
 };
 
+const resolveIllustAspectRatio = (illust, pageNumber) => {
+  if (!illust) {
+    return null;
+  }
+
+  const isMultiPage =
+    Array.isArray(illust.meta_pages) && illust.meta_pages.length > 1;
+  const pageIndex =
+    pageNumber && pageNumber > 0
+      ? Math.min(
+          pageNumber - 1,
+          isMultiPage ? illust.meta_pages.length - 1 : 0,
+        )
+      : 0;
+
+  if (isMultiPage) {
+    const page = illust.meta_pages[pageIndex];
+    const pageWidth = page && page.width;
+    const pageHeight = page && page.height;
+    if (pageWidth && pageHeight) {
+      return pageWidth / pageHeight;
+    }
+    if (pageIndex > 0) {
+      return null;
+    }
+  }
+
+  return illust.width && illust.height ? illust.width / illust.height : null;
+};
+
 const fetchIllustDetail = (imageId) => {
   const requestKey = String(imageId);
   if (resolvedIllustDetailCache.has(requestKey)) {
@@ -213,8 +243,8 @@ const resolveInitialStateFromProps = (props) => {
   if (embeddedImageUrl) {
     const metadataRatio = resolveEmbeddedImageAspectRatio(embeddedImage);
     const cachedRatio = resolvedAspectRatioCache.get(embeddedImageUrl) || null;
-    const resolvedRatio = metadataRatio || cachedRatio;
-    if (metadataRatio) {
+    const resolvedRatio = cachedRatio || metadataRatio || null;
+    if (!cachedRatio && metadataRatio) {
       setBoundedCache(resolvedAspectRatioCache, embeddedImageUrl, metadataRatio);
     }
     return {
@@ -242,15 +272,13 @@ const resolveInitialStateFromProps = (props) => {
   if (cachedResponse && cachedResponse.illust) {
     const { illust } = cachedResponse;
     const imageUrl = resolveIllustImageUrl(illust, props.pageNumber);
-    const width = illust.width;
-    const height = illust.height;
+    const metadataRatio = resolveIllustAspectRatio(illust, props.pageNumber);
     const cachedRatio = imageUrl
       ? resolvedAspectRatioCache.get(imageUrl) || null
       : null;
-    const imageAspectRatio =
-      width && height ? width / height : cachedRatio || 1;
-    if (imageUrl && width && height) {
-      setBoundedCache(resolvedAspectRatioCache, imageUrl, width / height);
+    const imageAspectRatio = cachedRatio || metadataRatio || null;
+    if (imageUrl && !cachedRatio && metadataRatio) {
+      setBoundedCache(resolvedAspectRatioCache, imageUrl, metadataRatio);
     }
     return {
       failureReason: imageUrl ? null : 'illust detail has no usable url',
@@ -266,7 +294,7 @@ const resolveInitialStateFromProps = (props) => {
     imageUrl: null,
     isFailed: false,
     isLoading: true,
-    imageAspectRatio: 1,
+    imageAspectRatio: null,
   };
 };
 
@@ -332,8 +360,8 @@ class NovelInlineImage extends PureComponent {
 
     if (embeddedImageUrl) {
       const cachedRatio = resolvedAspectRatioCache.get(embeddedImageUrl) || null;
-      const resolvedRatio = embeddedImageAspectRatio || cachedRatio;
-      if (embeddedImageAspectRatio) {
+      const resolvedRatio = cachedRatio || embeddedImageAspectRatio || null;
+      if (!cachedRatio && embeddedImageAspectRatio) {
         setBoundedCache(
           resolvedAspectRatioCache,
           embeddedImageUrl,
@@ -369,17 +397,13 @@ class NovelInlineImage extends PureComponent {
 
       const illust = response && response.illust;
       const imageUrl = resolveIllustImageUrl(illust, pageNumber);
-      const width = illust && illust.width;
-      const height = illust && illust.height;
+      const metadataRatio = resolveIllustAspectRatio(illust, pageNumber);
       const cachedRatio = imageUrl
         ? resolvedAspectRatioCache.get(imageUrl) || null
         : null;
-      const imageAspectRatio =
-        width && height
-          ? width / height
-          : cachedRatio || this.state.imageAspectRatio;
-      if (imageUrl && width && height) {
-        setBoundedCache(resolvedAspectRatioCache, imageUrl, width / height);
+      const imageAspectRatio = cachedRatio || metadataRatio || null;
+      if (imageUrl && !cachedRatio && metadataRatio) {
+        setBoundedCache(resolvedAspectRatioCache, imageUrl, metadataRatio);
       }
 
       this.setState({
@@ -410,17 +434,26 @@ class NovelInlineImage extends PureComponent {
 
   handleImageLoad = (event) => {
     const { imageAspectRatio, imageUrl } = this.state;
-    if (imageAspectRatio !== null) {
+    const source = event && event.nativeEvent && event.nativeEvent.source;
+    if (source && source.uri && imageUrl && source.uri !== imageUrl) {
       return;
     }
-    const source = event && event.nativeEvent && event.nativeEvent.source;
-    if (source && source.width && source.height) {
-      const ratio = source.width / source.height;
-      if (imageUrl) {
-        setBoundedCache(resolvedAspectRatioCache, imageUrl, ratio);
+    if (source && source.width > 0 && source.height > 0) {
+      const actualRatio = source.width / source.height;
+      if (Number.isFinite(actualRatio) && actualRatio > 0) {
+        if (imageUrl) {
+          setBoundedCache(resolvedAspectRatioCache, imageUrl, actualRatio);
+        }
+        if (
+          imageAspectRatio === null ||
+          Math.abs(actualRatio - imageAspectRatio) > 0.01
+        ) {
+          this.setState({ imageAspectRatio: actualRatio });
+        }
+        return;
       }
-      this.setState({ imageAspectRatio: ratio });
-    } else {
+    }
+    if (imageAspectRatio === null) {
       this.setState({ imageAspectRatio: 1 });
     }
   };
@@ -470,7 +503,11 @@ class NovelInlineImage extends PureComponent {
       maxWidth || Dimensions.get('window').width - 20;
     const imageStyle =
       imageAspectRatio !== null
-        ? { width: imageWidth, aspectRatio: imageAspectRatio }
+        ? {
+            width: imageWidth,
+            height: Math.round(imageWidth / imageAspectRatio),
+            aspectRatio: imageAspectRatio,
+          }
         : {
             width: imageWidth,
             height: Math.round(imageWidth / DEFAULT_PLACEHOLDER_ASPECT_RATIO),
