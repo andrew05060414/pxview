@@ -37,4 +37,27 @@ target 'PxViewR' do
       end
     end
   end
+
+  post_integrate do |installer|
+    installer.aggregate_targets.map(&:user_project).uniq.each do |user_project|
+      modified = false
+      user_project.native_targets.each do |target|
+        target.shell_script_build_phases.each do |phase|
+          next unless phase.name == '[CP-User] [RNFB] Crashlytics Configuration'
+          next if phase.shell_script.include?('PXVIEW_SKIP_CRASHLYTICS_WITHOUT_GSP')
+          guard = <<~'SH'
+            # PXVIEW_SKIP_CRASHLYTICS_WITHOUT_GSP
+            GSP_PATH="${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist"
+            if [ ! -f "$GSP_PATH" ] || grep -Eq "placeholder|YOUR_|REPLACE_ME" "$GSP_PATH"; then
+              echo "info: Skipping Firebase Crashlytics dSYM upload (GoogleService-Info.plist missing or placeholder)."
+              exit 0
+            fi
+          SH
+          phase.shell_script = phase.shell_script.sub(/\A(#![^\n]*\n)?/, "\\1#{guard}\n")
+          modified = true
+        end
+      end
+      user_project.save if modified
+    end
+  end
 end

@@ -52,6 +52,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+          cache: 'gradle'
 
       - name: Install dependencies
         run: npm ci
@@ -60,8 +61,15 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon \
-            -PreactNativeArchitectures=arm64-v8a,x86_64
+          for attempt in 1 2; do
+            ./gradlew assembleRelease --no-daemon \
+              -PreactNativeArchitectures=arm64-v8a,x86_64 && break
+            if [ "$attempt" -eq 2 ]; then
+              exit 1
+            fi
+            echo "Gradle build failed on attempt $attempt; retrying in 15s..."
+            sleep 15
+          done
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
