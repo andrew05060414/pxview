@@ -54,7 +54,7 @@ sh ./scripts/build-android-debug.sh
 sh ./scripts/build-android-release.sh
 # 两个脚本目前在同一次 Gradle 调用里执行 clean 和 assemble，可能触发构建说明记录的
 # “PackageList cannot find symbol”。本次复验是把 clean 与 assemble 拆成两次调用后通过的，
-# 对应写法（在 android/ 下，先执行 sh ./scripts/bundle-android-release.sh 生成 bundle）：
+# 对应写法（先在仓库根目录执行 sh ./scripts/bundle-android-release.sh，再进入 android/）：
 #   ./gradlew clean --no-daemon
 #   ./gradlew assembleDebug --no-daemon -x bundleDebugJsAndAssets
 #   ./gradlew clean --no-daemon
@@ -71,13 +71,13 @@ adb install -r /path/to/app-release.apk
 
 | 层次 | 结果 |
 | --- | --- |
-| 自动测试和锁文件 | Node 14 / npm 9 干净安装及顶层依赖校验通过；合入 `068aa4a` 后 Jest 43 套件、280 条通过（合入前为 42 套件、275 条），其中 20 条命名回归在 1.6.3 和 1.6.4 下均通过；新增测试文件 ESLint 通过 |
-| Android Debug APK | 基于 `5d5b69e` 已生成（合入 `068aa4a` 后未重新构建）；用仓库调试证书重签副本，签名和内置 JS 校验通过 |
-| Android Release APK | 基于 `5d5b69e` 已生成（合入 `068aa4a` 后未重新构建）；用同一仓库证书构建，签名和内置 JS 校验通过 |
-| Metro Android release bundle | 合入 `068aa4a` 后用 Node 14 重新打包通过（只验证 JS 打包，未重新生成 APK） |
+| 自动测试和锁文件 | Node 14 / npm 9 干净安装及顶层依赖校验通过；在 `cd7d83a` 上 Jest 43 套件、280 条通过，其中 20 条命名回归在 1.6.3 和 1.6.4 下均通过；新增测试文件 ESLint 通过 |
+| Android Debug APK | 基于 `50fcc1d` 重新构建通过；用仓库调试证书重签副本，签名和内置 JS 校验通过 |
+| Android Release APK | 基于 `50fcc1d` 重新构建通过；用同一仓库证书构建，签名和内置 JS 校验通过 |
+| Metro Android release bundle | 在 `50fcc1d` 上用 Node 14 重新打包通过，该 bundle 已打入上面两包 |
 | Android 真机 / iOS | 未验证；没有安装任何 APK 或改动设备数据 |
 
-首次 Gradle 下载因 Maven Central 限流失败。改用官方镜像（仅本地 Gradle 配置），复用刚生成的 Metro bundle，按 CI 流程将 `clean` 与各自的 `assembleDebug` / `assembleRelease` 分开执行，跳过重复打包。两包均为 `com.utopia.pxviewr`，内置 JS 与构建这两个 APK 时（基于 `5d5b69e`）生成的 Metro bundle 逐字节一致；合入 `068aa4a` 之后重新生成的 bundle 没有打进任何 APK，也没有与这两个包比对。未提交或发布构建产物。
+首次 Gradle 下载因 Maven Central 限流失败。改用官方镜像（仅本地 Gradle 配置），复用刚生成的 Metro bundle，按 CI 流程将 `clean` 与各自的 `assembleDebug` / `assembleRelease` 分开执行，跳过重复打包。两包均为 `com.utopia.pxviewr`，内置 JS 与本次 Metro 输出逐字节一致。构建提交已包含 PR #36；此后合入的 PR #37 和新增回归断言只改文档与测试，应用和构建配置不变。未提交或发布构建产物。
 
 单元测试只证明命名和路径计算。写入权限、图库扫描和覆盖安装后数据是否保留，按下节在真机验证。现有超长名称可能截断扩展名；本次不改变该行为。
 
