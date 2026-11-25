@@ -7,14 +7,12 @@ import PastRanking from './PastRanking';
 import PXTabView from '../../components/PXTabView';
 import TabContentWrapper from '../../components/TabContentWrapper';
 import { connectLocalization } from '../../components/Localization';
-import {
-  NOVEL_RANKING_LANGUAGES,
-  RANKING_FOR_UI,
-} from '../../common/constants';
+import { RANKING_FOR_UI } from '../../common/constants';
 import {
   clearLanguage,
   setLanguage,
 } from '../../common/actions/novelRankingSettings';
+import { getPreferredNovelRankingLanguage } from '../../common/reducers/novelRankingSettings';
 import mapRankingTypeString from '../../common/helpers/mapRankingTypeString';
 
 class NovelRanking extends Component {
@@ -88,7 +86,7 @@ class NovelRanking extends Component {
   };
 
   renderScene = ({ route }) => {
-    const { route: navigationRoute, i18n, novelRankingLanguage } = this.props;
+    const { route: navigationRoute, i18n, selectedLanguage } = this.props;
     const { routes, index } = this.state;
     const { rankingType } = navigationRoute.params;
     const { rankingMode, reload } = route;
@@ -96,8 +94,6 @@ class NovelRanking extends Component {
       RANKING_FOR_UI.DAILY_MALE_NOVEL,
       RANKING_FOR_UI.DAILY_FEMALE_NOVEL,
     ].includes(rankingMode);
-    const selectedLanguage =
-      novelRankingLanguage || NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE;
     const renderHeader = isGenderedNovelRanking
       ? () => (
           <NovelRankingLanguageFilter
@@ -147,7 +143,7 @@ class NovelRanking extends Component {
 export default connectLocalization(
   connect(
     (state) => ({
-      novelRankingLanguage: state.novelRankingSettings.language,
+      selectedLanguage: getPreferredNovelRankingLanguage(state),
     }),
     {
       setNovelRankingLanguage: setLanguage,
