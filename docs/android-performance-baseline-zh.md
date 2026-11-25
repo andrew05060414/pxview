@@ -5,17 +5,18 @@
 ## 固定条件
 
 - 2026-11-25 UTC；Linux x86_64，Intel Xeon，KVM；Android Emulator 37.3.10（16970787），Android 10 / API 29 默认 x86_64 系统镜像（r08，QSR1.210820.001），2 vCPU，2 GiB RAM，SwiftShader，720 × 1280、320 dpi、竖屏、60 Hz。
-- 安装 [v5.3.5 release APK](https://github.com/andrew05060414/pxview/releases/tag/v5.3.5)（versionCode 408、x86_64；标签提交 `f18a76fa4201fa07f01a88683a15b3c4dfce652a`；APK SHA-256 `1db614f1f18d6c40c861243fb8e1d73a3d9d2a1ed3482f84718163bc01071fe7`）。标签之后的代码不在这份基线内。
+- 安装 [v5.3.5 release APK](https://github.com/andrew05060414/pxview/releases/tag/v5.3.5)（通用 APK，versionCode 408，在模拟器上运行其中的 x86_64 原生库；标签提交 `f18a76fa4201fa07f01a88683a15b3c4dfce652a`；APK SHA-256 `1db614f1f18d6c40c861243fb8e1d73a3d9d2a1ed3482f84718163bc01071fe7`）。标签之后的代码不在这份基线内。
 - 模拟器 Wi-Fi 在线，无代理；新装后正常启动一次预热，未登录，五轮之间不清数据、不清磁盘缓存。启动样本是同一安装实例的登录页；登录页推荐图由服务端提供，不是固定的单图样本。
 
 ## 复测命令
 
-先等模拟器完成启动并解锁，装 APK、确认版本，按上述条件预热。不要并行运行构建或测试。只有一台设备时可省略 `ANDROID_SERIAL`。
+先等模拟器完成启动并解锁，装 APK、确认版本，按上述条件预热。不要并行运行构建或测试。只有一台设备时可省略 `ANDROID_SERIAL`。每批写入按 UTC 时间命名的新目录，不覆盖之前的采样；任一轮启动不是 `Status: ok` / `LaunchState: COLD` 或帧解析失败时立即中止，这一批不汇总。
 
 ```sh
 export ANDROID_SERIAL=emulator-5556
 app=com.utopia.pxviewr
-mkdir -p px204-captures
+out="px204-captures/$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$out"
 for n in 01 02 03 04 05; do
   adb shell input keyevent KEYCODE_HOME
   adb shell am force-stop "$app"
@@ -23,13 +24,15 @@ for n in 01 02 03 04 05; do
   sleep 5
   adb shell am start -W -n "$app/.MainActivity" \
     -a android.intent.action.MAIN -c android.intent.category.LAUNCHER \
-    > "px204-captures/$n-start.txt"
+    > "$out/$n-start.txt"
+  grep -q 'Status: ok' "$out/$n-start.txt" || exit 1
+  grep -q 'LaunchState: COLD' "$out/$n-start.txt" || exit 1
   sleep 5
-  adb shell dumpsys meminfo "$app" > "px204-captures/$n-memory-05.txt"
+  adb shell dumpsys meminfo "$app" > "$out/$n-memory-05.txt"
   sleep 25
-  adb shell dumpsys meminfo "$app" > "px204-captures/$n-memory-30.txt"
-  adb shell dumpsys gfxinfo "$app" framestats > "px204-captures/$n-gfxinfo.txt"
-  node scripts/analyze-gfxinfo.js "px204-captures/$n-gfxinfo.txt" 60
+  adb shell dumpsys meminfo "$app" > "$out/$n-memory-30.txt"
+  adb shell dumpsys gfxinfo "$app" framestats > "$out/$n-gfxinfo.txt"
+  node scripts/analyze-gfxinfo.js "$out/$n-gfxinfo.txt" 60 || exit 1
   sleep 10
 done
 ```
