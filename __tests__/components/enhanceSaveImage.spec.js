@@ -11,8 +11,8 @@ jest.mock('../../src/components/Localization', () => ({
 }));
 jest.mock('@react-native-community/cameraroll', () => ({}));
 
-const enhanceSaveImage =
-  require('../../src/components/HOC/enhanceSaveImage').default;
+const enhanceSaveImage = require('../../src/components/HOC/enhanceSaveImage')
+  .default;
 
 // Keep the real sanitize-filename dependency: these are application contracts,
 // not snapshots of the dependency's implementation or native storage tests.
