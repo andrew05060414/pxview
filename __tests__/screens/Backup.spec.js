@@ -264,4 +264,31 @@ describe('Backup screen (legacy migration, SAF file picker & Android 10+ permiss
     });
     expect(emitSpy).toHaveBeenCalledWith('showToast', 'backupInvalidFile');
   });
+
+  it('rejects malformed searchHistory in external backup without dispatching any restore actions', async () => {
+    const emitSpy = jest.spyOn(DeviceEventEmitter, 'emit');
+    NativeModules.PXFilePicker = {
+      pickJsonFile: jest.fn(() =>
+        Promise.resolve({
+          uri: 'content://malformed',
+          content: JSON.stringify({
+            appVersion: '6.0.0',
+            data: {
+              theme: { name: 'dark' },
+              searchHistory: { items: [{ bad: true }] },
+            },
+          }),
+        }),
+      ),
+    };
+
+    const items = renderBackup();
+    await act(async () => {
+      items[2].props.onPress();
+      await flushMicrotasks();
+    });
+
+    expect(emitSpy).toHaveBeenCalledWith('showToast', 'backupInvalidFile');
+    expect(mockDispatch).not.toHaveBeenCalled();
+  });
 });

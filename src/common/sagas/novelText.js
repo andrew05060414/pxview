@@ -34,6 +34,17 @@ const extractUploadedImageIdsFromText = (text) => {
   return Array.from(uploadedImageIds);
 };
 
+const hasMissingUploadedImageMetadata = (text, embeddedImages) => {
+  const uploadedImageIds = extractUploadedImageIdsFromText(text);
+  return (
+    uploadedImageIds.length > 0 &&
+    uploadedImageIds.some(
+      (uploadedImageId) =>
+        !hasEmbeddedImageForId(embeddedImages, uploadedImageId),
+    )
+  );
+};
+
 const mergeImageCollection = (target, collection) => {
   if (!collection) {
     return target;
@@ -131,16 +142,20 @@ export function* handleFetchNovelText(action) {
             .slice(0, 8)
             .join('|')}`,
         };
-        const hasMissingUploadedImageMetadata =
-          uploadedImageIds.length > 0 &&
-          uploadedImageIds.some(
-            (uploadedImageId) =>
-              !hasEmbeddedImageForId(embeddedImages, uploadedImageId),
-          );
+        const missingUploadedImageMetadata = hasMissingUploadedImageMetadata(
+          text,
+          embeddedImages,
+        );
 
-        if (hasText && !hasMissingUploadedImageMetadata) {
+        if (hasText && !missingUploadedImageMetadata) {
           yield put(
-            fetchNovelTextSuccess(text, novelId, embeddedImages, debugInfo),
+            fetchNovelTextSuccess(
+              text,
+              novelId,
+              embeddedImages,
+              debugInfo,
+              false,
+            ),
           );
           return;
         }
@@ -176,12 +191,17 @@ export function* handleFetchNovelText(action) {
           },
           summary: `${ajaxDebugInfo?.summary || 'source=ajax'} ajaxFallback=${ajaxFallbackReason} webviewFailed=true`,
         };
+        const ajaxImagesIncomplete = hasMissingUploadedImageMetadata(
+          ajaxText,
+          ajaxEmbeddedImages,
+        );
         yield put(
           fetchNovelTextSuccess(
             ajaxText,
             novelId,
             ajaxEmbeddedImages,
             partialDebugInfo,
+            ajaxImagesIncomplete,
           ),
         );
         return;
@@ -221,12 +241,17 @@ export function* handleFetchNovelText(action) {
           summary: `${debugInfo.summary} ajaxFallback=${ajaxFallbackReason}`,
         }
       : debugInfo;
+    const finalImagesIncomplete = hasMissingUploadedImageMetadata(
+      finalText,
+      embeddedImages,
+    );
     yield put(
       fetchNovelTextSuccess(
         finalText,
         novelId,
         embeddedImages,
         finalDebugInfo,
+        finalImagesIncomplete,
       ),
     );
   } catch (err) {

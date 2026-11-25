@@ -121,6 +121,69 @@ const Backup = () => {
     return false;
   };
 
+  const isPlainObject = (value) =>
+    Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+  const normalizeItemsSlice = (value, requireStrings = true) => {
+    if (value === undefined || value === null) {
+      return { valid: true, normalized: null };
+    }
+    const items = Array.isArray(value)
+      ? value
+      : isPlainObject(value) && Array.isArray(value.items)
+        ? value.items
+        : null;
+    if (!items) {
+      return { valid: false, normalized: null };
+    }
+    if (requireStrings && !items.every((item) => typeof item === 'string')) {
+      return { valid: false, normalized: null };
+    }
+    return { valid: true, normalized: { items: [...items] } };
+  };
+
+  const isValidBackupPayloadData = (data) => {
+    if (!isPlainObject(data)) {
+      return false;
+    }
+    const plainObjectSlices = [
+      'readingSettings',
+      'saveImageSettings',
+      'initialScreenSettings',
+      'likeButtonSettings',
+      'trendingSearchSettings',
+      'muteSettings',
+      'novelSettings',
+      'novelRankingSettings',
+      'theme',
+    ];
+    for (let i = 0; i < plainObjectSlices.length; i += 1) {
+      const val = data[plainObjectSlices[i]];
+      if (val !== undefined && val !== null && !isPlainObject(val)) {
+        return false;
+      }
+    }
+    if (
+      data.searchHistory !== undefined &&
+      data.searchHistory !== null &&
+      (!isPlainObject(data.searchHistory) ||
+        !Array.isArray(data.searchHistory.items) ||
+        !data.searchHistory.items.every((item) => typeof item === 'string'))
+    ) {
+      return false;
+    }
+    if (!normalizeItemsSlice(data.highlightTags, true).valid) {
+      return false;
+    }
+    if (!normalizeItemsSlice(data.muteTags, true).valid) {
+      return false;
+    }
+    if (!normalizeItemsSlice(data.muteUsers, false).valid) {
+      return false;
+    }
+    return true;
+  };
+
   const applyBackupContent = (rawContent) => {
     let parsedData;
     try {
@@ -129,7 +192,7 @@ const Backup = () => {
       showToast(i18n.backupInvalidFile);
       return false;
     }
-    if (!parsedData?.data || typeof parsedData.data !== 'object') {
+    if (!isValidBackupPayloadData(parsedData?.data)) {
       showToast(i18n.backupInvalidFile);
       return false;
     }
@@ -149,17 +212,20 @@ const Backup = () => {
     if (data.trendingSearchSettings) {
       dispatch(restoreTrendingSearchSettings(data.trendingSearchSettings));
     }
-    if (data.highlightTags) {
-      dispatch(restoreHighlightTags(data.highlightTags));
+    const highlightTagsNorm = normalizeItemsSlice(data.highlightTags, true);
+    if (highlightTagsNorm.normalized) {
+      dispatch(restoreHighlightTags(highlightTagsNorm.normalized));
     }
     if (data.muteSettings) {
       dispatch(restoreMuteSettings(data.muteSettings));
     }
-    if (data.muteTags) {
-      dispatch(restoreMuteTags(data.muteTags));
+    const muteTagsNorm = normalizeItemsSlice(data.muteTags, true);
+    if (muteTagsNorm.normalized) {
+      dispatch(restoreMuteTags(muteTagsNorm.normalized));
     }
-    if (data.muteUsers) {
-      dispatch(restoreMuteUsers(data.muteUsers));
+    const muteUsersNorm = normalizeItemsSlice(data.muteUsers, false);
+    if (muteUsersNorm.normalized) {
+      dispatch(restoreMuteUsers(muteUsersNorm.normalized));
     }
     if (data.novelSettings) {
       dispatch(restoreNovelSettings(data.novelSettings));
@@ -168,7 +234,7 @@ const Backup = () => {
       dispatch(restoreNovelRankingSettings(data.novelRankingSettings));
     }
     if (data.searchHistory) {
-      dispatch(restoreSearchHistory(data.searchHistory));
+      dispatch(restoreSearchHistory({ items: [...data.searchHistory.items] }));
     }
     if (data.theme) {
       dispatch(restoreTheme(data.theme));

@@ -299,6 +299,7 @@ describe('handleFetchNovelText', () => {
               urls: { original: 'https://i.pximg.net/already-here.jpg' },
             },
           },
+          embeddedImagesIncomplete: true,
           debugInfo: expect.objectContaining({
             ajaxFallback: expect.objectContaining({
               reason: 'missing uploaded image metadata',

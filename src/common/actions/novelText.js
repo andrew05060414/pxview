@@ -5,6 +5,7 @@ export function fetchNovelTextSuccess(
   novelId,
   embeddedImages = {},
   debugInfo = null,
+  embeddedImagesIncomplete = false,
 ) {
   return {
     type: NOVEL_TEXT.SUCCESS,
@@ -13,6 +14,7 @@ export function fetchNovelTextSuccess(
       text,
       embeddedImages,
       debugInfo,
+      embeddedImagesIncomplete: Boolean(embeddedImagesIncomplete),
       timestamp: Date.now(),
     },
   };

@@ -31,7 +31,10 @@ jest.mock('../../src/components/PXHeader', () => () => null);
 jest.mock('../../src/components/HeaderTextTitle', () => () => null);
 jest.mock('../../src/components/HeaderSettingsButton', () => () => null);
 jest.mock('../../src/components/BookmarkNovelButton', () => () => null);
-jest.mock('../../src/components/Loader', () => () => null);
+jest.mock('../../src/components/Loader', () => {
+  const ReactLib = require('react');
+  return (props) => ReactLib.createElement('Loader', props);
+});
 jest.mock('../../src/components/EmptyStateView', () => () => null);
 jest.mock('../../src/common/helpers/i18n', () => ({
   getLanguage: () => 'en',
@@ -129,4 +132,29 @@ describe('NovelReader initial and async page restoration (LTR & RTL)', () => {
       );
     },
   );
+
+  test('refreshes missing embedded image metadata in background on reopen without clearing cached text or blocking with Loader', () => {
+    const fetchNovelText = jest.fn();
+    const clearNovelText = jest.fn();
+
+    const tree = renderReader({
+      novelId: 555,
+      novelText: {
+        text: 'cached body [uploadedimage:999]',
+        embeddedImages: {},
+        embeddedImagesIncomplete: true,
+        loading: true,
+        refreshing: true,
+        loaded: true,
+      },
+      parsedNovelText: [['cached body [uploadedimage:999]']],
+      fetchNovelText,
+      clearNovelText,
+    });
+
+    expect(clearNovelText).not.toHaveBeenCalled();
+    expect(fetchNovelText).toHaveBeenCalledWith(555, true);
+    expect(tree.root.findAllByType('Loader')).toHaveLength(0);
+    expect(tree.root.findAllByType('NovelViewer')).toHaveLength(1);
+  });
 });

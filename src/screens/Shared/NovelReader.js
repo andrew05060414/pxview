@@ -77,6 +77,8 @@ class NovelReader extends Component {
     if (!novelText || !novelText.text) {
       clearNovelText(novelId);
       fetchNovelText(novelId);
+    } else if (novelText.embeddedImagesIncomplete) {
+      fetchNovelText(novelId, true);
     }
   }
 
@@ -172,10 +174,9 @@ class NovelReader extends Component {
       theme,
     } = this.props;
     const { index, showHeader } = this.state;
+    const hasCachedText = Boolean(novelText && novelText.text);
     const isLoading =
-      !novelText ||
-      !novelText.loaded ||
-      novelText.loading ||
+      (!hasCachedText && (!novelText || !novelText.loaded || novelText.loading)) ||
       (parsedNovelText && index === null);
     const isErrorOrEmpty =
       !isLoading &&

@@ -33,6 +33,8 @@ import pixiv from '../../src/common/helpers/apiClient';
 import {
   watchLoginRequest,
   watchRefreshAccessTokenRequest,
+  watchTokenExpiry,
+  watchTokenExpiryTask,
   watchLoginRequestTask,
   watchRefreshAccessTokenRequestTask,
   watchSignUpRequest,
@@ -159,15 +161,31 @@ describe('handleRefreshAccessToken', () => {
 test('scheduleRefreshAccessToken', () => {
   const generator = scheduleRefreshAccessToken(refreshToken, delayMilisecond);
   expect(generator.next().value).toEqual(delay(delayMilisecond));
-  expect(generator.next(mockLoginResponse).value).toEqual(
-    call(handleRefreshAccessToken, refreshToken),
+  expect(generator.next().value).toEqual(put(refreshAccessToken(refreshToken)));
+  expect(generator.next().value).toEqual(
+    take([
+      AUTH_REFRESH_ACCESS_TOKEN.SUCCESS,
+      AUTH_REFRESH_ACCESS_TOKEN.FAILURE,
+      AUTH_LOGOUT.SUCCESS,
+    ]),
   );
-  expect(generator.next().done).toBe(true);
+  const mockSuccess = { type: AUTH_REFRESH_ACCESS_TOKEN.SUCCESS };
+  const result = generator.next(mockSuccess);
+  expect(result.value).toEqual(mockSuccess);
+  expect(result.done).toBe(true);
 });
 
 test('handleLogout', () => {
   const generator = handleLogout();
   expect(generator.next().value).toEqual(apply(pixiv, pixiv.logout));
+});
+
+test('watchTokenExpiry', () => {
+  const generator = watchTokenExpiry();
+  expect(generator.next().value).toEqual(fork(watchTokenExpiryTask));
+  const mockTask = createMockTask();
+  expect(generator.next(mockTask).value).toEqual(take(AUTH_LOGIN.STOP));
+  expect(generator.next().value).toEqual(cancel(mockTask));
 });
 
 test('watchLoginRequest', () => {
@@ -192,14 +210,9 @@ describe('watchLoginRequestTask', () => {
       expect(data.generator.next(tokenRequestAction).value).toEqual(
         call(authorize, code, codeVerifier),
       );
-      // value inside next() = result of yield;
       expect(data.generator.next(mockLoginResponse).value).toEqual(
-        race([
-          take(AUTH_LOGOUT.SUCCESS),
-          call(refreshAccessTokenOnExpiry, mockLoginResponse),
-        ]),
+        take(AUTH_LOGOUT.SUCCESS),
       );
-      expect(data.generator.next().value).toEqual(call(handleLogout));
       expect(data.generator.next().value).toEqual(take(AUTH_LOGIN.REQUEST));
     });
   });
@@ -246,16 +259,12 @@ describe('watchRefreshAccessTokenRequestTask', () => {
   describe('on refresh token success', () => {
     test('refresh token success', () => {
       expect(data.generator.next(refreshTokenRequestAction).value).toEqual(
-        call(handleRefreshAccessToken, refreshToken),
+        select(getAuthUser),
       );
+      expect(
+        data.generator.next({ id: 123, refreshToken }).value,
+      ).toEqual(call(handleRefreshAccessToken, refreshToken));
       expect(data.generator.next(mockLoginResponse).value).toEqual(
-        race([
-          take(AUTH_LOGOUT.SUCCESS),
-          call(refreshAccessTokenOnExpiry, mockLoginResponse),
-        ]),
-      );
-      expect(data.generator.next().value).toEqual(call(handleLogout));
-      expect(data.generator.next().value).toEqual(
         take(AUTH_REFRESH_ACCESS_TOKEN.REQUEST),
       );
     });
@@ -534,5 +543,136 @@ describe('cold-start refresh failure & invalid_grant handling', () => {
       expect.any(String),
     );
     emitSpy.mockRestore();
+  });
+
+  test('fresh login -> offline expiry failure -> reconnect issues exactly one token request and preserves recovered session', async () => {
+    const state = {
+      auth: authReducer(undefined, { type: 'INIT' }),
+      recommendedIllusts: { error: true },
+    };
+    const dispatched = [];
+    pixiv.tokenRequest = jest.fn().mockResolvedValue({
+      user: { id: 123, name: 'U' },
+      access_token: 'at-1',
+      refresh_token: 'rt-1',
+      expires_in: 300,
+    });
+    pixiv.logout = jest.fn();
+    pixiv.refreshAccessToken = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('Network request failed'))
+      .mockResolvedValueOnce({
+        user: { id: 123, name: 'U' },
+        access_token: 'at-2',
+        refresh_token: 'rt-2',
+        expires_in: 3600,
+      });
+
+    const channel = stdChannel();
+    const io = {
+      channel,
+      dispatch: (action) => {
+        dispatched.push(action);
+        state.auth = authReducer(state.auth, action);
+        channel.put(action);
+      },
+      getState: () => state,
+    };
+
+    const loginTask = runSaga(io, watchLoginRequestTask);
+    const refreshTask = runSaga(io, watchRefreshAccessTokenRequestTask);
+    const expiryTask = runSaga(io, watchTokenExpiryTask);
+    const netTask = runSaga(io, watchNetworkRestore);
+
+    channel.put({
+      type: AUTH_LOGIN.REQUEST,
+      payload: { code: 'c', codeVerifier: 'v' },
+    });
+    await new Promise((r) => setTimeout(r, 30));
+    expect(pixiv.refreshAccessToken).toHaveBeenCalledTimes(1);
+    expect(state.auth.needsTokenRefresh).toBe(true);
+    expect(state.auth.user?.refreshToken).toBe('rt-1');
+
+    channel.put({
+      type: '@@network-connectivity/CONNECTION_CHANGE',
+      payload: false,
+    });
+    channel.put({
+      type: '@@network-connectivity/CONNECTION_CHANGE',
+      payload: true,
+    });
+    await new Promise((r) => setTimeout(r, 30));
+
+    expect(pixiv.refreshAccessToken).toHaveBeenCalledTimes(2);
+    expect(pixiv.refreshAccessToken).toHaveBeenLastCalledWith('rt-1');
+    expect(dispatched.filter((a) => a.type === AUTH_LOGOUT.SUCCESS)).toHaveLength(
+      0,
+    );
+    expect(state.auth.user?.refreshToken).toBe('rt-2');
+    expect(state.auth.needsTokenRefresh).toBe(false);
+
+    // A stale duplicate refresh request carrying 'rt-1' must be dropped safely
+    channel.put(refreshAccessToken('rt-1'));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(pixiv.refreshAccessToken).toHaveBeenCalledTimes(2);
+
+    loginTask.cancel();
+    refreshTask.cancel();
+    expiryTask.cancel();
+    netTask.cancel();
+  });
+
+  test('scheduled expiry failure while staying online retries automatically after backoff delay', async () => {
+    jest.useFakeTimers();
+    const state = {
+      auth: authReducer(undefined, { type: 'INIT' }),
+    };
+    pixiv.refreshAccessToken = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('502 Bad Gateway'))
+      .mockResolvedValueOnce({
+        user: { id: 123, name: 'U' },
+        access_token: 'at-recovered',
+        refresh_token: 'rt-recovered',
+        expires_in: 3600,
+      });
+
+    const channel = stdChannel();
+    const io = {
+      channel,
+      dispatch: (action) => {
+        state.auth = authReducer(state.auth, action);
+        channel.put(action);
+      },
+      getState: () => state,
+    };
+
+    const refreshTask = runSaga(io, watchRefreshAccessTokenRequestTask);
+    const expiryTask = runSaga(io, watchTokenExpiryTask);
+
+    io.dispatch(
+      loginSuccess({
+        user: { id: 123, name: 'U' },
+        access_token: 'at-1',
+        refresh_token: 'rt-1',
+        expires_in: 300,
+      }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(pixiv.refreshAccessToken).toHaveBeenCalledTimes(1);
+    expect(state.auth.needsTokenRefresh).toBe(true);
+
+    jest.advanceTimersByTime(30000);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(pixiv.refreshAccessToken).toHaveBeenCalledTimes(2);
+    expect(state.auth.user?.refreshToken).toBe('rt-recovered');
+    expect(state.auth.needsTokenRefresh).toBe(false);
+
+    refreshTask.cancel();
+    expiryTask.cancel();
+    jest.useRealTimers();
   });
 });

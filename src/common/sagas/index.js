@@ -4,6 +4,7 @@ import {
   watchLoginRequest,
   watchSignUpRequest,
   watchRefreshAccessTokenRequest,
+  watchTokenExpiry,
   watchRehydrate,
 } from './auth';
 import { watchError } from './error';
@@ -78,6 +79,7 @@ export default function* rootSaga() {
     watchSignUpRequest(),
     watchError(),
     watchRefreshAccessTokenRequest(),
+    watchTokenExpiry(),
     watchFetchWalkthroughIllusts(),
     watchFetchRecommendedIllusts(),
     watchFetchRecommendedMangas(),

@@ -1,8 +1,10 @@
+import { REHYDRATE } from 'redux-persist';
 import {
   AUTH_LOGIN,
   AUTH_LOGOUT,
   CLASSIFICATIONS,
 } from '../constants/actionTypes';
+import { migrateLegacyClassificationMap } from '../helpers/bookmarkItemKey';
 
 export const DEFAULT_CATEGORIES = [
   '日常/治愈',
@@ -90,6 +92,22 @@ export default function classifications(state = initState, action) {
         ...initState,
         categories: state.categories,
       };
+    case REHYDRATE: {
+      const persisted = action.payload && action.payload.classifications;
+      if (!persisted || typeof persisted !== 'object') {
+        return state;
+      }
+      const bookmarkItems =
+        action.payload &&
+        action.payload.bookmarkLibrary &&
+        action.payload.bookmarkLibrary.items;
+      return {
+        ...state,
+        ...persisted,
+        items: migrateLegacyClassificationMap(persisted.items, bookmarkItems),
+        classifying: false,
+      };
+    }
     case CLASSIFICATIONS.CLEAR:
       return {
         ...initState,

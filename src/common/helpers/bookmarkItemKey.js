@@ -24,7 +24,67 @@ export const normalizeBookmarkItems = (items) => {
   return normalized;
 };
 
-export const getClassificationForItem = (classificationMap, item) => {
+const hasAmbiguousNumericKey = (bookmarkItems, rawId) => {
+  if (!bookmarkItems || typeof bookmarkItems !== 'object') {
+    return false;
+  }
+  if (Array.isArray(bookmarkItems)) {
+    let seenIllust = false;
+    let seenNovel = false;
+    bookmarkItems.forEach((entry) => {
+      if (entry && String(entry.id) === rawId) {
+        if (entry.type === 'illust') seenIllust = true;
+        if (entry.type === 'novel') seenNovel = true;
+      }
+    });
+    return seenIllust && seenNovel;
+  }
+  return Boolean(
+    bookmarkItems[`illust:${rawId}`] && bookmarkItems[`novel:${rawId}`],
+  );
+};
+
+export const migrateLegacyClassificationMap = (
+  classificationMap,
+  bookmarkItems,
+) => {
+  if (!classificationMap || typeof classificationMap !== 'object') {
+    return {};
+  }
+  const normalized = {};
+  Object.entries(classificationMap).forEach(([key, category]) => {
+    if (!category) {
+      return;
+    }
+    if (key.includes(':')) {
+      normalized[key] = category;
+      return;
+    }
+    if (bookmarkItems && typeof bookmarkItems === 'object') {
+      const hasIllust = Boolean(bookmarkItems[`illust:${key}`]);
+      const hasNovel = Boolean(bookmarkItems[`novel:${key}`]);
+      if (hasIllust && hasNovel) {
+        return;
+      }
+      if (hasIllust) {
+        normalized[`illust:${key}`] = category;
+        return;
+      }
+      if (hasNovel) {
+        normalized[`novel:${key}`] = category;
+        return;
+      }
+    }
+    normalized[key] = category;
+  });
+  return normalized;
+};
+
+export const getClassificationForItem = (
+  classificationMap,
+  item,
+  bookmarkItems = null,
+) => {
   if (!classificationMap || !item) {
     return undefined;
   }
@@ -33,7 +93,11 @@ export const getClassificationForItem = (classificationMap, item) => {
     return classificationMap[compositeKey];
   }
   if (item.id != null) {
-    return classificationMap[String(item.id)];
+    const rawId = String(item.id);
+    if (hasAmbiguousNumericKey(bookmarkItems, rawId)) {
+      return undefined;
+    }
+    return classificationMap[rawId];
   }
   return undefined;
 };

@@ -95,4 +95,15 @@ describe('llmClient', () => {
     expect(messages[1].content.split('\n')).toHaveLength(40);
     expect(messages[1].content).toContain('0 | t0 | x | u');
   });
+
+  test('buildClassificationMessages uses type:id composite keys when item type is present', () => {
+    const items = [
+      { id: '123', type: 'illust', title: 'Pic', tags: ['art'], userName: 'A' },
+      { id: '123', type: 'novel', title: 'Story', tags: ['fic'], userName: 'B' },
+    ];
+    const messages = buildClassificationMessages(items, ['Art', 'Story']);
+    expect(messages[0].content).toContain('"id":"illust:123"');
+    expect(messages[1].content).toContain('illust:123 | Pic');
+    expect(messages[1].content).toContain('novel:123 | Story');
+  });
 });
