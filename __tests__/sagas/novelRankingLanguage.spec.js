@@ -144,40 +144,82 @@ describe('novel ranking language filtering', () => {
     expect(result.done).toBe(true);
   });
 
-  test('does not append late all-language results after switching to Simplified Chinese', async () => {
+  test.each([
+    RANKING_FOR_UI.DAILY_MALE_NOVEL,
+    RANKING_FOR_UI.DAILY_FEMALE_NOVEL,
+  ])(
+    'does not append late all-language results after switching to Simplified Chinese (%s)',
+    async (mode) => {
+      const channel = stdChannel();
+      const dispatch = jest.fn();
+      let finishUnfilteredRequest;
+      const unfilteredResponse = new Promise((resolve) => {
+        finishUnfilteredRequest = resolve;
+      });
+      const ranking = jest
+        .spyOn(pixiv, 'novelRanking')
+        .mockReturnValueOnce(unfilteredResponse)
+        .mockReturnValueOnce({ novels: [novel(2, { language: 'zh-CN' })] });
+      const task = runSaga({ channel, dispatch }, watchFetchRanking);
+
+      try {
+        channel.put(
+          fetchRanking(mode, { language: NOVEL_RANKING_LANGUAGES.ALL }),
+        );
+        channel.put(
+          fetchRanking(mode, {
+            language: NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE,
+          }),
+        );
+        finishUnfilteredRequest({ novels: [novel(1, { language: 'ja' })] });
+        await unfilteredResponse;
+
+        expect(ranking).toHaveBeenCalledTimes(2);
+        expect(dispatch).toHaveBeenCalledTimes(1);
+        expect(dispatch).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'PIXIV/RANKING_SUCCESS',
+            payload: expect.objectContaining({ items: [2], rankingMode: mode }),
+          }),
+        );
+      } finally {
+        task.cancel();
+        ranking.mockRestore();
+      }
+    },
+  );
+
+  test('male and female ranking requests do not cancel each other', async () => {
     const channel = stdChannel();
     const dispatch = jest.fn();
-    let finishUnfilteredRequest;
-    const unfilteredResponse = new Promise((resolve) => {
-      finishUnfilteredRequest = resolve;
+    let finishMaleRequest;
+    const maleResponse = new Promise((resolve) => {
+      finishMaleRequest = resolve;
     });
     const ranking = jest
       .spyOn(pixiv, 'novelRanking')
-      .mockReturnValueOnce(unfilteredResponse)
-      .mockReturnValueOnce({ novels: [novel(2, { language: 'zh-CN' })] });
+      .mockReturnValueOnce(maleResponse)
+      .mockReturnValueOnce({ novels: [novel(2)] });
     const task = runSaga({ channel, dispatch }, watchFetchRanking);
-    const mode = RANKING_FOR_UI.DAILY_MALE_NOVEL;
+    const options = { language: NOVEL_RANKING_LANGUAGES.ALL };
 
     try {
-      channel.put(
-        fetchRanking(mode, { language: NOVEL_RANKING_LANGUAGES.ALL }),
-      );
-      channel.put(
-        fetchRanking(mode, {
-          language: NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE,
-        }),
-      );
-      finishUnfilteredRequest({ novels: [novel(1, { language: 'ja' })] });
-      await unfilteredResponse;
+      channel.put(fetchRanking(RANKING_FOR_UI.DAILY_MALE_NOVEL, options));
+      channel.put(fetchRanking(RANKING_FOR_UI.DAILY_FEMALE_NOVEL, options));
+      finishMaleRequest({ novels: [novel(1)] });
+      await maleResponse;
 
-      expect(ranking).toHaveBeenCalledTimes(2);
-      expect(dispatch).toHaveBeenCalledTimes(1);
-      expect(dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'PIXIV/RANKING_SUCCESS',
-          payload: expect.objectContaining({ items: [2], rankingMode: mode }),
-        }),
+      const loaded = dispatch.mock.calls.map(([action]) => [
+        action.payload.rankingMode,
+        action.payload.items,
+      ]);
+      expect(loaded).toEqual(
+        expect.arrayContaining([
+          [RANKING_FOR_UI.DAILY_MALE_NOVEL, [1]],
+          [RANKING_FOR_UI.DAILY_FEMALE_NOVEL, [2]],
+        ]),
       );
+      expect(loaded).toHaveLength(2);
     } finally {
       task.cancel();
       ranking.mockRestore();

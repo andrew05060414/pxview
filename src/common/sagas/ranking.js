@@ -193,15 +193,27 @@ export function* filterSimplifiedChineseNovels(novels) {
   );
 }
 
+// These modes filter results by language after the response arrives, so a
+// late response for a previous filter must not be appended to the new list.
+const LANGUAGE_FILTERED_RANKING_MODES = [
+  RANKING_FOR_UI.DAILY_MALE_NOVEL,
+  RANKING_FOR_UI.DAILY_FEMALE_NOVEL,
+];
+
+const isRankingRequestFor = (rankingMode) => ({ type, payload }) =>
+  type === RANKING.REQUEST && payload.rankingMode === rankingMode;
+
 export function* watchFetchRanking() {
-  const isMaleNovelRequest = ({ type, payload }) =>
-    type === RANKING.REQUEST &&
-    payload.rankingMode === RANKING_FOR_UI.DAILY_MALE_NOVEL;
   yield all([
-    takeLatest(isMaleNovelRequest, handleFetchRanking),
+    // One takeLatest per mode: the two lists refetch together when the
+    // language changes and must not cancel each other.
+    ...LANGUAGE_FILTERED_RANKING_MODES.map((rankingMode) =>
+      takeLatest(isRankingRequestFor(rankingMode), handleFetchRanking),
+    ),
     takeEvery(
-      (action) =>
-        action.type === RANKING.REQUEST && !isMaleNovelRequest(action),
+      ({ type, payload }) =>
+        type === RANKING.REQUEST &&
+        !LANGUAGE_FILTERED_RANKING_MODES.includes(payload.rankingMode),
       handleFetchRanking,
     ),
   ]);
