@@ -1069,4 +1069,286 @@ describe('NovelInlineImage', () => {
       ]),
     );
   });
+
+  it('falls back through secondary embedded URLs on error and supports tap-to-retry after all URLs fail', async () => {
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115550"
+          imageKind="uploadedimage"
+          embeddedImages={{
+            24115550: {
+              width: 600,
+              height: 400,
+              urls: {
+                original: 'https://example.com/orig-broken.png',
+                '1200x1200': 'https://example.com/1200-fallback.jpg',
+                medium: 'https://example.com/med-fallback.jpg',
+              },
+            },
+          }}
+        />,
+      );
+      await flushPromises();
+    });
+
+    let imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/orig-broken.png');
+
+    // 1st error -> falls back to 1200x1200
+    await act(async () => {
+      imageNode.props.onError();
+    });
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/1200-fallback.jpg');
+
+    // 2nd error -> falls back to medium
+    await act(async () => {
+      imageNode.props.onError();
+    });
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/med-fallback.jpg');
+
+    // 3rd error -> shows retryable failure text
+    await act(async () => {
+      imageNode.props.onError();
+    });
+    const errorText = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Text',
+    );
+    expect(errorText.props.children).toBe(
+      'Image unavailable (image request failed)',
+    );
+    expect(typeof errorText.props.onPress).toBe('function');
+
+    // Tap to retry -> resets to primary URL
+    await act(async () => {
+      errorText.props.onPress();
+    });
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/orig-broken.png');
+  });
+
+  it('retries illustDetail request when user taps failed placeholder', async () => {
+    illustDetail
+      .mockRejectedValueOnce(new Error('network blip'))
+      .mockResolvedValueOnce({
+        illust: {
+          width: 800,
+          height: 400,
+          image_urls: { large: 'https://example.com/recovered.jpg' },
+        },
+      });
+
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage imageId="554433" imageKind="pixivimage" />,
+      );
+      await flushPromises();
+    });
+
+    const errorText = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-554433',
+      'Text',
+    );
+    expect(errorText.props.children).toBe(
+      'Image unavailable (illust detail request failed)',
+    );
+
+    await act(async () => {
+      errorText.props.onPress();
+      await flushPromises();
+    });
+
+    const imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-554433',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/recovered.jpg');
+    expect(illustDetail).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores onLoad and onError callbacks after unmount without warnings', async () => {
+    const consoleError = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115550"
+          imageKind="uploadedimage"
+          embeddedImages={{
+            24115550: {
+              urls: { original: 'https://example.com/unmount-callback.jpg' },
+            },
+          }}
+        />,
+      );
+    });
+
+    const imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    const { onLoad, onError } = imageNode.props;
+    tree.unmount();
+
+    act(() => {
+      onLoad({
+        nativeEvent: {
+          source: {
+            uri: 'https://example.com/unmount-callback.jpg',
+            width: 500,
+            height: 1000,
+          },
+        },
+      });
+      onError();
+    });
+
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('guards against invalid or extreme aspect ratio dimensions', async () => {
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115550"
+          imageKind="uploadedimage"
+          maxWidth={300}
+          embeddedImages={{
+            24115550: {
+              width: -100,
+              height: 0,
+              urls: { original: 'https://example.com/extreme.jpg' },
+            },
+          }}
+        />,
+      );
+    });
+
+    let imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 300,
+          height: Math.round(300 / (4 / 3)),
+        }),
+      ]),
+    );
+
+    await act(async () => {
+      imageNode.props.onLoad({
+        nativeEvent: {
+          source: {
+            uri: 'https://example.com/extreme.jpg',
+            width: 1,
+            height: 10000,
+          },
+        },
+      });
+    });
+
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 300,
+          height: 3000,
+        }),
+      ]),
+    );
+  });
+
+  it('keeps loaded state intact when embeddedImages reference changes without altering this image', async () => {
+    const sharedUrl = 'https://example.com/stable-ref.jpg';
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115550"
+          imageKind="uploadedimage"
+          maxWidth={300}
+          embeddedImages={{
+            24115550: { urls: { original: sharedUrl } },
+          }}
+        />,
+      );
+    });
+
+    const imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    await act(async () => {
+      imageNode.props.onLoad({
+        nativeEvent: { source: { uri: sharedUrl, width: 300, height: 600 } },
+      });
+    });
+
+    // Update with a new embeddedImages object reference containing the same entry
+    await act(async () => {
+      tree.update(
+        <NovelInlineImage
+          imageId="24115550"
+          imageKind="uploadedimage"
+          maxWidth={300}
+          embeddedImages={{
+            24115550: { urls: { original: sharedUrl } },
+            99999999: { urls: { original: 'https://example.com/other.jpg' } },
+          }}
+        />,
+      );
+    });
+
+    const updatedNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(updatedNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 300,
+          height: 600,
+          aspectRatio: 0.5,
+        }),
+      ]),
+    );
+  });
 });

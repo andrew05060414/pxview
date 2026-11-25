@@ -110,4 +110,26 @@ describe('extractUploadedImageCandidatesFromHtml', () => {
       ),
     ).toEqual({});
   });
+
+  it('handles case-insensitive uploadedimage markers and prefers non-marker JSON state over body marker occurrences', () => {
+    const imageId = '24115555';
+    const rawHtml = [
+      `<div class="novel-body">[UploadedImage:${imageId}] <img src="https://i.pximg.net/user-profile/avatar_wrong.jpg" /></div>`,
+      'x'.repeat(6000),
+      `<script>window.__DATA__ = {"id":"${imageId}","avatar":"https://i.pximg.net/user-profile/avatar.jpg","original":"https://i.pximg.net/novel-upload/2026/11/25/${imageId}_real.png","width":800,"height":1200};</script>`,
+    ].join('');
+
+    expect(
+      extractUploadedImageCandidatesFromHtml(
+        rawHtml,
+        `before[UploadedImage:${imageId}]after`,
+      ),
+    ).toEqual({
+      24115555: {
+        originalUrl: `https://i.pximg.net/novel-upload/2026/11/25/${imageId}_real.png`,
+        width: 800,
+        height: 1200,
+      },
+    });
+  });
 });

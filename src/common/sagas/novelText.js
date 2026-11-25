@@ -12,39 +12,14 @@ import {
   extractTextEmbeddedImagesFromHtml,
 } from '../helpers/novelWebviewImageCandidates';
 import extractNovelWebviewData from '../helpers/novelWebviewParser';
+import {
+  findEmbeddedImageById,
+  getEmbeddedImageCandidateIds,
+} from '../helpers/novelInlineImage';
 import { NOVEL_TEXT } from '../constants/actionTypes';
 
-const getEmbeddedImageCandidateIds = (embeddedImage) =>
-  [
-    embeddedImage && embeddedImage.id,
-    embeddedImage && embeddedImage.illustId,
-    embeddedImage && embeddedImage.imageId,
-    embeddedImage && embeddedImage.novelImageId,
-    embeddedImage && embeddedImage.illust_id,
-    embeddedImage && embeddedImage.image_id,
-  ]
-    .filter((value) => value !== undefined && value !== null)
-    .map((value) => String(value));
-
-const hasEmbeddedImageForId = (embeddedImages, imageId) => {
-  if (!embeddedImages || !imageId) {
-    return false;
-  }
-
-  const normalizedImageId = String(imageId);
-  if (embeddedImages[normalizedImageId] || embeddedImages[imageId]) {
-    return true;
-  }
-
-  const numericImageId = parseInt(normalizedImageId, 10);
-  if (!Number.isNaN(numericImageId) && embeddedImages[numericImageId]) {
-    return true;
-  }
-
-  return Object.values(embeddedImages).some((item) =>
-    getEmbeddedImageCandidateIds(item).includes(normalizedImageId),
-  );
-};
+const hasEmbeddedImageForId = (embeddedImages, imageId) =>
+  Boolean(findEmbeddedImageById(embeddedImages, imageId));
 
 const extractUploadedImageIdsFromText = (text) => {
   if (!text) {

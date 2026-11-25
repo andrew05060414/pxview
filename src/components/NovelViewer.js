@@ -14,6 +14,11 @@ import entities from 'entities';
 import { Text } from 'react-native-paper';
 import PXTabView from './PXTabView';
 import NovelInlineImage from './NovelInlineImage';
+import {
+  computeConstrainedImageHeight,
+  findEmbeddedImageById,
+  resolveEmbeddedImageAspectRatio,
+} from '../common/helpers/novelInlineImage';
 import { MODAL_TYPES } from '../common/constants';
 
 const styles = StyleSheet.create({
@@ -339,28 +344,6 @@ const MODAL_SLIDER_WIDTH = 100;
 const MODAL_SLIDER_RIGHT_PAD = 20;
 const INITIAL_NUM_TO_RENDER = 8;
 
-const findEmbeddedImageForEstimate = (embeddedImages, imageId) => {
-  if (!embeddedImages || !imageId) {
-    return null;
-  }
-  if (Array.isArray(embeddedImages)) {
-    return (
-      embeddedImages.find(
-        (item) =>
-          item &&
-          String(
-            item.id ||
-              item.illustId ||
-              item.imageId ||
-              item.novelImageId ||
-              '',
-          ) === String(imageId),
-      ) || null
-    );
-  }
-  return embeddedImages[imageId] || embeddedImages[String(imageId)] || null;
-};
-
 export const estimateBlockHeight = (
   block,
   { fontSize = 16, lineHeight = 1.6, maxWidth = 340, embeddedImages } = {},
@@ -369,11 +352,9 @@ export const estimateBlockHeight = (
     return 0;
   }
   if (block.type === 'image') {
-    const meta = findEmbeddedImageForEstimate(embeddedImages, block.imageId);
-    const w = meta && (meta.width || meta.originalWidth || meta.w);
-    const h = meta && (meta.height || meta.originalHeight || meta.h);
-    const ratio = w && h ? w / h : 0.85;
-    return Math.max(120, Math.round(maxWidth / ratio) + 12);
+    const meta = findEmbeddedImageById(embeddedImages, block.imageId);
+    const ratio = resolveEmbeddedImageAspectRatio(meta) || 0.85;
+    return Math.max(120, computeConstrainedImageHeight(maxWidth, ratio) + 12);
   }
   const plainText = (block.value || '').replace(/<[^>]+>/g, '');
   if (!plainText) {
@@ -843,6 +824,25 @@ class NovelPage extends PureComponent {
     );
   }
 
+  getListExtraData() {
+    const { maxWidth, fontSize, lineHeight, embeddedImages } = this.props;
+    if (
+      !this.cachedListExtraData ||
+      this.cachedListExtraData.maxWidth !== maxWidth ||
+      this.cachedListExtraData.fontSize !== fontSize ||
+      this.cachedListExtraData.lineHeight !== lineHeight ||
+      this.cachedListExtraData.embeddedImages !== embeddedImages
+    ) {
+      this.cachedListExtraData = {
+        maxWidth,
+        fontSize,
+        lineHeight,
+        embeddedImages,
+      };
+    }
+    return this.cachedListExtraData;
+  }
+
   render() {
     const { blocks } = this.props;
 
@@ -853,6 +853,7 @@ class NovelPage extends PureComponent {
           style={styles.list}
           contentContainerStyle={styles.container}
           data={blocks}
+          extraData={this.getListExtraData()}
           renderItem={this.renderBlock}
           keyExtractor={this.keyExtractor}
           scrollEventThrottle={64}
@@ -1091,12 +1092,21 @@ class NovelViewer extends Component {
           imageKind={imageKind}
           pageNumber={Number.isNaN(parsedPageNumber) ? null : parsedPageNumber}
           embeddedImages={embeddedImages}
-          maxWidth={Dimensions.get('window').width - 20}
+          maxWidth={this.getContentMaxWidth()}
         />
       );
     }
     // other nodes render by default renderer
     return undefined;
+  };
+
+  getContentMaxWidth = () => {
+    const { windowWidth } = this.props;
+    const width =
+      typeof windowWidth === 'number' && windowWidth > 0
+        ? windowWidth
+        : Dimensions.get('window').width;
+    return Math.max(100, width - 20);
   };
 
   handleOnPressOpenSettings = () => {
@@ -1125,7 +1135,7 @@ class NovelViewer extends Component {
     const sceneIndex = routes.indexOf(route);
     const item = items[sceneIndex];
     const blocks = this.getBlocksForPage(sceneIndex, item);
-    const maxWidth = Dimensions.get('window').width - 20;
+    const maxWidth = this.getContentMaxWidth();
     const textComponentProps = this.getMemoizedHtmlTextComponentProps();
 
     return (

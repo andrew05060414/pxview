@@ -64,4 +64,14 @@ describe('parseNovelText inline images', () => {
 
     expect(result).toEqual(["<a href='https://example.com'>base(ruby)</a>"]);
   });
+
+  it('parses case-insensitive inline image markers and multi-page loadedimage suffixes', () => {
+    const result = parseNovelText(
+      'a[UploadedImage:24115550]b[LoadedImage:24095674-3]c',
+    );
+
+    expect(result).toEqual([
+      "a<px-image data-illust-id='24115550' data-image-kind='uploadedimage'></px-image>b<px-image data-illust-id='24095674' data-image-kind='loadedimage' data-page-number='3'></px-image>c",
+    ]);
+  });
 });

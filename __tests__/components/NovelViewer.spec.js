@@ -174,6 +174,13 @@ describe('NovelViewer inline images', () => {
     jest.restoreAllMocks();
   });
 
+  afterAll(
+    () =>
+      new Promise((resolve) => {
+        setTimeout(resolve, 100);
+      }),
+  );
+
   it('renders the real inline image component for px-image nodes in the page flow', async () => {
     illustDetail.mockResolvedValueOnce({
       illust: {
@@ -1021,5 +1028,53 @@ describe('NovelViewer inline images', () => {
       flatList.props.onTouchEnd({ nativeEvent: { pageX: 150, pageY: 220 } });
     });
     expect(onToggleHeader).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates NovelInlineImage maxWidth when windowWidth prop changes (fold/rotate)', async () => {
+    let instance;
+    await act(async () => {
+      instance = renderer.create(
+        <NovelViewer
+          novelId={1}
+          items={["before<px-image data-illust-id='24095674'></px-image>after"]}
+          index={0}
+          fontSize={16}
+          lineHeight={1.6}
+          windowWidth={400}
+          onIndexChange={() => {}}
+          onPressPageLink={() => {}}
+          openModal={() => {}}
+        />,
+      );
+      await flushPromises();
+    });
+
+    let inlineImage = instance.root.findByType(
+      require('../../src/components/NovelInlineImage').default,
+    );
+    expect(inlineImage.props.maxWidth).toBe(380);
+
+    await act(async () => {
+      instance.update(
+        <NovelViewer
+          novelId={1}
+          items={["before<px-image data-illust-id='24095674'></px-image>after"]}
+          index={0}
+          fontSize={16}
+          lineHeight={1.6}
+          windowWidth={800}
+          onIndexChange={() => {}}
+          onPressPageLink={() => {}}
+          openModal={() => {}}
+        />,
+      );
+      await flushPromises();
+    });
+
+    inlineImage = instance.root.findByType(
+      require('../../src/components/NovelInlineImage').default,
+    );
+    expect(inlineImage.props.maxWidth).toBe(780);
+    instance.unmount();
   });
 });

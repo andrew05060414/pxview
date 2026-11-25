@@ -10,6 +10,7 @@ import HeaderSettingsButton from '../../components/HeaderSettingsButton';
 import BookmarkNovelButton from '../../components/BookmarkNovelButton';
 import Loader from '../../components/Loader';
 import EmptyStateView from '../../components/EmptyStateView';
+import withWindowWidth from '../../components/withWindowWidth';
 import { connectLocalization } from '../../components/Localization';
 import * as novelTextActionCreators from '../../common/actions/novelText';
 import * as modalActionCreators from '../../common/actions/modal';
@@ -217,6 +218,7 @@ class NovelReader extends Component {
             index={index}
             fontSize={fontSize}
             lineHeight={lineHeight}
+            windowWidth={this.props.windowWidth}
             onIndexChange={this.handleOnIndexChange}
             onPressPageLink={this.handleOnPressPageLink}
             onToggleHeader={this.handleToggleHeader}
@@ -240,49 +242,52 @@ class NovelReader extends Component {
   }
 }
 
-export default withTheme(
-  connectLocalization(
-    connect(
-    () => {
-      const getParsedNovelText = makeGetParsedNovelText();
-      return (state, props) => {
-        const {
-          entities,
-          novelText,
-          novelSettings,
-          readingSettings,
-          readingProgress,
-        } = state;
-        const parsedNovelText = getParsedNovelText(state, props);
-        const novelId = props.novelId || props.route.params.novelId;
-        const novelItem =
-          (entities && entities.novels && entities.novels[novelId]) ||
-          (novelId ? { id: novelId, is_bookmarked: false } : null);
-        return {
-          novelText: novelText[novelId],
-          novelId,
-          novelItem,
-          parsedNovelText,
-          novelSettings,
-          novelReadingDirection: readingSettings.novelReadingDirection,
-          sliderSide: readingSettings.sliderSide || 'right',
-          sliderPercentageSide:
-            readingSettings.sliderPercentageSide ||
-            readingSettings.sliderSide ||
-            'right',
-          savedPageIndex:
-            readingProgress[novelId] != null
-              ? readingProgress[novelId].pageIndex
-              : null,
-        };
-      };
-    },
-    (dispatch) => ({
-      dispatch,
-      ...bindActionCreators(
-        { ...novelTextActionCreators, ...modalActionCreators },
-        dispatch,
-      ),
-    }),
-  )(NovelReader)),
+export default withWindowWidth(
+  withTheme(
+    connectLocalization(
+      connect(
+        () => {
+          const getParsedNovelText = makeGetParsedNovelText();
+          return (state, props) => {
+            const {
+              entities,
+              novelText,
+              novelSettings,
+              readingSettings,
+              readingProgress,
+            } = state;
+            const parsedNovelText = getParsedNovelText(state, props);
+            const novelId = props.novelId || props.route.params.novelId;
+            const novelItem =
+              (entities && entities.novels && entities.novels[novelId]) ||
+              (novelId ? { id: novelId, is_bookmarked: false } : null);
+            return {
+              novelText: novelText[novelId],
+              novelId,
+              novelItem,
+              parsedNovelText,
+              novelSettings,
+              novelReadingDirection: readingSettings.novelReadingDirection,
+              sliderSide: readingSettings.sliderSide || 'right',
+              sliderPercentageSide:
+                readingSettings.sliderPercentageSide ||
+                readingSettings.sliderSide ||
+                'right',
+              savedPageIndex:
+                readingProgress[novelId] != null
+                  ? readingProgress[novelId].pageIndex
+                  : null,
+            };
+          };
+        },
+        (dispatch) => ({
+          dispatch,
+          ...bindActionCreators(
+            { ...novelTextActionCreators, ...modalActionCreators },
+            dispatch,
+          ),
+        }),
+      )(NovelReader),
+    ),
+  ),
 );
