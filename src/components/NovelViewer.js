@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import HtmlView from 'react-native-htmlview';
-import entities from 'entities';
+import { decodeHTML } from 'entities';
 import { Text } from 'react-native-paper';
 import PXTabView from './PXTabView';
 import NovelInlineImage, { prefetchIllustDetail } from './NovelInlineImage';
@@ -72,7 +72,7 @@ const getTagInfo = (token) => {
 };
 
 const tokenizeHtml = (html) => html.match(/<[^>]+>|[^<]+/g) || [];
-const decodeHtmlText = (text = '') => entities.decodeHTML(text);
+const decodeHtmlText = (text = '') => decodeHTML(text);
 
 const collectProtectedRegion = (tokens, startIndex) => {
   const openingTag = tokens[startIndex];

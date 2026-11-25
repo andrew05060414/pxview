@@ -1,7 +1,6 @@
 /* eslint no-empty: ["error", { "allowEmptyCatch": true }] */
 
 import React, { Component } from 'react';
-import { InteractionManager } from 'react-native';
 import { connect } from 'react-redux';
 import IllustList from '../components/IllustList';
 import * as walkthroughIllustsActionCreators from '../common/actions/walkthroughIllusts';
@@ -20,10 +19,8 @@ class WalkthroughIllustList extends Component {
 
   componentDidMount() {
     const { fetchWalkthroughIllusts, clearWalkthroughIllusts } = this.props;
-    InteractionManager.runAfterInteractions(() => {
-      clearWalkthroughIllusts();
-      fetchWalkthroughIllusts();
-    });
+    clearWalkthroughIllusts();
+    fetchWalkthroughIllusts();
   }
 
   handleOnListLayout = (e, listRef) => {

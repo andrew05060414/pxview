@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, StyleSheet, InteractionManager } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { withTheme, Button } from 'react-native-paper';
@@ -66,9 +66,7 @@ class NovelReader extends Component {
     const { fetchNovelText, clearNovelText, novelText, novelId } = this.props;
     if (!novelText || !novelText.text) {
       clearNovelText(novelId);
-      InteractionManager.runAfterInteractions(() => {
-        fetchNovelText(novelId);
-      });
+      fetchNovelText(novelId);
     }
   }
 
@@ -100,9 +98,7 @@ class NovelReader extends Component {
   handleOnRetry = () => {
     const { fetchNovelText, clearNovelText, novelId } = this.props;
     clearNovelText(novelId);
-    InteractionManager.runAfterInteractions(() => {
-      fetchNovelText(novelId);
-    });
+    fetchNovelText(novelId);
   };
 
   handleOnIndexChange = (index) => {

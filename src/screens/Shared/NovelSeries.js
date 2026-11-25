@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, StyleSheet, InteractionManager } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
 import { connectLocalization } from '../../components/Localization';
 import NovelList from '../../components/NovelList';
@@ -35,9 +35,7 @@ class NovelSeries extends Component {
     // https://github.com/facebook/react-native/issues/10142
     if (!novelSeries || !novelSeries.items) {
       clearNovelSeries(seriesId);
-      InteractionManager.runAfterInteractions(() => {
-        fetchNovelSeries(seriesId);
-      });
+      fetchNovelSeries(seriesId);
     }
     navigation.setOptions({
       title: seriesTitle,

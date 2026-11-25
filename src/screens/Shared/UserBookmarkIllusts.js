@@ -1,5 +1,4 @@
 import React, { Component } from 'react';
-import { InteractionManager } from 'react-native';
 import { connect } from 'react-redux';
 import IllustList from '../../components/IllustList';
 import * as userBookmarkIllustsActionCreators from '../../common/actions/userBookmarkIllusts';
@@ -17,9 +16,7 @@ class UserBookmarkIllusts extends Component {
     } = this.props;
     if (!userBookmarkIllusts || !userBookmarkIllusts.items || reload) {
       clearUserBookmarkIllusts(userId);
-      InteractionManager.runAfterInteractions(() => {
-        fetchUserBookmarkIllusts(userId, tag);
-      });
+      fetchUserBookmarkIllusts(userId, tag);
     }
   }
 

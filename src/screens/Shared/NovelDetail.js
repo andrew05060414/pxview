@@ -3,7 +3,6 @@ import {
   StyleSheet,
   Text,
   View,
-  InteractionManager,
   Platform,
   LayoutAnimation,
   UIManager,
@@ -11,8 +10,8 @@ import {
 } from 'react-native';
 import { connect } from 'react-redux';
 import { withTheme, FAB } from 'react-native-paper';
-import analytics from '@react-native-firebase/analytics';
 import Share from 'react-native-share';
+import { logEvent } from '../../common/helpers/firebase';
 import { AndroidBackHandler } from 'react-navigation-backhandler';
 import enhanceSaveImage from '../../components/HOC/enhanceSaveImage';
 import NovelDetailContent from '../../components/NovelDetailContent';
@@ -105,27 +104,25 @@ class NovelDetail extends Component {
       addBrowsingHistoryNovels,
       fetchNovelDetail,
     } = this.props;
-    InteractionManager.runAfterInteractions(() => {
-      if (this.detailView) {
-        this.setState({ mounting: false });
-      }
-      if (isFromDeepLink) {
-        fetchNovelDetail(novelId);
-        analytics?.()?.logEvent?.(`Screen_${SCREENS.NovelDetail}`, {
-          id: novelId.toString(),
-          fromDeepLink: true,
-        });
-      } else if (item) {
-        this.masterListUpdateListener = DeviceEventEmitter.addListener(
-          'masterListUpdate',
-          this.handleOnMasterListUpdate,
-        );
-        analytics?.()?.logEvent?.(`Screen_${SCREENS.NovelDetail}`, {
-          id: item.id.toString(),
-        });
-        addBrowsingHistoryNovels(item.id);
-      }
-    });
+    if (this.detailView) {
+      this.setState({ mounting: false });
+    }
+    if (isFromDeepLink) {
+      fetchNovelDetail(novelId);
+      logEvent(`Screen_${SCREENS.NovelDetail}`, {
+        id: novelId.toString(),
+        fromDeepLink: true,
+      });
+    } else if (item) {
+      this.masterListUpdateListener = DeviceEventEmitter.addListener(
+        'masterListUpdate',
+        this.handleOnMasterListUpdate,
+      );
+      logEvent(`Screen_${SCREENS.NovelDetail}`, {
+        id: item.id.toString(),
+      });
+      addBrowsingHistoryNovels(item.id);
+    }
   }
 
   componentDidUpdate(prevProps) {
@@ -197,12 +194,10 @@ class NovelDetail extends Component {
       setParams({
         index,
       });
-      InteractionManager.runAfterInteractions(() => {
-        addBrowsingHistoryNovels(items[index].id);
-        analytics?.()?.logEvent?.(`Screen_${SCREENS.NovelDetail}`, {
-          id: items[index].id.toString(),
-          fromSwipe: true,
-        });
+      addBrowsingHistoryNovels(items[index].id);
+      analytics?.()?.logEvent?.(`Screen_${SCREENS.NovelDetail}`, {
+        id: items[index].id.toString(),
+        fromSwipe: true,
       });
     }
   };

@@ -3,11 +3,13 @@ import {
   View,
   StyleSheet,
   DeviceEventEmitter,
-  InteractionManager,
   Keyboard,
 } from 'react-native';
-import database from '@react-native-firebase/database';
 import { connect } from 'react-redux';
+import {
+  getDatabaseRef,
+  getDatabaseServerTimestamp,
+} from '../../common/helpers/firebase';
 import { withTheme, TextInput } from 'react-native-paper';
 import DeviceInfo from 'react-native-device-info';
 import * as RNLocalize from 'react-native-localize';
@@ -49,11 +51,13 @@ class Feedback extends Component {
 
   componentDidMount() {
     this.setHeaderRight();
-    this.ref = database().ref('feedback');
+    this.ref = getDatabaseRef('feedback');
   }
 
   componentWillUnmount() {
-    this.ref.off();
+    if (this.ref && typeof this.ref.off === 'function') {
+      this.ref.off();
+    }
   }
 
   setHeaderRight = () => {
@@ -102,6 +106,11 @@ class Feedback extends Component {
     Keyboard.dismiss();
     this.setState({ loading: true });
     const manufacturer = await DeviceInfo.getManufacturer();
+    if (!this.ref) {
+      this.setState({ loading: false });
+      addError(i18n.feedbackError);
+      return;
+    }
     this.ref
       .push()
       .set({
@@ -114,16 +123,14 @@ class Feedback extends Component {
         appBuildNumber: DeviceInfo.getBuildNumber(),
         locale: RNLocalize.getLocales()[0].languageTag,
         country: RNLocalize.getCountry(),
-        createdAt: database.ServerValue.TIMESTAMP,
+        createdAt: getDatabaseServerTimestamp(),
         feedback,
         email,
       })
       .then(() => {
         this.setState({ loading: false });
         goBack();
-        InteractionManager.runAfterInteractions(() => {
-          DeviceEventEmitter.emit('showToast', i18n.feedbackSuccess);
-        });
+        DeviceEventEmitter.emit('showToast', i18n.feedbackSuccess);
       })
       .catch(() => {
         this.setState({ loading: false });

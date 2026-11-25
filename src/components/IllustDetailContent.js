@@ -4,8 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  InteractionManager,
-} from 'react-native';
+  } from 'react-native';
 import { connect } from 'react-redux';
 import { withTheme } from 'react-native-paper';
 import DetailFooter from './DetailFooter';
@@ -69,10 +68,8 @@ class IllustDetailContent extends Component {
   }
 
   componentDidMount() {
-    InteractionManager.runAfterInteractions(() => {
-      this.setState({
-        isMounted: true,
-      });
+    this.setState({
+      isMounted: true,
     });
   }
 

@@ -7,12 +7,11 @@ import {
   Linking,
   RefreshControl,
   Platform,
-  InteractionManager,
-} from 'react-native';
+  } from 'react-native';
 import { connect } from 'react-redux';
 import { withTheme, Text } from 'react-native-paper';
-import analytics from '@react-native-firebase/analytics';
 import Hyperlink from 'react-native-hyperlink';
+import { logEvent } from '../../common/helpers/firebase';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import truncate from 'lodash.truncate';
 import * as Animatable from 'react-native-animatable';
@@ -148,15 +147,13 @@ class UserDetail extends Component {
 
   componentDidMount() {
     const { userId, userDetail, route } = this.props;
-    InteractionManager.runAfterInteractions(() => {
-      analytics?.()?.logEvent?.(`Screen_${SCREENS.UserDetail}`, {
-        id: userId.toString(),
-        fromDeepLink: !!route?.params?.id || !!route?.params?.uid,
-      });
-      if (!userDetail?.item) {
-        this.fetchUserInfos();
-      }
+    logEvent(`Screen_${SCREENS.UserDetail}`, {
+      id: userId.toString(),
+      fromDeepLink: !!route?.params?.id || !!route?.params?.uid,
     });
+    if (!userDetail?.item) {
+      this.fetchUserInfos();
+    }
   }
 
   fetchUserInfos = () => {

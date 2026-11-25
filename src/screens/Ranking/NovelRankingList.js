@@ -1,5 +1,4 @@
 import React, { Component } from 'react';
-import { InteractionManager } from 'react-native';
 import { connect } from 'react-redux';
 // eslint-disable-next-line import/no-named-as-default
 import NovelList from '../../components/NovelList';
@@ -18,9 +17,7 @@ class NovelRankingList extends Component {
     } = this.props;
     if (!ranking || !ranking.items || reload) {
       clearRanking(rankingMode);
-      InteractionManager.runAfterInteractions(() => {
-        fetchRanking(rankingMode, options);
-      });
+      fetchRanking(rankingMode, options);
     }
   }
 
@@ -34,10 +31,8 @@ class NovelRankingList extends Component {
         options.date !== prevOptions.date ||
         options.language !== prevOptions.language)
     ) {
-      InteractionManager.runAfterInteractions(() => {
-        clearRanking(rankingMode);
-        fetchRanking(rankingMode, options);
-      });
+      clearRanking(rankingMode);
+      fetchRanking(rankingMode, options);
     }
   }
 

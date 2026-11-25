@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Platform, NativeModules, Dimensions } from 'react-native';
-import { createMaterialBottomTabNavigator } from '@react-navigation/material-bottom-tabs';
+import React from 'react';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from 'react-native-paper';
@@ -12,57 +11,28 @@ import MyPage from '../screens/MyPage/MyPage';
 import { SCREENS } from '../common/constants';
 import { useLocalization } from '../components/Localization';
 
-const Tab = createMaterialBottomTabNavigator();
+const Tab = createBottomTabNavigator();
 
 const TabBarIcon = ({ color, name, iconType }) => {
   const IconComponent = iconType === 'material' ? MaterialIcons : FontAwesome;
-  return <IconComponent name={name} size={24} color={color} />;
+  return <IconComponent name={name} size={22} color={color} />;
 };
 
 const AppTabNavigator = ({ initialRouteName }) => {
   const { i18n } = useLocalization();
   const theme = useTheme();
-  const [navInsetBottom, setNavInsetBottom] = useState(0);
-
-  useEffect(() => {
-    if (
-      Platform.OS !== 'android' ||
-      !NativeModules.SystemBars ||
-      typeof NativeModules.SystemBars.getNavigationBarInsetBottom !== 'function'
-    ) {
-      return undefined;
-    }
-
-    let mounted = true;
-    const refreshInset = () => {
-      NativeModules.SystemBars.getNavigationBarInsetBottom()
-        .then((inset) => {
-          if (mounted && typeof inset === 'number' && inset >= 0) {
-            setNavInsetBottom(inset);
-          }
-        })
-        .catch(() => {});
-    };
-
-    refreshInset();
-    const subscription = Dimensions.addEventListener('change', refreshInset);
-    return () => {
-      mounted = false;
-      if (subscription && typeof subscription.remove === 'function') {
-        subscription.remove();
-      } else {
-        Dimensions.removeEventListener('change', refreshInset);
-      }
-    };
-  }, []);
 
   return (
     <Tab.Navigator
       initialRouteName={initialRouteName}
-      labeled
-      barStyle={{
-        backgroundColor: theme.colors.bottomTabBarBackground,
-        paddingBottom: Platform.OS === 'android' ? navInsetBottom : 0,
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: '#ffffff',
+        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.7)',
+        tabBarStyle: {
+          backgroundColor: theme.colors.bottomTabBarBackground,
+          borderTopWidth: 0,
+        },
       }}
     >
       <Tab.Screen

@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, InteractionManager } from 'react-native';
+import { View } from 'react-native';
 import { connect } from 'react-redux';
 import enhancePostComment from '../components/HOC/enhancePostComment';
 import CommentList from '../components/CommentList';
@@ -29,9 +29,7 @@ class IllustCommentReplies extends Component {
       } = this.props;
       if (!illustCommentReplies || !illustCommentReplies.items) {
         clearIllustCommentReplies(commentId);
-        InteractionManager.runAfterInteractions(() => {
-          fetchIllustCommentReplies(commentId);
-        });
+        fetchIllustCommentReplies(commentId);
       }
     }
   }

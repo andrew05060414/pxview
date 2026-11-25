@@ -3,7 +3,6 @@ import {
   StyleSheet,
   Text,
   View,
-  InteractionManager,
   Platform,
   LayoutAnimation,
   UIManager,
@@ -11,8 +10,8 @@ import {
 } from 'react-native';
 import { connect } from 'react-redux';
 import { withTheme, FAB } from 'react-native-paper';
-import analytics from '@react-native-firebase/analytics';
 import Share from 'react-native-share';
+import { logEvent } from '../../common/helpers/firebase';
 import { AndroidBackHandler } from 'react-navigation-backhandler';
 import enhanceSaveImage from '../../components/HOC/enhanceSaveImage';
 import withWindowWidth from '../../components/withWindowWidth';
@@ -96,27 +95,25 @@ class Detail extends Component {
       addBrowsingHistoryIllusts,
       fetchIllustDetail,
     } = this.props;
-    InteractionManager.runAfterInteractions(() => {
-      if (this.detailView) {
-        this.setState({ mounting: false });
-      }
-      if (isFromDeepLink) {
-        fetchIllustDetail(illustId);
-        analytics?.()?.logEvent?.(`Screen_${SCREENS.Detail}`, {
-          id: illustId.toString(),
-          fromDeepLink: true,
-        });
-      } else {
-        this.masterListUpdateListener = DeviceEventEmitter.addListener(
-          'masterListUpdate',
-          this.handleOnMasterListUpdate,
-        );
-        if (item && item.id) { addBrowsingHistoryIllusts(item.id); }
-        analytics?.()?.logEvent?.(`Screen_${SCREENS.Detail}`, {
-          id: item ? item.id.toString() : '',
-        });
-      }
-    });
+    if (this.detailView) {
+      this.setState({ mounting: false });
+    }
+    if (isFromDeepLink) {
+      fetchIllustDetail(illustId);
+      logEvent(`Screen_${SCREENS.Detail}`, {
+        id: illustId.toString(),
+        fromDeepLink: true,
+      });
+    } else {
+      this.masterListUpdateListener = DeviceEventEmitter.addListener(
+        'masterListUpdate',
+        this.handleOnMasterListUpdate,
+      );
+      if (item && item.id) { addBrowsingHistoryIllusts(item.id); }
+      logEvent(`Screen_${SCREENS.Detail}`, {
+        id: item ? item.id.toString() : '',
+      });
+    }
   }
 
   componentDidUpdate(prevProps) {
@@ -198,13 +195,11 @@ class Detail extends Component {
       setParams({
         index,
       });
-      InteractionManager.runAfterInteractions(() => {
-        analytics?.()?.logEvent?.(`Screen_${SCREENS.Detail}`, {
-          id: items[index].id.toString(),
-          fromSwipe: true,
-        });
-        addBrowsingHistoryIllusts(items[index].id);
+      analytics?.()?.logEvent?.(`Screen_${SCREENS.Detail}`, {
+        id: items[index].id.toString(),
+        fromSwipe: true,
       });
+      addBrowsingHistoryIllusts(items[index].id);
     }
   };
 

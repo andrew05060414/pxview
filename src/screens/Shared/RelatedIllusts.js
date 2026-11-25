@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, StyleSheet, InteractionManager } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
 import { connectLocalization } from '../../components/Localization';
 import IllustList from '../../components/IllustList';
@@ -40,9 +40,7 @@ class RelatedIllusts extends Component {
     // https://github.com/facebook/react-native/issues/10142
     if (!relatedIllusts || !relatedIllusts.items) {
       clearRelatedIllusts(illustId);
-      InteractionManager.runAfterInteractions(() => {
-        fetchRelatedIllusts(illustId);
-      });
+      fetchRelatedIllusts(illustId);
     }
   }
 

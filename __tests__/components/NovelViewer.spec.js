@@ -29,7 +29,6 @@ jest.mock('react-native-tab-view', () => {
     ScrollPager: MockTabView,
   };
 });
-jest.mock('react-native-tab-view-viewpager-adapter', () => 'ViewPagerAdapter');
 jest.mock('../../src/components/PXTabView', () => {
   const MockPXTabView = (props) => {
     const { navigationState, renderScene } = props;

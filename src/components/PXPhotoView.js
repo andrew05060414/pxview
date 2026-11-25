@@ -107,7 +107,7 @@ class PXPhotoView extends PureComponent {
           source={{
             uri,
             headers: {
-              referer: 'http://www.pixiv.net',
+              referer: 'https://www.pixiv.net',
             },
           }}
           resizeMode="contain"

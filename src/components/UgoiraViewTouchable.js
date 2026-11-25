@@ -78,7 +78,7 @@ class UgoiraViewTouchable extends Component {
           key: zipUrl,
           path: downloadPath,
         }).fetch('GET', zipUrl, {
-          referer: 'http://www.pixiv.net',
+          referer: 'https://www.pixiv.net',
         });
         try {
           this.setState({

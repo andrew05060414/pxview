@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, InteractionManager, StyleSheet, FlatList } from 'react-native';
+import { View, StyleSheet, FlatList } from 'react-native';
 import { connect } from 'react-redux';
 import { withTheme, Text } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -51,10 +51,8 @@ class RankingHorizontalList extends Component {
     if (items && items.length) {
       return;
     }
-    InteractionManager.runAfterInteractions(() => {
-      clearRanking(rankingMode);
-      fetchRanking(rankingMode, options);
-    });
+    clearRanking(rankingMode);
+    fetchRanking(rankingMode, options);
   }
 
   componentDidUpdate(prevProps) {

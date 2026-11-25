@@ -1,5 +1,4 @@
 import React, { Component } from 'react';
-import { InteractionManager } from 'react-native';
 import { connect } from 'react-redux';
 import IllustList from '../../components/IllustList';
 import * as rankingActionCreators from '../../common/actions/ranking';
@@ -21,9 +20,7 @@ class RankingList extends Component {
     } = this.props;
     if (!ranking || !ranking.items || reload) {
       clearRanking(rankingMode);
-      InteractionManager.runAfterInteractions(() => {
-        fetchRanking(rankingMode, options);
-      });
+      fetchRanking(rankingMode, options);
     }
   }
 
@@ -34,10 +31,8 @@ class RankingList extends Component {
       options &&
       (options.mode !== prevOptions.mode || options.date !== prevOptions.date)
     ) {
-      InteractionManager.runAfterInteractions(() => {
-        clearRanking(rankingMode);
-        fetchRanking(rankingMode, options);
-      });
+      clearRanking(rankingMode);
+      fetchRanking(rankingMode, options);
     }
   }
 

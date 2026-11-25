@@ -1,6 +1,5 @@
 import React, { Component } from 'react';
-import { View, StyleSheet, Image } from 'react-native';
-import { ViewPropTypes, ImagePropTypes } from 'deprecated-react-native-prop-types';
+import { View, StyleSheet } from 'react-native';
 import { PropTypes } from 'prop-types';
 import { connect } from 'react-redux';
 import { MD3DarkTheme as DarkTheme } from 'react-native-paper';
@@ -28,8 +27,8 @@ class IllustItem extends Component {
     numColumns: PropTypes.number.isRequired,
     onPressItem: PropTypes.func.isRequired,
     parentContainerMargin: PropTypes.number,
-    containerStyle: ViewPropTypes.style,
-    imageStyle: ImagePropTypes.style,
+    containerStyle: PropTypes.any,
+    imageStyle: PropTypes.any,
     isHighlight: PropTypes.bool,
     isMute: PropTypes.bool,
   };

@@ -20,8 +20,13 @@ import {
   SAVE_FILE_NAME_FORMAT,
 } from '../../common/constants';
 
+const PIXIV_REFERER = 'https://www.pixiv.net';
+
 const enhanceSaveImage = (WrappedComponent) => {
   class Hoc extends Component {
+    needsLegacyStoragePermission = () =>
+      Platform.OS === 'android' && Number(Platform.Version) < 29;
+
     requestWriteExternalStoragePermission = async () => {
       try {
         const granted = await PermissionsAndroid.request(
@@ -37,7 +42,7 @@ const enhanceSaveImage = (WrappedComponent) => {
       Linking.openSettings();
     };
 
-    getImageSavePath = (
+    getAlbumName = (
       workId,
       workTitle,
       workType,
@@ -45,47 +50,47 @@ const enhanceSaveImage = (WrappedComponent) => {
       userName,
       saveImageSettings,
     ) => {
-      const { dirs } = RNFetchBlob.fs;
-      const imagesBaseDir =
-        Platform.OS === 'android' ? dirs.PictureDir : dirs.DocumentDir;
-      let imagesDir = `${imagesBaseDir}/pxviewr/`;
-      if (saveImageSettings.userFolderName) {
+      let album = 'pxviewr';
+      if (Platform.OS !== 'android') {
+        return album;
+      }
+      if (saveImageSettings && saveImageSettings.userFolderName) {
         switch (saveImageSettings.userFolderName) {
           case SAVE_FILE_NAME_USER_FOLDER_FORMAT.USER_NAME:
-            imagesDir += sanitize(userName, {
-              replacement: '_',
-            });
+            album += `/${sanitize(userName || '', { replacement: '_' })}`;
             break;
           case SAVE_FILE_NAME_USER_FOLDER_FORMAT.USER_ID_USER_NAME:
-            imagesDir += `${userId}_${sanitize(userName, {
+            album += `/${userId}_${sanitize(userName || '', {
               replacement: '_',
             })}`;
             break;
           case SAVE_FILE_NAME_USER_FOLDER_FORMAT.USER_ID:
           default:
-            imagesDir += userId;
+            album += `/${userId}`;
             break;
         }
       }
-      if (saveImageSettings.isCreateMangaFolder && workType === 'manga') {
+      if (
+        saveImageSettings &&
+        saveImageSettings.isCreateMangaFolder &&
+        workType === 'manga'
+      ) {
         switch (saveImageSettings.fileName) {
           case SAVE_FILE_NAME_FORMAT.WORK_TITLE:
-            imagesDir += `/${sanitize(workTitle, {
-              replacement: '_',
-            })}`;
+            album += `/${sanitize(workTitle || '', { replacement: '_' })}`;
             break;
           case SAVE_FILE_NAME_FORMAT.WORK_ID_WORK_TITLE:
-            imagesDir += `/${workId}_${sanitize(workTitle, {
+            album += `/${workId}_${sanitize(workTitle || '', {
               replacement: '_',
             })}`;
             break;
           case SAVE_FILE_NAME_FORMAT.WORK_ID:
           default:
-            imagesDir += `/${workId}`;
+            album += `/${workId}`;
             break;
         }
       }
-      return imagesDir;
+      return album;
     };
 
     getImageFileName = (
@@ -96,7 +101,7 @@ const enhanceSaveImage = (WrappedComponent) => {
       index,
     ) => {
       let fileName;
-      switch (saveImageSettings.fileName) {
+      switch (saveImageSettings && saveImageSettings.fileName) {
         case SAVE_FILE_NAME_FORMAT.WORK_TITLE:
           fileName = `${workTitle}_p${index}.png`;
           break;
@@ -113,6 +118,20 @@ const enhanceSaveImage = (WrappedComponent) => {
       });
     };
 
+    saveToGallery = async (filePath, album) => {
+      const fileUri = filePath.startsWith('file://')
+        ? filePath
+        : `file://${filePath}`;
+      const options = { type: 'photo', album };
+      if (typeof CameraRoll.saveAsset === 'function') {
+        return CameraRoll.saveAsset(fileUri, options);
+      }
+      if (typeof CameraRoll.save === 'function') {
+        return CameraRoll.save(fileUri, options);
+      }
+      return CameraRoll.saveToCameraRoll(fileUri, 'photo');
+    };
+
     saveImage = async ({
       imageUrls,
       imageIndex,
@@ -123,7 +142,7 @@ const enhanceSaveImage = (WrappedComponent) => {
       userName,
     }) => {
       const { i18n, saveImageSettings } = this.props;
-      if (Platform.OS === 'android') {
+      if (this.needsLegacyStoragePermission()) {
         const granted = await this.requestWriteExternalStoragePermission();
         if (granted === PermissionsAndroid.RESULTS.DENIED) {
           return null;
@@ -154,7 +173,10 @@ const enhanceSaveImage = (WrappedComponent) => {
           imageUrls.length > 1 ? i18n.saveImagesStart : i18n.saveImageStart,
         ),
       );
-      const imagesDir = this.getImageSavePath(
+      const { dirs } = RNFetchBlob.fs;
+      const cacheBaseDir = dirs.CacheDir || dirs.DocumentDir;
+      const tempDir = `${cacheBaseDir}/pxviewr_save`;
+      const album = this.getAlbumName(
         workId,
         workTitle,
         workType,
@@ -163,13 +185,12 @@ const enhanceSaveImage = (WrappedComponent) => {
         saveImageSettings,
       );
       try {
-        const imagesDirExists = await RNFetchBlob.fs.isDir(imagesDir);
-        if (!imagesDirExists) {
-          await RNFetchBlob.fs.mkdir(imagesDir);
+        const dirExists = await RNFetchBlob.fs.isDir(tempDir);
+        if (!dirExists) {
+          await RNFetchBlob.fs.mkdir(tempDir);
         }
       } catch (err) {}
       await Promise.mapSeries(imageUrls, async (url, index) => {
-        // const fileName = url.split('/').pop().split('#')[0].split('?')[0];
         const fileName = this.getImageFileName(
           workId,
           workTitle,
@@ -177,34 +198,24 @@ const enhanceSaveImage = (WrappedComponent) => {
           saveImageSettings,
           imageIndex || index,
         );
+        let filePath = null;
         try {
           const res = await RNFetchBlob.config({
-            path: `${imagesDir}/${fileName}`,
+            path: `${tempDir}/${fileName}`,
           }).fetch('GET', url, {
-            referer: 'http://www.pixiv.net',
+            referer: PIXIV_REFERER,
           });
-          const filePath = res.path();
-          if (Platform.OS === 'ios') {
-            try {
-              if (CameraRoll.save) {
-                await CameraRoll.save(filePath);
-              } else {
-                await CameraRoll.saveToCameraRoll(filePath);
-              }
-              this.showToast(
-                i18n.formatString(i18n.saveImageSuccess, fileName),
-              );
-            } catch (err) {
-              this.showToast(i18n.formatString(i18n.saveImageError, fileName));
-            }
-          } else if (Platform.OS === 'android') {
-            this.showToast(i18n.formatString(i18n.saveImageSuccess, fileName));
-            try {
-              await RNFetchBlob.fs.scanFile([{ path: filePath }]);
-            } catch (err) {}
-          }
+          filePath = res.path();
+          await this.saveToGallery(filePath, album);
+          this.showToast(i18n.formatString(i18n.saveImageSuccess, fileName));
         } catch (err) {
           this.showToast(i18n.formatString(i18n.saveImageError, fileName));
+        } finally {
+          if (filePath && typeof RNFetchBlob.fs.unlink === 'function') {
+            try {
+              await RNFetchBlob.fs.unlink(filePath);
+            } catch (err) {}
+          }
         }
       });
       return null;

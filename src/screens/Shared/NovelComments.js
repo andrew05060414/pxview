@@ -3,8 +3,7 @@ import {
   View,
   SafeAreaView,
   StyleSheet,
-  InteractionManager,
-} from 'react-native';
+  } from 'react-native';
 import { connect } from 'react-redux';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { FAB } from 'react-native-paper';
@@ -41,9 +40,7 @@ class NovelComments extends Component {
     } = this.props;
     if (!novelComments || !novelComments.items) {
       clearNovelComments(novelId);
-      InteractionManager.runAfterInteractions(() => {
-        fetchNovelComments(novelId);
-      });
+      fetchNovelComments(novelId);
     }
   }
 

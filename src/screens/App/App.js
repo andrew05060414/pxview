@@ -22,7 +22,10 @@ import {
   DarkTheme as NavigationDarkTheme,
 } from '@react-navigation/native';
 import { getStateFromPath } from '@react-navigation/core';
-import analytics from '@react-native-firebase/analytics';
+import {
+  disableFirebaseCollectionIfUnconfigured,
+  logScreenView,
+} from '../../common/helpers/firebase';
 import {
   DefaultTheme as PaperDefaultTheme,
   MD3DarkTheme as PaperDarkTheme,
@@ -123,6 +126,10 @@ const App = ({ testTarget }) => {
   );
 
   useEffect(() => {
+    disableFirebaseCollectionIfUnconfigured();
+  }, []);
+
+  useEffect(() => {
     if (!prevRehydrated && rehydrated) {
       BootSplash.hide({ fade: true }).catch(() => {});
     }
@@ -206,13 +213,8 @@ const App = ({ testTarget }) => {
     try {
       const previousRouteName = routeNameRef.current;
       const currentRouteName = getActiveRouteName(state);
-      if (previousRouteName !== currentRouteName) {
-        if (typeof analytics === 'function') {
-          analytics?.()?.logScreenView?.({
-            screen_name: currentRouteName,
-            screen_class: currentRouteName,
-          });
-        }
+      if (previousRouteName !== currentRouteName && currentRouteName) {
+        logScreenView(currentRouteName, currentRouteName);
       }
       routeNameRef.current = currentRouteName;
     } catch (e) {}

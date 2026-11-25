@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, StyleSheet, InteractionManager } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
 import { withTheme } from 'react-native-paper';
 import SearchHistory from '../components/SearchHistory';
@@ -17,9 +17,7 @@ class SearchAutoCompleteResult extends Component {
     const { searchAutoComplete, word, clearSearchAutoComplete } = this.props;
     if (word !== searchAutoComplete.word) {
       clearSearchAutoComplete();
-      InteractionManager.runAfterInteractions(() => {
-        this.submitSearchAutoComplete(word);
-      });
+      this.submitSearchAutoComplete(word);
     }
   }
 
@@ -29,9 +27,7 @@ class SearchAutoCompleteResult extends Component {
 
     if (word && word !== prevWord) {
       clearSearchAutoComplete();
-      InteractionManager.runAfterInteractions(() => {
-        this.submitSearchAutoComplete(word);
-      });
+      this.submitSearchAutoComplete(word);
     }
   }
 
