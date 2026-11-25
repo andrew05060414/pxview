@@ -291,4 +291,64 @@ describe('Backup screen (legacy migration, SAF file picker & Android 10+ permiss
     expect(emitSpy).toHaveBeenCalledWith('showToast', 'backupInvalidFile');
     expect(mockDispatch).not.toHaveBeenCalled();
   });
+
+  it('rejects muteUsers with null or id-less items without dispatching, while restoring valid muteUsers entries', async () => {
+    const emitSpy = jest.spyOn(DeviceEventEmitter, 'emit');
+
+    for (const invalidMuteUsers of [
+      [null],
+      { items: [null, {}] },
+      { items: [{ id: '' }] },
+    ]) {
+      jest.clearAllMocks();
+      NativeModules.PXFilePicker = {
+        pickJsonFile: jest.fn(() =>
+          Promise.resolve({
+            uri: 'content://bad-mute-users',
+            content: JSON.stringify({
+              appVersion: '6.0.0',
+              data: {
+                theme: { name: 'dark' },
+                muteUsers: invalidMuteUsers,
+              },
+            }),
+          }),
+        ),
+      };
+
+      const items = renderBackup();
+      // eslint-disable-next-line no-await-in-loop
+      await act(async () => {
+        items[2].props.onPress();
+        await flushMicrotasks();
+      });
+
+      expect(emitSpy).toHaveBeenCalledWith('showToast', 'backupInvalidFile');
+      expect(mockDispatch).not.toHaveBeenCalled();
+    }
+
+    jest.clearAllMocks();
+    NativeModules.PXFilePicker = {
+      pickJsonFile: jest.fn(() =>
+        Promise.resolve({
+          uri: 'content://valid-mute-users',
+          content: JSON.stringify({
+            appVersion: '6.0.0',
+            data: {
+              muteUsers: { items: [{ id: 42, name: 'u' }] },
+            },
+          }),
+        }),
+      ),
+    };
+    const items = renderBackup();
+    await act(async () => {
+      items[2].props.onPress();
+      await flushMicrotasks();
+    });
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'PIXIV/MUTE_USERS_RESTORE',
+      payload: { state: { items: [{ id: 42, name: 'u' }] } },
+    });
+  });
 });

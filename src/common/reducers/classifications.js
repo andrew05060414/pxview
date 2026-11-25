@@ -4,7 +4,10 @@ import {
   AUTH_LOGOUT,
   CLASSIFICATIONS,
 } from '../constants/actionTypes';
-import { migrateLegacyClassificationMap } from '../helpers/bookmarkItemKey';
+import {
+  migrateLegacyClassificationMap,
+  normalizeBookmarkItems,
+} from '../helpers/bookmarkItemKey';
 
 export const DEFAULT_CATEGORIES = [
   '日常/治愈',
@@ -97,10 +100,11 @@ export default function classifications(state = initState, action) {
       if (!persisted || typeof persisted !== 'object') {
         return state;
       }
-      const bookmarkItems =
+      const bookmarkItems = normalizeBookmarkItems(
         action.payload &&
-        action.payload.bookmarkLibrary &&
-        action.payload.bookmarkLibrary.items;
+          action.payload.bookmarkLibrary &&
+          action.payload.bookmarkLibrary.items,
+      );
       return {
         ...state,
         ...persisted,

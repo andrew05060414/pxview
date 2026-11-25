@@ -98,4 +98,29 @@ describe('classifications reducer', () => {
       'illust:300': '风景',
     });
   });
+
+  test('REHYDRATE migrates real v5 numeric-keyed bookmarkLibrary items and preserves existing composite keys', () => {
+    const state = reducer(initial, {
+      type: REHYDRATE,
+      payload: {
+        classifications: {
+          items: {
+            100: '风景',
+            200: '恋爱',
+            'illust:100': '已有分类',
+          },
+        },
+        bookmarkLibrary: {
+          items: {
+            100: { id: '100', type: 'illust' },
+            200: { id: '200', type: 'novel' },
+          },
+        },
+      },
+    });
+    expect(state.items).toEqual({
+      'illust:100': '已有分类',
+      'novel:200': '恋爱',
+    });
+  });
 });

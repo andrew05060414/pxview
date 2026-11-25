@@ -89,6 +89,9 @@ export function* handleRefreshAccessToken(refreshToken) {
       refreshToken,
     ]);
     const user = yield select(getAuthUser);
+    if (!user || !user.refreshToken || user.refreshToken !== refreshToken) {
+      return null;
+    }
     const options = setProvisionalAccountOptions(
       user?.isProvisionalAccount,
       user?.password,
@@ -97,6 +100,14 @@ export function* handleRefreshAccessToken(refreshToken) {
     yield put(refreshAccessTokenSuccess(response, options));
     return response;
   } catch (err) {
+    const currentUser = yield select(getAuthUser);
+    if (
+      !currentUser ||
+      !currentUser.refreshToken ||
+      currentUser.refreshToken !== refreshToken
+    ) {
+      return null;
+    }
     yield put(refreshAccessTokenFailure());
     if (isInvalidCredentialsError(err)) {
       yield call(notifySessionExpired);
@@ -272,7 +283,10 @@ export function* watchRefreshAccessTokenRequestTask() {
         // eslint-disable-next-line no-continue
         continue;
       }
-      yield call(handleRefreshAccessToken, authUser.refreshToken);
+      yield race({
+        refresh: call(handleRefreshAccessToken, authUser.refreshToken),
+        loggedOut: take(AUTH_LOGOUT.SUCCESS),
+      });
     } catch (err) {
       const errMessage =
         err.errors && err.errors.system && err.errors.system.message

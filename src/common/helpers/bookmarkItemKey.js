@@ -51,32 +51,36 @@ export const migrateLegacyClassificationMap = (
   if (!classificationMap || typeof classificationMap !== 'object') {
     return {};
   }
+  const normalizedBookmarks = normalizeBookmarkItems(bookmarkItems);
   const normalized = {};
+
+  // First pass: preserve all composite type:id entries so stale numeric keys never overwrite them
   Object.entries(classificationMap).forEach(([key, category]) => {
-    if (!category) {
-      return;
-    }
-    if (key.includes(':')) {
+    if (category && key.includes(':')) {
       normalized[key] = category;
+    }
+  });
+
+  // Second pass: migrate unambiguous legacy numeric keys using normalized composite bookmark items
+  Object.entries(classificationMap).forEach(([key, category]) => {
+    if (!category || key.includes(':')) {
       return;
     }
-    if (bookmarkItems && typeof bookmarkItems === 'object') {
-      const hasIllust = Boolean(bookmarkItems[`illust:${key}`]);
-      const hasNovel = Boolean(bookmarkItems[`novel:${key}`]);
-      if (hasIllust && hasNovel) {
-        return;
-      }
-      if (hasIllust) {
-        normalized[`illust:${key}`] = category;
-        return;
-      }
-      if (hasNovel) {
-        normalized[`novel:${key}`] = category;
-        return;
-      }
+    const hasIllust = Boolean(normalizedBookmarks[`illust:${key}`]);
+    const hasNovel = Boolean(normalizedBookmarks[`novel:${key}`]);
+    if (hasIllust && hasNovel) {
+      return;
     }
-    normalized[key] = category;
+    const targetKey = hasIllust
+      ? `illust:${key}`
+      : hasNovel
+        ? `novel:${key}`
+        : key;
+    if (normalized[targetKey] === undefined) {
+      normalized[targetKey] = category;
+    }
   });
+
   return normalized;
 };
 

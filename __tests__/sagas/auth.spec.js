@@ -151,6 +151,9 @@ describe('handleRefreshAccessToken', () => {
   describe('on request failure', () => {
     test('refreshAccessTokenFailure', () => {
       expect(data.generator2.throw(mockError).value).toEqual(
+        select(getAuthUser),
+      );
+      expect(data.generator2.next(mockAuthUser).value).toEqual(
         put(refreshAccessTokenFailure()),
       );
       expect(data.generator2.next().done).toBe(true);
@@ -263,8 +266,13 @@ describe('watchRefreshAccessTokenRequestTask', () => {
       );
       expect(
         data.generator.next({ id: 123, refreshToken }).value,
-      ).toEqual(call(handleRefreshAccessToken, refreshToken));
-      expect(data.generator.next(mockLoginResponse).value).toEqual(
+      ).toEqual(
+        race({
+          refresh: call(handleRefreshAccessToken, refreshToken),
+          loggedOut: take(AUTH_LOGOUT.SUCCESS),
+        }),
+      );
+      expect(data.generator.next({ refresh: mockLoginResponse }).value).toEqual(
         take(AUTH_REFRESH_ACCESS_TOKEN.REQUEST),
       );
     });
@@ -674,5 +682,110 @@ describe('cold-start refresh failure & invalid_grant handling', () => {
     refreshTask.cancel();
     expiryTask.cancel();
     jest.useRealTimers();
+  });
+
+  test('in-flight refresh completing after logout does not resurrect the logged-out session', async () => {
+    const state = {
+      auth: authReducer(undefined, {
+        type: REHYDRATE,
+        payload: { auth: { user: { id: 123, refreshToken: 'rt-old' } } },
+      }),
+    };
+    const dispatched = [];
+    let resolveRefresh;
+    pixiv.refreshAccessToken = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    );
+
+    const channel = stdChannel();
+    const io = {
+      channel,
+      dispatch: (action) => {
+        dispatched.push(action);
+        state.auth = authReducer(state.auth, action);
+        channel.put(action);
+      },
+      getState: () => state,
+    };
+
+    const directTask = runSaga(io, handleRefreshAccessToken, 'rt-old');
+    await Promise.resolve();
+    expect(pixiv.refreshAccessToken).toHaveBeenCalledTimes(1);
+
+    // User logs out while refresh HTTP request is in flight
+    io.dispatch(logout());
+    expect(state.auth.user).toBeNull();
+
+    // Late network response arrives after logout
+    resolveRefresh({
+      user: { id: 123, name: 'U' },
+      access_token: 'at-resurrected',
+      refresh_token: 'rt-new',
+      expires_in: 3600,
+    });
+    await directTask.toPromise();
+
+    expect(
+      dispatched.filter((a) => a.type === AUTH_REFRESH_ACCESS_TOKEN.SUCCESS),
+    ).toHaveLength(0);
+    expect(state.auth.user).toBeNull();
+  });
+
+  test('in-flight old refresh failing with invalid_grant after logout and relogin does not log out new account', async () => {
+    const state = {
+      auth: authReducer(undefined, {
+        type: REHYDRATE,
+        payload: { auth: { user: { id: 123, refreshToken: 'rt-user-a' } } },
+      }),
+    };
+    const dispatched = [];
+    let rejectRefresh;
+    pixiv.refreshAccessToken = jest.fn(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectRefresh = reject;
+        }),
+    );
+
+    const channel = stdChannel();
+    const io = {
+      channel,
+      dispatch: (action) => {
+        dispatched.push(action);
+        state.auth = authReducer(state.auth, action);
+        channel.put(action);
+      },
+      getState: () => state,
+    };
+
+    const directTask = runSaga(io, handleRefreshAccessToken, 'rt-user-a');
+    await Promise.resolve();
+
+    // User A logs out, User B logs in while User A's refresh fails late with invalid_grant
+    io.dispatch(logout());
+    io.dispatch(
+      loginSuccess({
+        user: { id: 456, name: 'UserB' },
+        access_token: 'at-b',
+        refresh_token: 'rt-user-b',
+        expires_in: 3600,
+      }),
+    );
+    dispatched.length = 0;
+
+    rejectRefresh({ error: 'invalid_grant' });
+    await directTask.toPromise();
+
+    expect(dispatched.filter((a) => a.type === AUTH_LOGOUT.SUCCESS)).toHaveLength(
+      0,
+    );
+    expect(
+      dispatched.filter((a) => a.type === AUTH_REFRESH_ACCESS_TOKEN.FAILURE),
+    ).toHaveLength(0);
+    expect(state.auth.user?.id).toBe(456);
+    expect(state.auth.user?.refreshToken).toBe('rt-user-b');
   });
 });

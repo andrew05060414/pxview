@@ -124,7 +124,15 @@ const Backup = () => {
   const isPlainObject = (value) =>
     Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
-  const normalizeItemsSlice = (value, requireStrings = true) => {
+  const isValidStringItem = (item) => typeof item === 'string';
+
+  const isValidMuteUserItem = (item) =>
+    isPlainObject(item) &&
+    (typeof item.id === 'string' ||
+      (typeof item.id === 'number' && Number.isFinite(item.id))) &&
+    String(item.id).trim().length > 0;
+
+  const normalizeItemsSlice = (value, itemValidator = isValidStringItem) => {
     if (value === undefined || value === null) {
       return { valid: true, normalized: null };
     }
@@ -133,10 +141,7 @@ const Backup = () => {
       : isPlainObject(value) && Array.isArray(value.items)
         ? value.items
         : null;
-    if (!items) {
-      return { valid: false, normalized: null };
-    }
-    if (requireStrings && !items.every((item) => typeof item === 'string')) {
+    if (!items || !items.every((item) => itemValidator(item))) {
       return { valid: false, normalized: null };
     }
     return { valid: true, normalized: { items: [...items] } };
@@ -168,17 +173,17 @@ const Backup = () => {
       data.searchHistory !== null &&
       (!isPlainObject(data.searchHistory) ||
         !Array.isArray(data.searchHistory.items) ||
-        !data.searchHistory.items.every((item) => typeof item === 'string'))
+        !data.searchHistory.items.every((item) => isValidStringItem(item)))
     ) {
       return false;
     }
-    if (!normalizeItemsSlice(data.highlightTags, true).valid) {
+    if (!normalizeItemsSlice(data.highlightTags, isValidStringItem).valid) {
       return false;
     }
-    if (!normalizeItemsSlice(data.muteTags, true).valid) {
+    if (!normalizeItemsSlice(data.muteTags, isValidStringItem).valid) {
       return false;
     }
-    if (!normalizeItemsSlice(data.muteUsers, false).valid) {
+    if (!normalizeItemsSlice(data.muteUsers, isValidMuteUserItem).valid) {
       return false;
     }
     return true;
@@ -212,18 +217,24 @@ const Backup = () => {
     if (data.trendingSearchSettings) {
       dispatch(restoreTrendingSearchSettings(data.trendingSearchSettings));
     }
-    const highlightTagsNorm = normalizeItemsSlice(data.highlightTags, true);
+    const highlightTagsNorm = normalizeItemsSlice(
+      data.highlightTags,
+      isValidStringItem,
+    );
     if (highlightTagsNorm.normalized) {
       dispatch(restoreHighlightTags(highlightTagsNorm.normalized));
     }
     if (data.muteSettings) {
       dispatch(restoreMuteSettings(data.muteSettings));
     }
-    const muteTagsNorm = normalizeItemsSlice(data.muteTags, true);
+    const muteTagsNorm = normalizeItemsSlice(data.muteTags, isValidStringItem);
     if (muteTagsNorm.normalized) {
       dispatch(restoreMuteTags(muteTagsNorm.normalized));
     }
-    const muteUsersNorm = normalizeItemsSlice(data.muteUsers, false);
+    const muteUsersNorm = normalizeItemsSlice(
+      data.muteUsers,
+      isValidMuteUserItem,
+    );
     if (muteUsersNorm.normalized) {
       dispatch(restoreMuteUsers(muteUsersNorm.normalized));
     }

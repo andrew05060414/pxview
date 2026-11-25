@@ -35,11 +35,25 @@ export default function muteTags(
         ...state,
         items: [],
       };
-    case MUTE_USERS.RESTORE:
+    case MUTE_USERS.RESTORE: {
+      const restored = action.payload && action.payload.state;
+      const validItems =
+        restored && Array.isArray(restored.items)
+          ? restored.items.filter(
+              (item) =>
+                Boolean(item) &&
+                typeof item === 'object' &&
+                !Array.isArray(item) &&
+                (typeof item.id === 'string' ||
+                  (typeof item.id === 'number' && Number.isFinite(item.id))) &&
+                String(item.id).trim().length > 0,
+            )
+          : state.items;
       return {
         ...state,
-        ...action.payload.state,
+        items: validItems,
       };
+    }
     default:
       return state;
   }
