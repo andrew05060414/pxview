@@ -6,7 +6,7 @@
 
 ## 基线与已有工作
 
-- 范围来自 [Issue #15](https://github.com/andrew05060414/pxview/issues/15)。沿用[已关闭的草稿 PR #20](https://github.com/andrew05060414/pxview/pull/20) 的分支 `chore/leaf-dependency-pilot-sanitize-filename`，在独立 worktree 合入 `main` 的 `5d5b69e`。下方不沿用旧草稿的测试或 APK 结果。
+- 范围来自 [Issue #15](https://github.com/andrew05060414/pxview/issues/15)。沿用[已关闭的草稿 PR #20](https://github.com/andrew05060414/pxview/pull/20) 的分支 `chore/leaf-dependency-pilot-sanitize-filename`，在独立 worktree 合入 `main` 的 `5d5b69e`，合并前再合入 `068aa4a`（PR #36，小说排行榜）。下方不沿用旧草稿的测试或 APK 结果。
 - npm lockfile v3；Node 14.21.3 / npm 9.9.4，React 16.13.1 / React Native 0.63.5，JDK 11，AGP 3.5.3 / Gradle 6.2，Android SDK 29 / build-tools 29.0.2。不升级已有工具链。
 
 ## 候选矩阵
@@ -64,9 +64,10 @@ adb install -r /path/to/app-release.apk
 
 | 层次 | 结果 |
 | --- | --- |
-| 自动测试和锁文件 | Node 14 / npm 9 干净安装及顶层依赖校验通过；Jest 42 套件、275 条通过，其中 20 条命名回归在 1.6.3 和 1.6.4 下均通过；新增测试文件 ESLint 通过 |
-| Android Debug APK | 已生成；用仓库调试证书重签副本，签名和内置 JS 校验通过 |
-| Android Release APK | 已生成；用同一仓库证书构建，签名和内置 JS 校验通过 |
+| 自动测试和锁文件 | Node 14 / npm 9 干净安装及顶层依赖校验通过；合入 `068aa4a` 后 Jest 43 套件、280 条通过（合入前为 42 套件、275 条），其中 20 条命名回归在 1.6.3 和 1.6.4 下均通过；新增测试文件 ESLint 通过 |
+| Android Debug APK | 基于 `5d5b69e` 已生成（合入 `068aa4a` 后未重新构建）；用仓库调试证书重签副本，签名和内置 JS 校验通过 |
+| Android Release APK | 基于 `5d5b69e` 已生成（合入 `068aa4a` 后未重新构建）；用同一仓库证书构建，签名和内置 JS 校验通过 |
+| Metro Android release bundle | 合入 `068aa4a` 后用 Node 14 重新打包通过（只验证 JS 打包，未重新生成 APK） |
 | Android 真机 / iOS | 未验证；没有安装任何 APK 或改动设备数据 |
 
 首次 Gradle 下载因 Maven Central 限流失败。改用官方镜像（仅本地 Gradle 配置），复用刚生成的 Metro bundle，按 CI 流程将 `clean` 与各自的 `assembleDebug` / `assembleRelease` 分开执行，跳过重复打包。两包均为 `com.utopia.pxviewr`，内置 JS 与本次 Metro 输出逐字节一致。未提交或发布构建产物。
