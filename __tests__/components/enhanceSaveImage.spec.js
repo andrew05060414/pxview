@@ -15,10 +15,13 @@ const mockSaveAsset = jest.fn(() =>
   Promise.resolve({ node: { image: { uri: 'content://media/1' } } }),
 );
 const mockFetch = jest.fn();
-const mockConfig = jest.fn(() => ({ fetch: mockFetch }));
+const mockConfig = jest.fn((config) => ({
+  fetch: (...args) => mockFetch(config, ...args),
+}));
 const mockIsDir = jest.fn(() => Promise.resolve(true));
 const mockMkdir = jest.fn(() => Promise.resolve());
 const mockUnlink = jest.fn(() => Promise.resolve());
+const mockMv = jest.fn(() => Promise.resolve());
 
 jest.mock('react-redux', () => {
   const ReactLib = require('react');
@@ -71,11 +74,13 @@ jest.mock('react-native-blob-util', () => ({
     isDir: (...args) => mockIsDir(...args),
     mkdir: (...args) => mockMkdir(...args),
     unlink: (...args) => mockUnlink(...args),
+    mv: (...args) => mockMv(...args),
   },
 }));
 
-const enhanceSaveImage = require('../../src/components/HOC/enhanceSaveImage')
-  .default;
+const enhanceSaveImageModule = require('../../src/components/HOC/enhanceSaveImage');
+const enhanceSaveImage = enhanceSaveImageModule.default;
+const { toFileUri } = enhanceSaveImageModule;
 
 describe('enhanceSaveImage (CameraRoll v7 MediaStore & sanitize-filename contracts)', () => {
   const originalOS = Platform.OS;
@@ -101,10 +106,12 @@ describe('enhanceSaveImage (CameraRoll v7 MediaStore & sanitize-filename contrac
       value: 36,
       configurable: true,
     });
-    mockFetch.mockResolvedValue({
-      path: () =>
-        '/data/user/0/com.utopia.pxviewr/cache/pxviewr_save/12345_p0.png',
-    });
+    mockFetch.mockImplementation((cfg) =>
+      Promise.resolve({
+        path: () => cfg.path,
+        info: () => ({ status: 200, headers: { 'Content-Type': 'image/png' } }),
+      }),
+    );
   });
 
   afterEach(() => {
@@ -146,21 +153,173 @@ describe('enhanceSaveImage (CameraRoll v7 MediaStore & sanitize-filename contrac
 
     expect(permSpy).not.toHaveBeenCalled();
     expect(mockFetch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: expect.stringMatching(
+          /^\/data\/user\/0\/com\.utopia\.pxviewr\/cache\/pxviewr_save\/[^/]+\/12345_p0\.png$/,
+        ),
+      }),
       'GET',
       'https://i.pximg.net/img-original/img/12345_p0.png',
       { referer: 'https://www.pixiv.net' },
     );
     expect(mockSaveAsset).toHaveBeenCalledWith(
-      'file:///data/user/0/com.utopia.pxviewr/cache/pxviewr_save/12345_p0.png',
+      expect.stringMatching(
+        /^file:\/\/\/data\/user\/0\/com\.utopia\.pxviewr\/cache\/pxviewr_save\/[^/]+\/12345_p0\.png$/,
+      ),
       { type: 'photo', album: 'pxviewr' },
     );
     expect(mockUnlink).toHaveBeenCalledWith(
-      '/data/user/0/com.utopia.pxviewr/cache/pxviewr_save/12345_p0.png',
+      expect.stringMatching(
+        /^\/data\/user\/0\/com\.utopia\.pxviewr\/cache\/pxviewr_save\/[^/]+\/12345_p0\.png$/,
+      ),
     );
     expect(emitSpy).toHaveBeenCalledWith(
       'showToast',
       'saveImageSuccess:12345_p0.png',
     );
+  });
+
+  it('rejects 403/404 or HTML error responses without calling CameraRoll and cleans up temp file', async () => {
+    const emitSpy = jest.spyOn(DeviceEventEmitter, 'emit');
+    mockFetch.mockImplementationOnce((cfg) =>
+      Promise.resolve({
+        path: () => cfg.path,
+        info: () => ({
+          status: 403,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        }),
+      }),
+    );
+
+    let capturedSaveImage;
+    const Dummy = ({ saveImage }) => {
+      capturedSaveImage = saveImage;
+      return null;
+    };
+    const Wrapped = enhanceSaveImage(Dummy);
+    act(() => {
+      renderer.create(<Wrapped saveImageSettings={{}} />);
+    });
+
+    await capturedSaveImage({
+      imageUrls: ['https://i.pximg.net/img-original/img/999_p0.jpg'],
+      imageIndex: 0,
+      workId: 999,
+      workTitle: 'Blocked',
+      workType: 'illust',
+      userId: 1,
+      userName: 'A',
+    });
+
+    expect(mockSaveAsset).not.toHaveBeenCalled();
+    expect(mockUnlink).toHaveBeenCalled();
+    expect(emitSpy).toHaveBeenCalledWith('showToast', 'saveImageError:999_p0.jpg');
+  });
+
+  it('uses real image extension from URL and Content-Type instead of hardcoding .png', async () => {
+    mockFetch
+      .mockImplementationOnce((cfg) =>
+        Promise.resolve({
+          path: () => cfg.path,
+          info: () => ({ status: 200, headers: { 'Content-Type': 'image/jpeg' } }),
+        }),
+      )
+      .mockImplementationOnce((cfg) =>
+        Promise.resolve({
+          path: () => cfg.path,
+          info: () => ({ status: 200, headers: { 'Content-Type': 'image/jpeg' } }),
+        }),
+      );
+
+    let capturedSaveImage;
+    const Dummy = ({ saveImage }) => {
+      capturedSaveImage = saveImage;
+      return null;
+    };
+    const Wrapped = enhanceSaveImage(Dummy);
+    act(() => {
+      renderer.create(<Wrapped saveImageSettings={{}} />);
+    });
+
+    await capturedSaveImage({
+      imageUrls: [
+        'https://i.pximg.net/img-original/img/12345_p0.jpg',
+        'https://i.pximg.net/img-original/img/12345_p1.png',
+      ],
+      workId: 12345,
+      workTitle: 'Test',
+      workType: 'illust',
+      userId: 99,
+      userName: 'Artist',
+    });
+
+    expect(mockMv).toHaveBeenCalledWith(
+      expect.stringMatching(/12345_p1\.png$/),
+      expect.stringMatching(/12345_p1\.jpg$/),
+    );
+    expect(mockSaveAsset).toHaveBeenNthCalledWith(
+      1,
+      expect.stringMatching(/12345_p0\.jpg$/),
+      { type: 'photo', album: 'pxviewr' },
+    );
+    expect(mockSaveAsset).toHaveBeenNthCalledWith(
+      2,
+      expect.stringMatching(/12345_p1\.jpg$/),
+      { type: 'photo', album: 'pxviewr' },
+    );
+  });
+
+  it('percent-encodes #, spaces, and non-ASCII characters in file:// URIs and isolates concurrent temp files', async () => {
+    const encoded = toFileUri('/tmp/pxviewr_save/Chapter#2 春日 テスト_p0.jpg');
+    expect(encoded).toBe(
+      'file:///tmp/pxviewr_save/Chapter%232%20%E6%98%A5%E6%97%A5%20%E3%83%86%E3%82%B9%E3%83%88_p0.jpg',
+    );
+    expect(encoded.includes('#')).toBe(false);
+
+    mockFetch.mockImplementation((cfg) =>
+      Promise.resolve({
+        path: () => cfg.path,
+        info: () => ({ status: 200, headers: { 'Content-Type': 'image/jpeg' } }),
+      }),
+    );
+
+    let capturedSaveImage;
+    const Dummy = ({ saveImage }) => {
+      capturedSaveImage = saveImage;
+      return null;
+    };
+    const Wrapped = enhanceSaveImage(Dummy);
+    act(() => {
+      renderer.create(
+        <Wrapped saveImageSettings={{ fileName: FILE.WORK_TITLE }} />,
+      );
+    });
+
+    await Promise.all([
+      capturedSaveImage({
+        imageUrls: ['https://i.pximg.net/img-original/img/1_p0.jpg'],
+        imageIndex: 0,
+        workId: 1,
+        workTitle: 'Chapter#2 春日',
+        workType: 'illust',
+        userId: 1,
+        userName: 'U',
+      }),
+      capturedSaveImage({
+        imageUrls: ['https://i.pximg.net/img-original/img/1_p0.jpg'],
+        imageIndex: 0,
+        workId: 1,
+        workTitle: 'Chapter#2 春日',
+        workType: 'illust',
+        userId: 1,
+        userName: 'U',
+      }),
+    ]);
+
+    const tempPaths = mockFetch.mock.calls.map((c) => c[0].path);
+    expect(tempPaths).toHaveLength(2);
+    expect(tempPaths[0]).not.toBe(tempPaths[1]);
+    expect(mockSaveAsset.mock.calls[0][0]).toContain('Chapter%232%20%E6%98%A5%E6%97%A5_p0.jpg');
   });
 
   it('requests WRITE_EXTERNAL_STORAGE only on legacy Android API < 29', async () => {
@@ -225,7 +384,9 @@ describe('enhanceSaveImage (CameraRoll v7 MediaStore & sanitize-filename contrac
       });
 
       expect(mockNativeSave).toHaveBeenCalledWith(
-        'file:///data/user/0/com.utopia.pxviewr/cache/pxviewr_save/12345_p0.png',
+        expect.stringMatching(
+          /^file:\/\/\/data\/user\/0\/com\.utopia\.pxviewr\/cache\/pxviewr_save\/[^/]+\/12345_p0\.png$/,
+        ),
       );
       expect(mockSaveAsset).not.toHaveBeenCalled();
     } finally {

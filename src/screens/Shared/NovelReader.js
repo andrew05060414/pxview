@@ -38,24 +38,34 @@ const styles = StyleSheet.create({
   },
 });
 
+export const resolveInitialNovelPageIndex = ({
+  parsedNovelText,
+  savedPageIndex,
+  novelReadingDirection,
+}) => {
+  if (!Array.isArray(parsedNovelText) || parsedNovelText.length === 0) {
+    return 0;
+  }
+  if (typeof savedPageIndex === 'number' && Number.isFinite(savedPageIndex)) {
+    return Math.min(
+      Math.max(Math.trunc(savedPageIndex), 0),
+      parsedNovelText.length - 1,
+    );
+  }
+  return novelReadingDirection === READING_DIRECTION_TYPES.RIGHT_TO_LEFT
+    ? parsedNovelText.length - 1
+    : 0;
+};
+
 class NovelReader extends Component {
   constructor(props) {
     super(props);
     const { novelReadingDirection, parsedNovelText, savedPageIndex } = props;
-    let index = 0;
-    if (parsedNovelText) {
-      if (
-        savedPageIndex != null &&
-        savedPageIndex > 0 &&
-        savedPageIndex < parsedNovelText.length
-      ) {
-        index = savedPageIndex;
-      } else if (
-        novelReadingDirection === READING_DIRECTION_TYPES.RIGHT_TO_LEFT
-      ) {
-        index = parsedNovelText.length - 1;
-      }
-    }
+    const index = resolveInitialNovelPageIndex({
+      parsedNovelText,
+      savedPageIndex,
+      novelReadingDirection,
+    });
     this.state = {
       index,
       showHeader: false,
@@ -78,19 +88,11 @@ class NovelReader extends Component {
     } = this.props;
     const { parsedNovelText: prevParsedNovelText } = prevProps;
     if (parsedNovelText && !prevParsedNovelText) {
-      let index;
-      if (
-        savedPageIndex != null &&
-        savedPageIndex > 0 &&
-        savedPageIndex < parsedNovelText.length
-      ) {
-        index = savedPageIndex;
-      } else {
-        index =
-          novelReadingDirection === READING_DIRECTION_TYPES.RIGHT_TO_LEFT
-            ? parsedNovelText.length - 1
-            : 0;
-      }
+      const index = resolveInitialNovelPageIndex({
+        parsedNovelText,
+        savedPageIndex,
+        novelReadingDirection,
+      });
       this.setState({ index });
     }
   }

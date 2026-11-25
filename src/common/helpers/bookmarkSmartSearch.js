@@ -1,3 +1,5 @@
+import { getClassificationForItem } from './bookmarkItemKey';
+
 const itemValues = (items) =>
   Array.isArray(items) ? items : Object.values(items || {});
 
@@ -93,7 +95,7 @@ export const searchBookmarksLocally = (
 
     // AI Category filter
     if (options.category && options.category !== 'all') {
-      const itemCat = classificationMap[String(item.id)];
+      const itemCat = getClassificationForItem(classificationMap, item);
       if (itemCat !== options.category) {
         return false;
       }

@@ -522,11 +522,14 @@ export default withTheme(
               index,
               onListEndReached,
               parentListKey,
-            } = props.route.params;
-            const id = parseInt(novelIdFromQS || novelId, 0);
+            } = props.route?.params || {};
+            const rawId = novelIdFromQS ?? novelId;
+            const parsedId =
+              rawId != null && rawId !== '' ? parseInt(rawId, 10) : NaN;
+            const id = Number.isNaN(parsedId) ? undefined : parsedId;
             return {
               novelId: id || item?.id,
-              novelDetail: state.novelDetail[id], // get novelDetail from api if load from deep link
+              novelDetail: id ? state.novelDetail[id] : undefined, // get novelDetail from api if load from deep link
               item,
               isMuteUser,
               isFromDeepLink: !!id,

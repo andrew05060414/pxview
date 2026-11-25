@@ -11,6 +11,7 @@ import {
   findPotentialDuplicates,
 } from '../../../common/helpers/bookmarkGrouping';
 import { SCREENS } from '../../../common/constants';
+import { getBookmarkItemKey } from '../../../common/helpers/bookmarkItemKey';
 
 const styles = StyleSheet.create({
   container: {
@@ -41,13 +42,12 @@ const CollectionGroupingSection = ({ navigation }) => {
     if (!navigation) return;
     if (item.type === 'novel') {
       navigation.navigate(SCREENS.NovelDetail, {
+        novelId: item.id,
         id: item.id,
-        item: { id: item.id, title: item.title },
       });
     } else {
       navigation.navigate(SCREENS.Detail, {
-        id: item.id,
-        item: { id: item.id, title: item.title },
+        illustId: item.id,
       });
     }
   };
@@ -63,7 +63,7 @@ const CollectionGroupingSection = ({ navigation }) => {
     >
       {item.items.map((work) => (
         <PXListItem
-          key={work.id}
+          key={getBookmarkItemKey(work)}
           title={work.title}
           description={`${
             work.type === 'novel' ? i18n.userNovels : i18n.userIllusts
@@ -87,7 +87,7 @@ const CollectionGroupingSection = ({ navigation }) => {
     >
       {item.items.map((novel) => (
         <PXListItem
-          key={novel.id}
+          key={getBookmarkItemKey(novel)}
           title={novel.title}
           description={`${novel.textLength || 0} 字 · ♥ ${
             novel.totalBookmarks || 0
@@ -109,7 +109,7 @@ const CollectionGroupingSection = ({ navigation }) => {
     >
       {item.items.map((work) => (
         <PXListItem
-          key={work.id}
+          key={getBookmarkItemKey(work)}
           title={work.title}
           description={`ID: ${work.id} · ${
             work.type === 'novel' ? i18n.userNovels : i18n.userIllusts

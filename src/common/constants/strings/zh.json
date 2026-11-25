@@ -323,5 +323,12 @@
   "collectionRulesTitle": "智能规则",
   "collectionTasteTitle": "AI 审美与口味画像",
   "collectionTasteGenerate": "生成口味画像总结",
-  "collectionTasteGenerating": "正在分析审美偏好..."
+  "collectionTasteGenerating": "正在分析审美偏好...",
+  "backupRestoreFromFile": "从文件选择并恢复备份",
+  "backupRestoreFromFileDescription": "通过系统文件选择器读取 backup.json 恢复数据",
+  "backupChooseFile": "选择文件",
+  "backupError": "备份操作失败，请重试",
+  "backupInvalidFile": "备份文件格式无效",
+  "collectionExportError": "导出收藏失败，请重试",
+  "sessionExpiredRelogin": "登录状态已失效，请重新登录"
 }

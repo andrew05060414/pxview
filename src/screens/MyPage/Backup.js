@@ -6,6 +6,7 @@ import {
   Platform,
   PermissionsAndroid,
   Linking,
+  NativeModules,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTheme } from 'react-native-paper';
@@ -60,6 +61,12 @@ const Backup = () => {
   const baseDir = Platform.OS === 'android' ? dirs.SDCardDir : dirs.DocumentDir;
   const backupFileDir = `${baseDir}/pxviewr/backup`;
   const backupFilePath = `${backupFileDir}/backup.json`;
+  const legacyBackupFilePath =
+    Platform.OS === 'android' &&
+    dirs.LegacySDCardDir &&
+    dirs.LegacySDCardDir !== dirs.SDCardDir
+      ? `${dirs.LegacySDCardDir}/pxviewr/backup/backup.json`
+      : null;
 
   const showToast = (message) => {
     DeviceEventEmitter.emit('showToast', message);
@@ -68,6 +75,9 @@ const Backup = () => {
   const handleOnPressOpenAppSettings = () => {
     Linking.openSettings();
   };
+
+  const needsLegacyStoragePermission = () =>
+    Platform.OS === 'android' && Number(Platform.Version) < 29;
 
   const requestWriteExternalStoragePermission = async () => {
     try {
@@ -81,38 +91,117 @@ const Backup = () => {
   };
 
   const checkPermission = async () => {
-    if (Platform.OS === 'android') {
-      const granted = await requestWriteExternalStoragePermission();
-      if (granted === PermissionsAndroid.RESULTS.DENIED) {
+    if (!needsLegacyStoragePermission()) {
+      return true;
+    }
+    const granted = await requestWriteExternalStoragePermission();
+    if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+      return true;
+    }
+    if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+      Alert.alert(
+        i18n.formatString(
+          i18n.permissionPromptStorageToBackup,
+          i18n.permissionStorage,
+        ),
+        i18n.formatString(
+          i18n.permissionPromptMessage,
+          i18n.permissionStorage,
+        ),
+        [
+          { text: i18n.permissionPromptLater },
+          {
+            text: i18n.permissionGrantAppSettings,
+            onPress: handleOnPressOpenAppSettings,
+          },
+        ],
+        { cancelable: false },
+      );
+    }
+    return false;
+  };
+
+  const applyBackupContent = (rawContent) => {
+    let parsedData;
+    try {
+      parsedData = JSON.parse(rawContent);
+    } catch (_err) {
+      showToast(i18n.backupInvalidFile);
+      return false;
+    }
+    if (!parsedData?.data || typeof parsedData.data !== 'object') {
+      showToast(i18n.backupInvalidFile);
+      return false;
+    }
+    const { data } = parsedData;
+    if (data.readingSettings) {
+      dispatch(restoreReadingSettings(data.readingSettings));
+    }
+    if (data.saveImageSettings) {
+      dispatch(restoreSaveImageSettings(data.saveImageSettings));
+    }
+    if (data.initialScreenSettings) {
+      dispatch(restoreInitialScreenSettings(data.initialScreenSettings));
+    }
+    if (data.likeButtonSettings) {
+      dispatch(restoreLikeButtonSettings(data.likeButtonSettings));
+    }
+    if (data.trendingSearchSettings) {
+      dispatch(restoreTrendingSearchSettings(data.trendingSearchSettings));
+    }
+    if (data.highlightTags) {
+      dispatch(restoreHighlightTags(data.highlightTags));
+    }
+    if (data.muteSettings) {
+      dispatch(restoreMuteSettings(data.muteSettings));
+    }
+    if (data.muteTags) {
+      dispatch(restoreMuteTags(data.muteTags));
+    }
+    if (data.muteUsers) {
+      dispatch(restoreMuteUsers(data.muteUsers));
+    }
+    if (data.novelSettings) {
+      dispatch(restoreNovelSettings(data.novelSettings));
+    }
+    if (data.novelRankingSettings) {
+      dispatch(restoreNovelRankingSettings(data.novelRankingSettings));
+    }
+    if (data.searchHistory) {
+      dispatch(restoreSearchHistory(data.searchHistory));
+    }
+    if (data.theme) {
+      dispatch(restoreTheme(data.theme));
+    }
+    showToast(i18n.backupRestoreSuccessfully);
+    return true;
+  };
+
+  const handleOnPressRestoreFromFile = async () => {
+    try {
+      const picker = NativeModules?.PXFilePicker;
+      if (!picker || typeof picker.pickJsonFile !== 'function') {
+        showToast(i18n.backupFileNotFound);
         return null;
       }
-      if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
-        return Alert.alert(
-          i18n.formatString(
-            i18n.permissionPromptStorageToBackup,
-            i18n.permissionStorage,
-          ),
-          i18n.formatString(
-            i18n.permissionPromptMessage,
-            i18n.permissionStorage,
-          ),
-          [
-            { text: i18n.permissionPromptLater },
-            {
-              text: i18n.permissionGrantAppSettings,
-              onPress: handleOnPressOpenAppSettings,
-            },
-          ],
-          { cancelable: false },
-        );
+      const picked = await picker.pickJsonFile();
+      if (!picked || !picked.content) {
+        return null;
       }
+      applyBackupContent(picked.content);
+      return null;
+    } catch (_err) {
+      showToast(i18n.backupInvalidFile);
+      return null;
     }
-    return null;
   };
 
   const handleOnPressConfirmBackup = async () => {
     try {
-      await checkPermission();
+      const hasPermission = await checkPermission();
+      if (!hasPermission) {
+        return null;
+      }
       const backupSettings = JSON.stringify({
         appVersion: DeviceInfo.getVersion(),
         createdAt: moment().toDate(),
@@ -132,7 +221,6 @@ const Backup = () => {
           searchHistory,
         },
       });
-      // persmission
       const backupFileDirExists = await isDir(backupFileDir);
       if (!backupFileDirExists) {
         await mkdir(backupFileDir);
@@ -140,80 +228,65 @@ const Backup = () => {
       await writeFile(backupFilePath, backupSettings, 'utf8');
       showToast(i18n.formatString(i18n.backupSuccessfully, backupFilePath));
       return null;
-    } catch (err) {
+    } catch (_err) {
+      showToast(i18n.backupError);
       return null;
     }
   };
 
   const handleOnPressConfirmRestore = async () => {
     try {
-      await checkPermission();
-      const isBackupExists = await exists(backupFilePath);
-      if (!isBackupExists) {
-        return showToast(i18n.backupFileNotFound);
+      const hasPermission = await checkPermission();
+      if (!hasPermission) {
+        return null;
       }
-      const response = await readFile(backupFilePath, 'utf8');
-      if (response) {
-        const parsedData = JSON.parse(response);
-        if (parsedData?.data) {
-          if (parsedData?.data.readingSettings) {
-            dispatch(restoreReadingSettings(parsedData.data.readingSettings));
+      const candidatePaths = [
+        backupFilePath,
+        ...(legacyBackupFilePath ? [legacyBackupFilePath] : []),
+      ];
+      let sawCorruptFile = false;
+      for (let i = 0; i < candidatePaths.length; i += 1) {
+        const candidatePath = candidatePaths[i];
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          const isBackupExists = await exists(candidatePath);
+          if (isBackupExists) {
+            // eslint-disable-next-line no-await-in-loop
+            const response = await readFile(candidatePath, 'utf8');
+            if (response) {
+              const applied = applyBackupContent(response);
+              if (applied) {
+                return null;
+              }
+              sawCorruptFile = true;
+            }
           }
-          if (parsedData?.data.saveImageSettings) {
-            dispatch(
-              restoreSaveImageSettings(parsedData.data.saveImageSettings),
-            );
-          }
-          if (parsedData?.data.initialScreenSettings) {
-            dispatch(
-              restoreInitialScreenSettings(
-                parsedData.data.initialScreenSettings,
-              ),
-            );
-          }
-          if (parsedData?.data.likeButtonSettings) {
-            dispatch(
-              restoreLikeButtonSettings(parsedData.data.likeButtonSettings),
-            );
-          }
-          if (parsedData?.data.trendingSearchSettings) {
-            dispatch(
-              restoreTrendingSearchSettings(
-                parsedData.data.trendingSearchSettings,
-              ),
-            );
-          }
-          if (parsedData?.data.highlightTags) {
-            dispatch(restoreHighlightTags(parsedData.data.highlightTags));
-          }
-          if (parsedData?.data.muteSettings) {
-            dispatch(restoreMuteSettings(parsedData.data.muteSettings));
-          }
-          if (parsedData?.data.muteTags) {
-            dispatch(restoreMuteTags(parsedData.data.muteTags));
-          }
-          if (parsedData?.data.muteUsers) {
-            dispatch(restoreMuteUsers(parsedData.data.muteUsers));
-          }
-          if (parsedData?.data.novelSettings) {
-            dispatch(restoreNovelSettings(parsedData.data.novelSettings));
-          }
-          if (parsedData?.data.novelRankingSettings) {
-            dispatch(
-              restoreNovelRankingSettings(parsedData.data.novelRankingSettings),
-            );
-          }
-          if (parsedData?.data.searchHistory) {
-            dispatch(restoreSearchHistory(parsedData.data.searchHistory));
-          }
-          if (parsedData?.data.theme) {
-            dispatch(restoreTheme(parsedData.data.theme));
-          }
-          showToast(i18n.backupRestoreSuccessfully);
+        } catch (_err) {
+          // Scoped storage on modern Android can deny direct reads of legacy shared storage.
         }
       }
+      if (sawCorruptFile) {
+        return null;
+      }
+      if (typeof NativeModules?.PXFilePicker?.pickJsonFile === 'function') {
+        Alert.alert(
+          i18n.backupFileNotFound,
+          i18n.backupRestoreFromFileDescription,
+          [
+            { text: i18n.cancel, style: 'cancel' },
+            {
+              text: i18n.backupChooseFile,
+              onPress: handleOnPressRestoreFromFile,
+            },
+          ],
+          { cancelable: true },
+        );
+      } else {
+        showToast(i18n.backupFileNotFound);
+      }
       return null;
-    } catch (err) {
+    } catch (_err) {
+      showToast(i18n.backupError);
       return null;
     }
   };
@@ -257,6 +330,11 @@ const Backup = () => {
       <PXListItem
         title={i18n.backupRestoreData}
         onPress={handleOnPressRestore}
+      />
+      <PXListItem
+        title={i18n.backupRestoreFromFile}
+        description={i18n.backupRestoreFromFileDescription}
+        onPress={handleOnPressRestoreFromFile}
       />
     </View>
   );

@@ -1,3 +1,4 @@
+import { runSaga } from 'redux-saga';
 import { apply, put, select, delay } from 'redux-saga/effects';
 import pixiv from '../../src/common/helpers/apiClient';
 import { getAuthUser } from '../../src/common/selectors';
@@ -50,6 +51,9 @@ describe('handleSyncBookmarkLibrary', () => {
     // stream 1: illust public, 2 pages
     expect(generator.next().value).toEqual(select(getAuthUser));
     expect(generator.next(makeState(false).auth.user).value).toEqual(
+      select(getAuthUser),
+    );
+    expect(generator.next(makeState(false).auth.user).value).toEqual(
       select(getCancelRequested),
     );
     expect(generator.next(false).value).toEqual(
@@ -57,87 +61,120 @@ describe('handleSyncBookmarkLibrary', () => {
     );
     expect(
       generator.next({ illusts: [apiItem(1)], next_url: 'url-2' }).value,
-    ).toEqual(
+    ).toEqual(select(getAuthUser));
+    expect(generator.next(makeState(false).auth.user).value).toEqual(
       put({
         type: 'PIXIV/BOOKMARK_LIBRARY_SYNC_BATCH',
         payload: {
           items: [expect.objectContaining({ id: '1', type: 'illust' })],
         },
+        meta: { userId: '99' },
       }),
     );
     expect(generator.next().value).toEqual(
       put({
         type: 'PIXIV/BOOKMARK_LIBRARY_SYNC_PROGRESS',
         payload: { pagesDone: 1, itemsSynced: 1 },
+        meta: { userId: '99' },
       }),
     );
-    // second page: cancel probe then throttle delay
-    expect(generator.next().value).toEqual(select(getCancelRequested));
+    // second page: active user check, cancel probe, then throttle delay
+    expect(generator.next().value).toEqual(select(getAuthUser));
+    expect(generator.next(makeState(false).auth.user).value).toEqual(
+      select(getCancelRequested),
+    );
     expect(generator.next(false).value).toEqual(delay(700));
     expect(generator.next().value).toEqual(
       apply(pixiv, pixiv.requestUrl, ['url-2']),
     );
     expect(generator.next(singlePageStream([])).value).toEqual(
+      select(getAuthUser),
+    );
+    expect(generator.next(makeState(false).auth.user).value).toEqual(
       put({
         type: 'PIXIV/BOOKMARK_LIBRARY_SYNC_PROGRESS',
         payload: { pagesDone: 1, itemsSynced: 0 },
+        meta: { userId: '99' },
       }),
     );
     // stream 2: illust private (single page)
-    expect(generator.next().value).toEqual(select(getCancelRequested));
+    expect(generator.next().value).toEqual(select(getAuthUser));
+    expect(generator.next(makeState(false).auth.user).value).toEqual(
+      select(getCancelRequested),
+    );
     expect(generator.next(false).value).toEqual(
       apply(pixiv, pixiv.userBookmarksIllust, [99, { restrict: 'private' }]),
     );
     expect(generator.next(singlePageStream([apiItem(2)])).value).toEqual(
+      select(getAuthUser),
+    );
+    expect(generator.next(makeState(false).auth.user).value).toEqual(
       put({
         type: 'PIXIV/BOOKMARK_LIBRARY_SYNC_BATCH',
         payload: {
           items: [expect.objectContaining({ id: '2', restrict: 'private' })],
         },
+        meta: { userId: '99' },
       }),
     );
     expect(generator.next().value).toEqual(
       put({
         type: 'PIXIV/BOOKMARK_LIBRARY_SYNC_PROGRESS',
         payload: { pagesDone: 1, itemsSynced: 1 },
+        meta: { userId: '99' },
       }),
     );
     // stream 3: novel public
-    expect(generator.next().value).toEqual(select(getCancelRequested));
+    expect(generator.next().value).toEqual(select(getAuthUser));
+    expect(generator.next(makeState(false).auth.user).value).toEqual(
+      select(getCancelRequested),
+    );
     expect(generator.next(false).value).toEqual(
       apply(pixiv, pixiv.userBookmarksNovel, [99, { restrict: 'public' }]),
     );
     expect(
       generator.next({ novels: [apiItem(3)], next_url: null }).value,
-    ).toEqual(
+    ).toEqual(select(getAuthUser));
+    expect(generator.next(makeState(false).auth.user).value).toEqual(
       put({
         type: 'PIXIV/BOOKMARK_LIBRARY_SYNC_BATCH',
         payload: {
           items: [expect.objectContaining({ id: '3', type: 'novel' })],
         },
+        meta: { userId: '99' },
       }),
     );
     expect(generator.next().value).toEqual(
       put({
         type: 'PIXIV/BOOKMARK_LIBRARY_SYNC_PROGRESS',
         payload: { pagesDone: 1, itemsSynced: 1 },
+        meta: { userId: '99' },
       }),
     );
     // stream 4: novel private
-    expect(generator.next().value).toEqual(select(getCancelRequested));
+    expect(generator.next().value).toEqual(select(getAuthUser));
+    expect(generator.next(makeState(false).auth.user).value).toEqual(
+      select(getCancelRequested),
+    );
     expect(generator.next(false).value).toEqual(
       apply(pixiv, pixiv.userBookmarksNovel, [99, { restrict: 'private' }]),
     );
     expect(generator.next(singlePageStream([])).value).toEqual(
+      select(getAuthUser),
+    );
+    expect(generator.next(makeState(false).auth.user).value).toEqual(
       put({
         type: 'PIXIV/BOOKMARK_LIBRARY_SYNC_PROGRESS',
         payload: { pagesDone: 1, itemsSynced: 0 },
+        meta: { userId: '99' },
       }),
     );
-    expect(generator.next().value).toEqual(
+    expect(generator.next().value).toEqual(select(getAuthUser));
+    expect(generator.next(makeState(false).auth.user).value).toEqual(
       put({
         type: 'PIXIV/BOOKMARK_LIBRARY_SYNC_SUCCESS',
         payload: { timestamp: expect.any(Number) },
+        meta: { userId: '99' },
       }),
     );
     expect(generator.next().done).toBe(true);
@@ -146,6 +183,7 @@ describe('handleSyncBookmarkLibrary', () => {
   test('stops early when cancel is requested', () => {
     const generator = handleSyncBookmarkLibrary();
     expect(generator.next().value).toEqual(select(getAuthUser));
+    expect(generator.next({ id: 99 }).value).toEqual(select(getAuthUser));
     expect(generator.next({ id: 99 }).value).toEqual(
       select(getCancelRequested),
     );
@@ -153,12 +191,19 @@ describe('handleSyncBookmarkLibrary', () => {
       apply(pixiv, pixiv.userBookmarksIllust, [99, { restrict: 'public' }]),
     );
     expect(generator.next(singlePageStream([])).value).toEqual(
+      select(getAuthUser),
+    );
+    expect(generator.next({ id: 99 }).value).toEqual(
       put({
         type: 'PIXIV/BOOKMARK_LIBRARY_SYNC_PROGRESS',
         payload: { pagesDone: 1, itemsSynced: 0 },
+        meta: { userId: '99' },
       }),
     );
-    expect(generator.next().value).toEqual(select(getCancelRequested));
+    expect(generator.next().value).toEqual(select(getAuthUser));
+    expect(generator.next({ id: 99 }).value).toEqual(
+      select(getCancelRequested),
+    );
     expect(generator.next(true).value).toEqual(
       put({ type: 'PIXIV/BOOKMARK_LIBRARY_SYNC_STOP' }),
     );
@@ -168,6 +213,7 @@ describe('handleSyncBookmarkLibrary', () => {
   test('retries failed pages with exponential backoff then gives up', () => {
     const generator = handleSyncBookmarkLibrary();
     expect(generator.next().value).toEqual(select(getAuthUser));
+    expect(generator.next({ id: 99 }).value).toEqual(select(getAuthUser));
     expect(generator.next({ id: 99 }).value).toEqual(
       select(getCancelRequested),
     );
@@ -199,9 +245,33 @@ describe('handleSyncBookmarkLibrary', () => {
       put({
         type: 'PIXIV/BOOKMARK_LIBRARY_SYNC_FAILURE',
         payload: { error: 'Error: 418' },
+        meta: { userId: '99' },
       }),
     );
     expect(generator.next().done).toBe(true);
+  });
+
+  test('aborts silently if auth user switches mid-flight before response arrives', async () => {
+    const state = {
+      auth: { user: { id: 1001 } },
+      bookmarkLibrary: { cancelRequested: false },
+    };
+    const dispatched = [];
+    pixiv.userBookmarksIllust.mockImplementationOnce(async () => {
+      // User logs out and signs into account B while request A is in-flight
+      state.auth.user = { id: 2002 };
+      return { illusts: [apiItem(777)], next_url: null };
+    });
+
+    await runSaga(
+      {
+        dispatch: (action) => dispatched.push(action),
+        getState: () => state,
+      },
+      handleSyncBookmarkLibrary,
+    ).toPromise();
+
+    expect(dispatched).toEqual([]);
   });
 
   test('fails fast when not logged in', () => {

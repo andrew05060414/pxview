@@ -1,4 +1,9 @@
 import { put, select, take } from 'redux-saga/effects';
+import { refreshAccessToken } from '../../src/common/actions/auth';
+import {
+  AUTH_LOGOUT,
+  AUTH_REFRESH_ACCESS_TOKEN,
+} from '../../src/common/constants/actionTypes';
 import { fetchRecommendedIllusts } from '../../src/common/actions/recommendedIllusts';
 import { fetchRecommendedUsers } from '../../src/common/actions/recommendedUsers';
 import { fetchNewNovels } from '../../src/common/actions/newNovels';
@@ -74,5 +79,63 @@ describe('watchNetworkRestore', () => {
       pingServerUrl: 'https://app-api.pixiv.net',
       pingTimeout: 5000,
     });
+  });
+
+  it('re-authenticates before refreshing errored lists when needsTokenRefresh is true', () => {
+    const generator = watchNetworkRestore();
+
+    nextConnectionChange(generator, false);
+    expect(generator.next({ payload: true }).value).toEqual(select());
+
+    const preRefreshState = {
+      auth: {
+        user: { id: 123, refreshToken: 'rt-1' },
+        needsTokenRefresh: true,
+      },
+      recommendedIllusts: { error: true },
+    };
+
+    expect(generator.next(preRefreshState).value).toEqual(
+      put(refreshAccessToken('rt-1')),
+    );
+    expect(generator.next().value).toEqual(
+      take([
+        AUTH_REFRESH_ACCESS_TOKEN.SUCCESS,
+        AUTH_REFRESH_ACCESS_TOKEN.FAILURE,
+        AUTH_LOGOUT.SUCCESS,
+      ]),
+    );
+    expect(
+      generator.next({ type: AUTH_REFRESH_ACCESS_TOKEN.SUCCESS }).value,
+    ).toEqual(select());
+    expect(
+      generator.next({
+        ...preRefreshState,
+        auth: { user: { id: 123, refreshToken: 'rt-2' }, needsTokenRefresh: false },
+      }).value,
+    ).toEqual(put(fetchRecommendedIllusts(undefined, undefined, true)));
+  });
+
+  it('does not refresh lists if re-authentication fails or user logged out before reconnect', () => {
+    const generator = watchNetworkRestore();
+
+    nextConnectionChange(generator, false);
+    expect(generator.next({ payload: true }).value).toEqual(select());
+    expect(
+      generator.next({
+        auth: { user: { id: 123, refreshToken: 'rt-1' }, needsTokenRefresh: true },
+        recommendedIllusts: { error: true },
+      }).value,
+    ).toEqual(put(refreshAccessToken('rt-1')));
+    expect(generator.next().value).toEqual(
+      take([
+        AUTH_REFRESH_ACCESS_TOKEN.SUCCESS,
+        AUTH_REFRESH_ACCESS_TOKEN.FAILURE,
+        AUTH_LOGOUT.SUCCESS,
+      ]),
+    );
+    expect(generator.next({ type: AUTH_LOGOUT.SUCCESS }).value).toEqual(
+      take(CONNECTION_CHANGE),
+    );
   });
 });

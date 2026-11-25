@@ -39,15 +39,18 @@ const CollectionExportSection = ({ i18n }) => {
     Linking.openSettings();
   };
 
+  const needsLegacyStoragePermission = () =>
+    Platform.OS === 'android' && Number(Platform.Version) < 29;
+
   const checkPermission = async () => {
-    if (Platform.OS !== 'android') {
-      return;
+    if (!needsLegacyStoragePermission()) {
+      return true;
     }
     const granted = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
     );
     if (granted === PermissionsAndroid.RESULTS.DENIED) {
-      throw new Error('storage permission denied');
+      return false;
     }
     if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
       Alert.alert(
@@ -65,8 +68,9 @@ const CollectionExportSection = ({ i18n }) => {
         ],
         { cancelable: false },
       );
-      throw new Error('storage permission never ask again');
+      return false;
     }
+    return granted === PermissionsAndroid.RESULTS.GRANTED;
   };
 
   const handleOnPressExport = async (format) => {
@@ -74,29 +78,46 @@ const CollectionExportSection = ({ i18n }) => {
       return;
     }
     try {
-      await checkPermission();
+      const hasPermission = await checkPermission();
+      if (!hasPermission) {
+        return;
+      }
       const baseDir =
         Platform.OS === 'android' ? dirs.SDCardDir : dirs.DocumentDir;
       const exportDir = `${baseDir}/pxviewr/export`;
       if (!(await isDir(exportDir))) {
         await mkdir(exportDir);
       }
-      const path = `${exportDir}/${buildExportFileName(format)}`;
+      const fileName = buildExportFileName(format);
+      const path = `${exportDir}/${fileName}`;
       const data = format === 'csv' ? toCsv(items) : toJson(items);
       await writeFile(path, data, 'utf8');
+
+      // react-native-share's Android FileProvider exposes cache-path, not external-files-dir.
+      let sharePath = path;
+      if (Platform.OS === 'android' && dirs.CacheDir) {
+        const shareDir = `${dirs.CacheDir}/pxviewr_export`;
+        if (!(await isDir(shareDir))) {
+          await mkdir(shareDir);
+        }
+        sharePath = `${shareDir}/${fileName}`;
+        await writeFile(sharePath, data, 'utf8');
+      }
+
       DeviceEventEmitter.emit(
         'showToast',
         i18n.formatString(i18n.collectionExportSuccess, path),
       );
       Share.open({
         title: 'PXView',
-        url: `file://${path}`,
+        url: `file://${sharePath}`,
+        filename: fileName,
         type: format === 'csv' ? 'text/csv' : 'application/json',
       }).catch(() => {
         // user dismissed the share sheet
       });
-    } catch (err) {
-      // permission denied or write failed; toast/Alert already shown
+    } catch (_err) {
+      DeviceEventEmitter.emit('showToast', i18n.collectionExportError);
     }
   };
 

@@ -885,16 +885,19 @@ export const makeGetDetailItem = () =>
     const {
       illust_id: illustIdFromQS, // from deep link query string
       illustId, // from deep link params
+      id: idParam,
       items,
       index,
-    } = props.route.params;
+    } = props.route?.params || {};
+    const directId = illustIdFromQS ?? illustId ?? idParam;
     let id;
-    if (illustIdFromQS) {
-      id = parseInt(illustIdFromQS, 10);
-    } else if (illustId) {
-      id = parseInt(illustId, 10);
-    } else {
+    if (directId != null && directId !== '') {
+      id = parseInt(directId, 10);
+    } else if (Array.isArray(items) && items[index]) {
       id = items[index].id;
+    }
+    if (id == null || Number.isNaN(id)) {
+      return undefined;
     }
     return denormalize(id, Schemas.ILLUST, entities);
   });
@@ -906,14 +909,16 @@ export const makeGetDetailNovelItem = () =>
       novelId, // from deep link params
       items,
       index,
-    } = props.route.params;
+    } = props.route?.params || {};
+    const directId = novelIdFromQS ?? novelId;
     let id;
-    if (novelIdFromQS) {
-      id = parseInt(novelIdFromQS, 10);
-    } else if (novelId) {
-      id = parseInt(novelId, 10);
-    } else {
+    if (directId != null && directId !== '') {
+      id = parseInt(directId, 10);
+    } else if (Array.isArray(items) && items[index]) {
       id = items[index].id;
+    }
+    if (id == null || Number.isNaN(id)) {
+      return undefined;
     }
     return denormalize(id, Schemas.NOVEL, entities);
   });

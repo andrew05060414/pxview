@@ -22,6 +22,86 @@ import {
 } from '../../common/constants';
 
 const PIXIV_REFERER = 'https://www.pixiv.net';
+const MIME_TYPE_TO_EXTENSION = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/pjpeg': 'jpg',
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+};
+const VALID_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp']);
+
+let saveBatchCounter = 0;
+
+export const getExtensionFromMimeType = (contentType) => {
+  if (!contentType || typeof contentType !== 'string') {
+    return null;
+  }
+  const normalized = contentType.split(';')[0].trim().toLowerCase();
+  return MIME_TYPE_TO_EXTENSION[normalized] || null;
+};
+
+export const getExtensionFromUrl = (url) => {
+  if (!url || typeof url !== 'string') {
+    return null;
+  }
+  const cleanUrl = url.split(/[?#]/)[0];
+  const match = cleanUrl.match(/\.([a-zA-Z0-9]+)$/);
+  if (!match) {
+    return null;
+  }
+  const ext = match[1].toLowerCase();
+  if (!VALID_IMAGE_EXTENSIONS.has(ext)) {
+    return null;
+  }
+  return ext === 'jpeg' ? 'jpg' : ext;
+};
+
+export const toFileUri = (filePath) => {
+  const plainPath = String(filePath || '').replace(/^file:\/\//i, '');
+  const encodedPath = plainPath
+    .split('/')
+    .map((segment) => {
+      if (!segment) {
+        return '';
+      }
+      try {
+        return encodeURIComponent(decodeURIComponent(segment));
+      } catch (_err) {
+        return encodeURIComponent(segment);
+      }
+    })
+    .join('/');
+  return `file://${encodedPath.startsWith('/') ? encodedPath : `/${encodedPath}`}`;
+};
+
+export const validateImageResponse = (res) => {
+  const info = typeof res?.info === 'function' ? res.info() : null;
+  if (
+    info &&
+    typeof info.status === 'number' &&
+    (info.status < 200 || info.status >= 300)
+  ) {
+    throw new Error(`HTTP ${info.status}`);
+  }
+  const headers = info?.headers || {};
+  const contentTypeKey = Object.keys(headers).find(
+    (k) => k.toLowerCase() === 'content-type',
+  );
+  const rawContentType = contentTypeKey ? headers[contentTypeKey] : null;
+  if (rawContentType && typeof rawContentType === 'string') {
+    const mimeType = rawContentType.split(';')[0].trim().toLowerCase();
+    if (!mimeType.startsWith('image/')) {
+      throw new Error(`Unexpected content-type: ${mimeType}`);
+    }
+    return {
+      contentType: mimeType,
+      mimeExtension: getExtensionFromMimeType(mimeType),
+    };
+  }
+  return { contentType: null, mimeExtension: null };
+};
 
 const enhanceSaveImage = (WrappedComponent) => {
   class Hoc extends Component {
@@ -100,18 +180,23 @@ const enhanceSaveImage = (WrappedComponent) => {
       workType,
       saveImageSettings,
       index,
+      extension = 'png',
     ) => {
+      const normalizedExt =
+        String(extension || 'png')
+          .replace(/^\./, '')
+          .toLowerCase() || 'png';
       let fileName;
       switch (saveImageSettings && saveImageSettings.fileName) {
         case SAVE_FILE_NAME_FORMAT.WORK_TITLE:
-          fileName = `${workTitle}_p${index}.png`;
+          fileName = `${workTitle}_p${index}.${normalizedExt}`;
           break;
         case SAVE_FILE_NAME_FORMAT.WORK_ID_WORK_TITLE:
-          fileName = `${workId}_${workTitle}_p${index}.png`;
+          fileName = `${workId}_${workTitle}_p${index}.${normalizedExt}`;
           break;
         case SAVE_FILE_NAME_FORMAT.WORK_ID:
         default:
-          fileName = `${workId}_p${index}.png`;
+          fileName = `${workId}_p${index}.${normalizedExt}`;
           break;
       }
       return sanitize(fileName, {
@@ -120,9 +205,7 @@ const enhanceSaveImage = (WrappedComponent) => {
     };
 
     saveToGallery = async (filePath, album) => {
-      const fileUri = filePath.startsWith('file://')
-        ? filePath
-        : `file://${filePath}`;
+      const fileUri = toFileUri(filePath);
       if (
         Platform.OS === 'ios' &&
         NativeModules &&
@@ -200,22 +283,49 @@ const enhanceSaveImage = (WrappedComponent) => {
           await RNFetchBlob.fs.mkdir(tempDir);
         }
       } catch (err) {}
+      saveBatchCounter += 1;
+      const batchId = `${Date.now()}_${saveBatchCounter}`;
       await Promise.mapSeries(imageUrls, async (url, index) => {
-        const fileName = this.getImageFileName(
+        const urlExtension = getExtensionFromUrl(url) || 'jpg';
+        let fileName = this.getImageFileName(
           workId,
           workTitle,
           workType,
           saveImageSettings,
           imageIndex || index,
+          urlExtension,
         );
+        const itemTempDir = `${tempDir}/${batchId}_${index}`;
+        try {
+          if (typeof RNFetchBlob.fs.mkdir === 'function') {
+            await RNFetchBlob.fs.mkdir(itemTempDir);
+          }
+        } catch (err) {}
         let filePath = null;
         try {
           const res = await RNFetchBlob.config({
-            path: `${tempDir}/${fileName}`,
+            path: `${itemTempDir}/${fileName}`,
           }).fetch('GET', url, {
             referer: PIXIV_REFERER,
           });
           filePath = res.path();
+          const { mimeExtension } = validateImageResponse(res);
+          if (mimeExtension && mimeExtension !== urlExtension) {
+            const renamedFileName = this.getImageFileName(
+              workId,
+              workTitle,
+              workType,
+              saveImageSettings,
+              imageIndex || index,
+              mimeExtension,
+            );
+            const renamedPath = `${itemTempDir}/${renamedFileName}`;
+            if (typeof RNFetchBlob.fs.mv === 'function' && filePath) {
+              await RNFetchBlob.fs.mv(filePath, renamedPath);
+              filePath = renamedPath;
+              fileName = renamedFileName;
+            }
+          }
           await this.saveToGallery(filePath, album);
           this.showToast(i18n.formatString(i18n.saveImageSuccess, fileName));
         } catch (err) {
@@ -224,6 +334,11 @@ const enhanceSaveImage = (WrappedComponent) => {
           if (filePath && typeof RNFetchBlob.fs.unlink === 'function') {
             try {
               await RNFetchBlob.fs.unlink(filePath);
+            } catch (err) {}
+          }
+          if (typeof RNFetchBlob.fs.unlink === 'function') {
+            try {
+              await RNFetchBlob.fs.unlink(itemTempDir);
             } catch (err) {}
           }
         }

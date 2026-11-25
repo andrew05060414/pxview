@@ -11,6 +11,7 @@ import {
   extractJsonContent,
   buildClassificationMessages,
 } from '../helpers/llmClient';
+import { getClassificationForItem } from '../helpers/bookmarkItemKey';
 
 export const getAiSettings = (state) => state.aiSettings;
 export const getBookmarkItems = (state) => state.bookmarkLibrary.items;
@@ -43,7 +44,7 @@ export function* handleClassifyBookmarks() {
     }
 
     const unclassified = allItems.filter(
-      (item) => !existingMappings[String(item.id)],
+      (item) => !getClassificationForItem(existingMappings, item),
     );
     if (!unclassified.length) {
       yield put(classifySuccess());

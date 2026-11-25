@@ -1,4 +1,8 @@
-import { CLASSIFICATIONS } from '../constants/actionTypes';
+import {
+  AUTH_LOGIN,
+  AUTH_LOGOUT,
+  CLASSIFICATIONS,
+} from '../constants/actionTypes';
 
 export const DEFAULT_CATEGORIES = [
   '日常/治愈',
@@ -79,6 +83,12 @@ export default function classifications(state = initState, action) {
         ...state,
         classifying: false,
         error: action.payload.error,
+      };
+    case AUTH_LOGOUT.SUCCESS:
+    case AUTH_LOGIN.SUCCESS:
+      return {
+        ...initState,
+        categories: state.categories,
       };
     case CLASSIFICATIONS.CLEAR:
       return {

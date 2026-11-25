@@ -1,4 +1,8 @@
-import { FOLLOWING_INSIGHTS } from '../constants/actionTypes';
+import {
+  AUTH_LOGIN,
+  AUTH_LOGOUT,
+  FOLLOWING_INSIGHTS,
+} from '../constants/actionTypes';
 
 const initState = {
   syncing: false,
@@ -73,6 +77,8 @@ export default function followingInsights(state = initState, action) {
         cancelRequested: false,
         error: action.payload.error,
       };
+    case AUTH_LOGOUT.SUCCESS:
+    case AUTH_LOGIN.SUCCESS:
     case FOLLOWING_INSIGHTS.CLEAR:
       return initState;
     default:

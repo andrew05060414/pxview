@@ -23,9 +23,18 @@ RCT_EXPORT_METHOD(saveImage:(NSString *)filePath
     return;
   }
 
-  NSURL *fileURL = [filePath hasPrefix:@"file://"]
-    ? [NSURL URLWithString:filePath]
-    : [NSURL fileURLWithPath:filePath];
+  NSURL *fileURL = nil;
+  if ([filePath hasPrefix:@"file://"]) {
+    NSURL *parsed = [NSURL URLWithString:filePath];
+    if (parsed && parsed.isFileURL && parsed.fragment == nil && parsed.query == nil) {
+      fileURL = parsed;
+    } else {
+      NSString *plainPath = [filePath substringFromIndex:[@"file://" length]];
+      fileURL = [NSURL fileURLWithPath:plainPath];
+    }
+  } else {
+    fileURL = [NSURL fileURLWithPath:filePath];
+  }
 
   if (!fileURL || !fileURL.isFileURL) {
     reject(@"E_INVALID_PATH", @"Invalid image file URL", nil);

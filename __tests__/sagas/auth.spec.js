@@ -1,3 +1,5 @@
+import { DeviceEventEmitter } from 'react-native';
+import { runSaga, stdChannel } from 'redux-saga';
 import {
   take,
   call,
@@ -11,6 +13,8 @@ import {
 } from 'redux-saga/effects';
 import { cloneableGenerator, createMockTask } from '@redux-saga/testing-utils';
 import { REHYDRATE } from 'redux-persist';
+import authReducer from '../../src/common/reducers/auth';
+import { watchNetworkRestore } from '../../src/common/sagas/networkRestore';
 import {
   login,
   loginSuccess,
@@ -359,5 +363,176 @@ describe('watchRehydrate', () => {
   });
   test('dispatch rehydrate success action after rehydrate work done', () => {
     expect(generator.next().value).toEqual(put(rehydrateSuccess()));
+  });
+});
+
+describe('cold-start refresh failure & invalid_grant handling', () => {
+  test('offline cold-start refresh failure dispatches failure once, emits zero ERROR_ADD, keeps user, and sets needsTokenRefresh', async () => {
+    let authState = authReducer(undefined, {
+      type: REHYDRATE,
+      payload: {
+        auth: {
+          user: { id: 123, refreshToken: 'rt-offline' },
+        },
+      },
+    });
+    const dispatched = [];
+    pixiv.refreshAccessToken = jest.fn(() =>
+      Promise.reject(new Error('Network request failed')),
+    );
+    const channel = stdChannel();
+
+    const task = runSaga(
+      {
+        channel,
+        dispatch: (action) => {
+          dispatched.push(action);
+          authState = authReducer(authState, action);
+          channel.put(action);
+        },
+        getState: () => ({ auth: authState }),
+      },
+      watchRefreshAccessTokenRequestTask,
+    );
+
+    channel.put(refreshAccessToken('rt-offline'));
+    await new Promise((r) => setTimeout(r, 10));
+    task.cancel();
+
+    const failures = dispatched.filter(
+      (a) => a.type === AUTH_REFRESH_ACCESS_TOKEN.FAILURE,
+    );
+    const errors = dispatched.filter((a) => a.type === 'PIXIV/ERROR_ADD');
+    const logouts = dispatched.filter((a) => a.type === AUTH_LOGOUT.SUCCESS);
+
+    expect(failures).toHaveLength(1);
+    expect(errors).toHaveLength(0);
+    expect(logouts).toHaveLength(0);
+    expect(authState.user).toEqual({ id: 123, refreshToken: 'rt-offline' });
+    expect(authState.needsTokenRefresh).toBe(true);
+  });
+
+  test('reconnects after offline failure, re-authenticates first, reloads lists, and stops retrying after logout', async () => {
+    const state = {
+      auth: authReducer(undefined, {
+        type: REHYDRATE,
+        payload: {
+          auth: {
+            user: { id: 123, refreshToken: 'rt-offline' },
+          },
+        },
+      }),
+      recommendedIllusts: { error: true },
+    };
+    const dispatched = [];
+    pixiv.refreshAccessToken = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('Network request failed'))
+      .mockResolvedValueOnce({
+        user: { id: 123, name: 'U' },
+        access_token: 'new-at',
+        refresh_token: 'new-rt',
+        expires_in: 3600,
+      });
+
+    const channel = stdChannel();
+    const io = {
+      channel,
+      dispatch: (action) => {
+        dispatched.push(action);
+        state.auth = authReducer(state.auth, action);
+        channel.put(action);
+      },
+      getState: () => state,
+    };
+    const authTask = runSaga(io, watchRefreshAccessTokenRequestTask);
+    const netTask = runSaga(io, watchNetworkRestore);
+
+    channel.put({
+      type: '@@network-connectivity/CONNECTION_CHANGE',
+      payload: false,
+    });
+    channel.put(refreshAccessToken('rt-offline'));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(state.auth.needsTokenRefresh).toBe(true);
+
+    channel.put({
+      type: '@@network-connectivity/CONNECTION_CHANGE',
+      payload: true,
+    });
+    await new Promise((r) => setTimeout(r, 10));
+
+    const actionTypes = dispatched.map((a) => a.type);
+    const refreshSuccessIdx = actionTypes.indexOf(
+      AUTH_REFRESH_ACCESS_TOKEN.SUCCESS,
+    );
+    const recommendIdx = actionTypes.indexOf('PIXIV/RECOMMENDED_ILLUSTS_REQUEST');
+    expect(refreshSuccessIdx).toBeGreaterThan(-1);
+    expect(recommendIdx).toBeGreaterThan(refreshSuccessIdx);
+    expect(state.auth.needsTokenRefresh).toBe(false);
+
+    // Explicit logout prevents any retry on subsequent reconnect
+    pixiv.refreshAccessToken.mockClear();
+    dispatched.length = 0;
+    io.dispatch(logout());
+    channel.put({
+      type: '@@network-connectivity/CONNECTION_CHANGE',
+      payload: false,
+    });
+    channel.put({
+      type: '@@network-connectivity/CONNECTION_CHANGE',
+      payload: true,
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(pixiv.refreshAccessToken).not.toHaveBeenCalled();
+
+    authTask.cancel();
+    netTask.cancel();
+  });
+
+  test('invalid_grant refresh failure notifies user to re-login and logs out', async () => {
+    const emitSpy = jest.spyOn(DeviceEventEmitter, 'emit');
+    let authState = authReducer(undefined, {
+      type: REHYDRATE,
+      payload: {
+        auth: {
+          user: { id: 123, refreshToken: 'rt-revoked' },
+        },
+      },
+    });
+    const dispatched = [];
+    pixiv.refreshAccessToken = jest.fn(() =>
+      Promise.reject({ error: 'invalid_grant' }),
+    );
+    const channel = stdChannel();
+
+    const task = runSaga(
+      {
+        channel,
+        dispatch: (action) => {
+          dispatched.push(action);
+          authState = authReducer(authState, action);
+          channel.put(action);
+        },
+        getState: () => ({ auth: authState }),
+      },
+      watchRefreshAccessTokenRequestTask,
+    );
+
+    channel.put(refreshAccessToken('rt-revoked'));
+    await new Promise((r) => setTimeout(r, 10));
+    task.cancel();
+
+    expect(
+      dispatched.filter((a) => a.type === AUTH_REFRESH_ACCESS_TOKEN.FAILURE),
+    ).toHaveLength(1);
+    expect(dispatched.filter((a) => a.type === AUTH_LOGOUT.SUCCESS)).toHaveLength(1);
+    expect(authState.user).toBeNull();
+    expect(authState.needsTokenRefresh).toBe(false);
+    expect(emitSpy).toHaveBeenCalledWith(
+      'showToast',
+      expect.any(String),
+    );
+    emitSpy.mockRestore();
   });
 });

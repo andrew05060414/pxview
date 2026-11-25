@@ -23,6 +23,10 @@ import {
   extractJsonContent,
 } from '../../../common/helpers/llmClient';
 import { SCREENS } from '../../../common/constants';
+import {
+  getBookmarkItemKey,
+  getClassificationForItem,
+} from '../../../common/helpers/bookmarkItemKey';
 import { globalStyleVariables } from '../../../styles';
 
 const styles = StyleSheet.create({
@@ -149,13 +153,12 @@ const CollectionSearchSection = ({ navigation }) => {
     if (!navigation) return;
     if (item.type === 'novel') {
       navigation.navigate(SCREENS.NovelDetail, {
+        novelId: item.id,
         id: item.id,
-        item: { id: item.id, title: item.title },
       });
     } else {
       navigation.navigate(SCREENS.Detail, {
-        id: item.id,
-        item: { id: item.id, title: item.title },
+        illustId: item.id,
       });
     }
   };
@@ -163,7 +166,7 @@ const CollectionSearchSection = ({ navigation }) => {
   const renderItem = ({ item }) => {
     const typeLabel =
       item.type === 'novel' ? i18n.userNovels : i18n.userIllusts;
-    const cat = (classifications.items || {})[String(item.id)];
+    const cat = getClassificationForItem(classifications.items, item);
     const descParts = [
       `${typeLabel} · ${item.userName || ''}`,
       item.totalBookmarks ? `♥ ${item.totalBookmarks}` : null,
@@ -173,7 +176,7 @@ const CollectionSearchSection = ({ navigation }) => {
 
     return (
       <PXListItem
-        key={item.id}
+        key={getBookmarkItemKey(item)}
         title={item.title}
         description={descParts.join(' · ')}
         onPress={() => handleOnPressItem(item)}
@@ -379,7 +382,7 @@ const CollectionSearchSection = ({ navigation }) => {
       ) : (
         <FlatList
           data={searchResults}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => getBookmarkItemKey(item)}
           renderItem={renderItem}
           ItemSeparatorComponent={Divider}
         />

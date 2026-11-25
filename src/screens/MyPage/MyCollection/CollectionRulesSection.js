@@ -14,6 +14,7 @@ import EmptyStateView from '../../../components/EmptyStateView';
 import { filterByRule } from '../../../common/helpers/bookmarkRuleFilter';
 import { clearBookmarkRules } from '../../../common/actions/bookmarkRules';
 import { SCREENS } from '../../../common/constants';
+import { getBookmarkItemKey } from '../../../common/helpers/bookmarkItemKey';
 import { globalStyleVariables } from '../../../styles';
 
 const styles = StyleSheet.create({
@@ -41,13 +42,12 @@ const CollectionRulesSection = ({ navigation }) => {
     if (!navigation) return;
     if (item.type === 'novel') {
       navigation.navigate(SCREENS.NovelDetail, {
+        novelId: item.id,
         id: item.id,
-        item: { id: item.id, title: item.title },
       });
     } else {
       navigation.navigate(SCREENS.Detail, {
-        id: item.id,
-        item: { id: item.id, title: item.title },
+        illustId: item.id,
       });
     }
   };
@@ -73,7 +73,7 @@ const CollectionRulesSection = ({ navigation }) => {
         ) : (
           matched.map((work) => (
             <PXListItem
-              key={work.id}
+              key={getBookmarkItemKey(work)}
               title={work.title}
               description={`${
                 work.type === 'novel' ? i18n.userNovels : i18n.userIllusts

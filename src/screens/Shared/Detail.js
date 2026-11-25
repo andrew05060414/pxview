@@ -529,14 +529,18 @@ export default withWindowWidth(
             const {
               illust_id: illustIdFromQS,
               illustId,
+              id: idParam,
               items,
               index,
               parentListKey,
-            } = props.route.params;
-            const id = parseInt(illustIdFromQS || illustId, 0);
+            } = props.route?.params || {};
+            const rawId = illustIdFromQS ?? illustId ?? idParam;
+            const parsedId =
+              rawId != null && rawId !== '' ? parseInt(rawId, 10) : NaN;
+            const id = Number.isNaN(parsedId) ? undefined : parsedId;
             return {
               illustId: id || item?.id,
-              illustDetail: state.illustDetail[id], // get illustDetail from api if load from deep link
+              illustDetail: id ? state.illustDetail[id] : undefined, // get illustDetail from api if load from deep link
               item,
               isMuteUser,
               isFromDeepLink: !!id,

@@ -467,19 +467,26 @@ class SearchFilterModal extends Component {
       excludeKeywords,
       aiType,
     } = this.state;
-    navigate(SCREENS.SearchResult, {
-      target,
-      period,
-      sort,
-      startDate,
-      endDate,
-      bookmarkNumMin,
-      bookmarkNumMax,
-      bookmarkCountsTag,
-      minBookmarks,
-      excludeKeywords,
-      aiType,
-    });
+    navigate(
+      SCREENS.SearchResult,
+      {
+        target,
+        period,
+        sort,
+        startDate,
+        endDate,
+        bookmarkNumMin,
+        bookmarkNumMax,
+        bookmarkCountsTag,
+        minBookmarks,
+        excludeKeywords,
+        aiType,
+      },
+      {
+        merge: true,
+        pop: true,
+      },
+    );
   };
 
   render() {

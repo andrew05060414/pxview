@@ -9,6 +9,7 @@ import {
   cancel,
   delay,
 } from 'redux-saga/effects';
+import { DeviceEventEmitter } from 'react-native';
 import moment from 'moment';
 import { REHYDRATE } from 'redux-persist';
 import { FOREGROUND, BACKGROUND } from '../store/appStateEnhancer';
@@ -27,6 +28,7 @@ import {
 import { setLanguage } from '../actions/i18n';
 import { addError } from '../actions/error';
 import pixiv from '../helpers/apiClient';
+import i18n from '../helpers/i18n';
 import { getAuth, getAuthUser, getLang } from '../selectors';
 import {
   AUTH_LOGIN,
@@ -51,6 +53,36 @@ export function* authorize(code, codeVerifier) {
   return loginResponse;
 }
 
+export const isInvalidCredentialsError = (err) => {
+  if (!err || typeof err !== 'object') {
+    return false;
+  }
+  if (err.error === 'invalid_grant') {
+    return true;
+  }
+  const sysCode = err.errors && err.errors.system && err.errors.system.code;
+  if (sysCode === 1508) {
+    return true;
+  }
+  const msg =
+    (err.errors && err.errors.system && err.errors.system.message) ||
+    err.error_description ||
+    err.message ||
+    '';
+  return /invalid[_\s-]?grant|invalid refresh token|refresh token.*(invalid|expired|revoked)/i.test(
+    String(msg),
+  );
+};
+
+export function notifySessionExpired() {
+  if (DeviceEventEmitter && typeof DeviceEventEmitter.emit === 'function') {
+    DeviceEventEmitter.emit(
+      'showToast',
+      i18n?.sessionExpiredRelogin || 'Session expired, please log in again',
+    );
+  }
+}
+
 export function* handleRefreshAccessToken(refreshToken) {
   try {
     const response = yield apply(pixiv, pixiv.refreshAccessToken, [
@@ -58,15 +90,18 @@ export function* handleRefreshAccessToken(refreshToken) {
     ]);
     const user = yield select(getAuthUser);
     const options = setProvisionalAccountOptions(
-      user.isProvisionalAccount,
-      user.password,
+      user?.isProvisionalAccount,
+      user?.password,
     );
 
     yield put(refreshAccessTokenSuccess(response, options));
     return response;
   } catch (err) {
     yield put(refreshAccessTokenFailure());
-    // yield put(logout());
+    if (isInvalidCredentialsError(err)) {
+      yield call(notifySessionExpired);
+      yield put(logout());
+    }
   }
   return null;
 }
@@ -78,6 +113,10 @@ export function* scheduleRefreshAccessToken(refreshToken, delayMilisecond) {
 }
 
 export function* refreshAccessTokenOnExpiry(authResponse) {
+  if (!authResponse || typeof authResponse.expires_in !== 'number') {
+    yield take(AUTH_LOGOUT.SUCCESS);
+    return;
+  }
   // refresh token 5 min before expire
   // convert expires in to milisecond
   let delayMilisecond = (authResponse.expires_in - 300) * 1000;
@@ -102,9 +141,23 @@ export function* refreshAccessTokenOnExpiry(authResponse) {
         const duration = moment.duration(now.diff(end));
         const ms = duration.asMilliseconds();
         delayMilisecond -= ms;
-      } else if (refreshAccessTokenResponse) {
+      } else if (
+        refreshAccessTokenResponse &&
+        typeof refreshAccessTokenResponse.expires_in === 'number'
+      ) {
         delayMilisecond = (refreshAccessTokenResponse.expires_in - 300) * 1000;
+      } else {
+        const retryAction = yield take(AUTH_REFRESH_ACCESS_TOKEN.REQUEST);
+        const retryResponse = yield call(
+          handleRefreshAccessToken,
+          retryAction.payload.refreshToken,
+        );
+        if (retryResponse && typeof retryResponse.expires_in === 'number') {
+          delayMilisecond = (retryResponse.expires_in - 300) * 1000;
+        }
       }
+    } else {
+      return;
     }
   }
 }
@@ -151,6 +204,10 @@ export function* watchRefreshAccessTokenRequestTask() {
       const action = yield take(AUTH_REFRESH_ACCESS_TOKEN.REQUEST);
       const { refreshToken } = action.payload;
       const authResponse = yield call(handleRefreshAccessToken, refreshToken);
+      if (!authResponse) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       yield race([
         take(AUTH_LOGOUT.SUCCESS),
         call(refreshAccessTokenOnExpiry, authResponse),

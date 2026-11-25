@@ -203,24 +203,67 @@ async function getStoredStateV4(v4Config) {
   return restoredState;
 }
 
+function hasRestorableState(state) {
+  return Boolean(
+    state &&
+      typeof state === 'object' &&
+      Object.keys(state).some((key) => key !== '_persist'),
+  );
+}
+
 export default function getStoredStateMigrateToFileSystemStorage(
   v5Config,
   v4Config,
+  options = {},
 ) {
+  const fileSystem = options.fileSystem || RNFetchBlob.fs;
+  const onResult =
+    typeof options.onResult === 'function' ? options.onResult : null;
+
   return async (currentConfig) => {
-    const filePersistStorePath = `${RNFetchBlob.fs.dirs.DocumentDir}/persistStore`;
-    const isFilePersistStoreExists = await RNFetchBlob.fs.exists(
-      filePersistStorePath,
-    );
-    if (isFilePersistStoreExists) {
-      const state = await getStoredState(currentConfig);
-      return state;
-    }
-    return getStoredState(v5Config).then((v5State) => {
-      if (v5State) {
-        return v5State;
+    const notify = (source, state) => {
+      if (onResult) {
+        onResult({ source, state });
       }
-      return getStoredStateV4(v4Config);
-    });
+      return state;
+    };
+
+    try {
+      const documentDir = fileSystem?.dirs?.DocumentDir;
+      if (documentDir != null && typeof fileSystem.exists === 'function') {
+        const filePersistStorePath = `${documentDir}/persistStore`;
+        const isFilePersistStoreExists = await fileSystem.exists(
+          filePersistStorePath,
+        );
+        if (isFilePersistStoreExists) {
+          const fileState = await getStoredState(currentConfig);
+          if (hasRestorableState(fileState)) {
+            return notify('filesystem', fileState);
+          }
+        }
+      }
+    } catch (_err) {
+      // Fall back to legacy AsyncStorage stores when file storage is unreadable.
+    }
+
+    try {
+      const v5State = await getStoredState(v5Config);
+      if (hasRestorableState(v5State)) {
+        return notify('asyncstorage_v5', v5State);
+      }
+    } catch (_err) {
+      // Fall back to v4 AsyncStorage migration when v5 key is unreadable.
+    }
+
+    try {
+      const v4State = await getStoredStateV4(v4Config);
+      if (hasRestorableState(v4State)) {
+        return notify('asyncstorage_v4', v4State);
+      }
+    } catch (_err) {
+      // Ignore unreadable legacy state.
+    }
+
+    return notify('empty', undefined);
   };
 }
