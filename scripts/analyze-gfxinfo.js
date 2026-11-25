@@ -5,6 +5,21 @@ function fields(line) {
   return line.trim().replace(/,$/, '').split(',').map(value => value.trim());
 }
 
+function decodeText(buf) {
+  if (buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf) {
+    return buf.slice(3).toString('utf8');
+  }
+  const isUtf16Le = buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe;
+  const isUtf16Be = buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff;
+  if (isUtf16Le || isUtf16Be) {
+    const body = Buffer.from(buf.slice(2));
+    if (body.length % 2 !== 0) throw new Error('Truncated UTF-16 input.');
+    if (isUtf16Be) body.swap16();
+    return body.toString('utf16le');
+  }
+  return buf.toString('utf8');
+}
+
 function analyze(text, hz) {
   const parts = text.split(/^[ \t]*---PROFILEDATA---[ \t]*\r?$/m);
   if (parts.length === 1 || parts.length % 2 === 0) {
@@ -60,7 +75,7 @@ try {
   if (process.argv.length !== 4 || !/^[1-9]\d*$/.test(rate) || !Number.isSafeInteger(Number(rate))) {
     throw new Error('Usage: node scripts/analyze-gfxinfo.js <capture.txt | -> <integer refresh Hz>');
   }
-  const text = fs.readFileSync(input === '-' ? 0 : input, 'utf8');
+  const text = decodeText(fs.readFileSync(input === '-' ? 0 : input));
   console.log(JSON.stringify(analyze(text, Number(rate)), null, 2));
 } catch (error) {
   console.error(error.message);

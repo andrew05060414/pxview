@@ -1,6 +1,6 @@
 # Android 阅读器帧耗时：离线复算
 
-这是 [#14](https://github.com/andrew05060414/pxview/issues/14) 的测量工具，不是 PXView 实机基线。已有一份 `dumpsys gfxinfo com.utopia.pxviewr framestats` 的 UTF-8 文本就能用；不需要连接设备、构建 app 或 `npm install`。
+这是 [#14](https://github.com/andrew05060414/pxview/issues/14) 的测量工具，不是 PXView 实机基线。已有一份 `dumpsys gfxinfo com.utopia.pxviewr framestats` 的纯文本（UTF-8，或带 BOM 的 UTF-16）就能用；不需要连接设备、构建 app 或 `npm install`。
 
 ```sh
 # 在仓库根目录运行；60 是本轮记录的固定刷新率（整数 Hz），不是默认值
@@ -21,7 +21,7 @@ node scripts/test-gfxinfo.js
 以下是**以后获准采样时**的人工流程，分析脚本不会执行任何 `adb` 命令。
 
 1. 记录设备型号、Android 版本、固定刷新率、release APK 的 commit、作品/章节、字号和网络/缓存状态。例：选同一已加载的纯文字小说，固定竖屏、字号，回到同一阅读起点；先预热一遍。不清 app 数据。
-2. 每轮从静止的同一界面开始。人工运行 `adb shell dumpsys gfxinfo com.utopia.pxviewr reset` **只重置图形诊断统计**，不是清除应用存储。做一次相同手势（例如在阅读页用 300 ms 从屏高 80% 滑到 30%），待滚动停止后立刻运行 `adb shell dumpsys gfxinfo com.utopia.pxviewr framestats > reader-run-01.txt`。每轮用新文件名；窗口历史是有限缓冲区，不能用一份长会话的末尾倒推全部操作。
+2. 每轮从静止的同一界面开始。人工运行 `adb shell dumpsys gfxinfo com.utopia.pxviewr reset` **只重置图形诊断统计**，不是清除应用存储。做一次相同手势（例如在阅读页用 300 ms 从屏高 80% 滑到 30%），待滚动停止后立刻保存输出：macOS / Linux / Git Bash 运行 `adb shell dumpsys gfxinfo com.utopia.pxviewr framestats > reader-run-01.txt`；Windows PowerShell 5.1 运行 `adb shell dumpsys gfxinfo com.utopia.pxviewr framestats | Out-File -FilePath reader-run-01.txt -Encoding utf8`（PowerShell 5.1 的 `>` 默认写 UTF-16LE；若已误用 `>` 留档，带 BOM 的 UTF-16 文件也能直接解析）。每轮用新文件名；窗口历史是有限缓冲区，不能用一份长会话的末尾倒推全部操作。
 3. 同一条件至少重复 3 轮；逐轮保留原始文本、`frames`、排除计数、`over_budget_frames / frames` 和 `p95_ms`。若窗口集合、刷新率或操作不一致，或日志截断/排除异常，重新采样，不比较。候选改动只改一个变量，以相同流程采对照，不能从一次高值断言原因。
 
 本切片不测冷启动、首屏、图片请求或内存；无真实输入时没有实机跑分，也没有优化结论。
