@@ -1,5 +1,13 @@
 import { normalize } from 'normalizr';
-import { takeEvery, all, apply, call, delay, put } from 'redux-saga/effects';
+import {
+  takeEvery,
+  takeLatest,
+  all,
+  apply,
+  call,
+  delay,
+  put,
+} from 'redux-saga/effects';
 import { fetchRankingSuccess, fetchRankingFailure } from '../actions/ranking';
 import { addError } from '../actions/error';
 import pixiv from '../helpers/apiClient';
@@ -186,5 +194,15 @@ export function* filterSimplifiedChineseNovels(novels) {
 }
 
 export function* watchFetchRanking() {
-  yield takeEvery(RANKING.REQUEST, handleFetchRanking);
+  const isMaleNovelRequest = ({ type, payload }) =>
+    type === RANKING.REQUEST &&
+    payload.rankingMode === RANKING_FOR_UI.DAILY_MALE_NOVEL;
+  yield all([
+    takeLatest(isMaleNovelRequest, handleFetchRanking),
+    takeEvery(
+      (action) =>
+        action.type === RANKING.REQUEST && !isMaleNovelRequest(action),
+      handleFetchRanking,
+    ),
+  ]);
 }

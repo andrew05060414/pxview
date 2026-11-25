@@ -1,5 +1,7 @@
 import { all, apply, call, delay, put } from 'redux-saga/effects';
+import { runSaga, stdChannel } from 'redux-saga';
 import pixiv from '../../src/common/helpers/apiClient';
+import { fetchRanking } from '../../src/common/actions/ranking';
 import {
   RANKING_FOR_UI,
   NOVEL_RANKING_LANGUAGES,
@@ -8,6 +10,7 @@ import {
   filterSimplifiedChineseNovels,
   getNovelRankingLanguage,
   handleFetchRanking,
+  watchFetchRanking,
 } from '../../src/common/sagas/ranking';
 
 const novel = (id, extra = {}) => ({
@@ -139,5 +142,45 @@ describe('novel ranking language filtering', () => {
 
     expect(result.value).toBe(NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE);
     expect(result.done).toBe(true);
+  });
+
+  test('does not append late all-language results after switching to Simplified Chinese', async () => {
+    const channel = stdChannel();
+    const dispatch = jest.fn();
+    let finishUnfilteredRequest;
+    const unfilteredResponse = new Promise((resolve) => {
+      finishUnfilteredRequest = resolve;
+    });
+    const ranking = jest
+      .spyOn(pixiv, 'novelRanking')
+      .mockReturnValueOnce(unfilteredResponse)
+      .mockReturnValueOnce({ novels: [novel(2, { language: 'zh-CN' })] });
+    const task = runSaga({ channel, dispatch }, watchFetchRanking);
+    const mode = RANKING_FOR_UI.DAILY_MALE_NOVEL;
+
+    try {
+      channel.put(
+        fetchRanking(mode, { language: NOVEL_RANKING_LANGUAGES.ALL }),
+      );
+      channel.put(
+        fetchRanking(mode, {
+          language: NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE,
+        }),
+      );
+      finishUnfilteredRequest({ novels: [novel(1, { language: 'ja' })] });
+      await unfilteredResponse;
+
+      expect(ranking).toHaveBeenCalledTimes(2);
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      expect(dispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'PIXIV/RANKING_SUCCESS',
+          payload: expect.objectContaining({ items: [2], rankingMode: mode }),
+        }),
+      );
+    } finally {
+      task.cancel();
+      ranking.mockRestore();
+    }
   });
 });
