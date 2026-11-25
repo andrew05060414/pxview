@@ -1,32 +1,18 @@
 ---
 name: pxview-build
-description: Use when building, testing, installing, or debugging the Android app in this pxview repository, especially when Gradle, Metro, Node version, signing, or device install behavior is involved.
+description: Use when building, testing, installing, or debugging the Android or iOS app in this pxview repository, especially when Gradle, CocoaPods, Xcode, Metro, Node 24, JDK 21, signing, or device install behavior is involved.
 ---
 
-# pxview Build Skill
+# pxview Build Skill (v6.0.0 / RN 0.87.1)
 
-Use the repo scripts first. Do not hand-type the old command chain unless a script is missing or broken.
+Use the repo scripts first. Do not hand-type legacy Node 14 / JDK 11 / `jetify` / `--legacy-peer-deps` commands.
 
-## Toolchain Status (frozen — read before touching dependencies)
+## Toolchain Baseline (v6.0.0)
 
-- Pinned stack: React Native 0.63.5 / React 16.13.1, Node 14.21.3, JDK 11,
-  AGP 3.5.3, Gradle 6.2, compileSdk/targetSdk 29. All end-of-life; it builds
-  because of the workarounds listed under Known Pitfalls, not because it is
-  stable.
-- **Do not bump `react-native`, React, Gradle/AGP/JDK, Node, navigation,
-  Paper, Reanimated or any native library in a feature branch.** Most current
-  library versions require RN >= 0.7x and will not resolve against 0.63; a
-  partial bump only breaks the build.
-- `npm ci --legacy-peer-deps` and `jest` also work on Node 22 (verified
-  2026-09-29: 40 suites / 227 tests green). Only Metro bundling needs Node 14,
-  so keep using the `use-node14` scripts for bundle/APK tasks.
-- Store publishing is blocked on this stack (Google Play: targetSdk 36 since
-  2026-08-31; App Store: Xcode 26 / iOS 26 SDK since 2026-04-28). The planned
-  migration (target: current RN stable / Expo prebuild, New Architecture),
-  effort estimates and phase plan live in
-  `docs/2026-09-29-dependency-upgrade-assessment-zh.md`. When that migration
-  starts, it gets its own branch and this skill gets rewritten; until then the
-  procedures below are authoritative.
+- React Native `0.87.1` / React `19.2.3` (New Architecture + Hermes)
+- Node.js `24.x` (`>= 22.11.0`), strict `npm ci` (zero `--legacy-peer-deps`, zero `jetify`, zero `patch-package`)
+- Android: JDK 21, Gradle `9.4.1`, `compileSdk 37`, `targetSdk 36`, `minSdk 24`, `NDK 27.1.12297006`, Edge-to-Edge enabled
+- iOS: Xcode 26/27+, CocoaPods `1.17+`, iOS `15.1+`, Swift `AppDelegate` (`RCTReactNativeFactory`), static frameworks (`use_frameworks! :linkage => :static`)
 
 ## Primary Entry Points
 
@@ -34,204 +20,42 @@ From the repo root on Windows:
 
 ```powershell
 pwsh -NoLogo -File .\scripts\test-jest.ps1
-pwsh -NoLogo -File .\scripts\bundle-android-release.ps1
 pwsh -NoLogo -File .\scripts\build-android-debug.ps1
 pwsh -NoLogo -File .\scripts\build-android-release.ps1
 pwsh -NoLogo -File .\scripts\install-android-release.ps1
 ```
 
-From the repo root on macOS / Linux / WSL:
+From the repo root on macOS / Linux:
 
 ```sh
 sh ./scripts/test-jest.sh
-sh ./scripts/bundle-android-release.sh
 sh ./scripts/build-android-debug.sh
 sh ./scripts/build-android-release.sh
 sh ./scripts/install-android-release.sh
+cd ios && pod install && cd .. && sh ./scripts/build-ios-release.sh
 ```
 
-## What Each Script Does
+## Signing Rule (Android)
 
-| Script | Purpose |
-|--------|---------|
-| `scripts/use-node14.ps1` | pins JS tooling to Node v14 |
-| `scripts/use-android-jdk11.ps1` | sets Android SDK, JDK 11, and Gradle home |
-| `scripts/test-jest.ps1` | runs Jest with the known-good Node binary |
-| `scripts/bundle-android-release.ps1` | pre-bundles Android JS with Metro workers forced to 1 |
-| `scripts/build-android-debug.ps1` | runs Jest, pre-bundles JS, cleans stale Gradle outputs, then builds Debug APK while skipping Gradle's duplicate Bundle task |
-| `scripts/build-android-release.ps1` | runs Jest, pre-bundles JS, cleans stale Gradle outputs, then builds signed release APK while skipping Gradle's duplicate Bundle task |
-| `scripts/install-android-release.ps1` | installs the built release APK with `adb install -r` |
-| `scripts/use-node14.sh` | pins JS tooling to Node v14 on macOS / Linux / WSL |
-| `scripts/use-android-jdk11.sh` | sets Android SDK, JDK 11, and Gradle home on macOS / Linux / WSL |
-| `scripts/test-jest.sh` | runs Jest on macOS / Linux / WSL |
-| `scripts/bundle-android-release.sh` | pre-bundles Android JS on macOS / Linux / WSL |
-| `scripts/build-android-debug.sh` | builds debug APK on macOS / Linux / WSL |
-| `scripts/build-android-release.sh` | builds signed release APK on macOS / Linux / WSL |
-| `scripts/install-android-release.sh` | installs release APK on macOS / Linux / WSL |
-
-## CI Auto-Build (GitHub Actions)
-
-`.github/workflows/android-release.yml` mirrors the local flow in the cloud:
-
-- Trigger A: publishing a GitHub release -> APK is built and attached to that release
-- Trigger B: manual `workflow_dispatch` from the Actions tab -> APK uploaded as a workflow artifact
-- Environment: Node 14.21.3 + npm 9 (lockfile v3), JDK 11, `npx jetify`, repo debug keystore signing
-- A placeholder `google-services.json` is generated at build time (real one is gitignored)
-
-If the workflow needs changes, keep it in sync with the local scripts' ordering:
-jest -> Metro bundle -> placeholder google-services -> `clean` (own invocation) -> `assembleRelease -x bundleReleaseJsAndAssets`.
-
-## Signing Rule
-
-Always sign with the repo keystore:
+Release builds default to the repository keystore so updated APKs overwrite-install cleanly on Andrew's devices:
 
 - `android/app/debug.keystore`
 - alias `androiddebugkey`
 - password `android`
 
-Do not switch to `C:\Users\Andrew\.android\debug.keystore`. That causes signature mismatch on install.
+## Firebase Configs (Gitignored)
 
-On macOS / Linux / WSL, if the repo path or keystore path differs, override with:
+- Android: `android/app/google-services.json` (gitignored)
+- iOS: `ios/PxViewR/GoogleService-Info.plist` (gitignored)
+- When absent or configured with placeholder values, Gradle/Xcode/AppDelegate/JS automatically deactivate Firebase collection without failing builds or spinning telemetry retries.
 
-```sh
-export PXVIEW_KEYSTORE_PATH="/absolute/path/to/android/app/debug.keystore"
-export PXVIEW_KEY_ALIAS="androiddebugkey"
-export PXVIEW_KEYSTORE_PASSWORD="android"
-export PXVIEW_KEY_PASSWORD="android"
-```
+## CI Workflows
 
-If install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, uninstall first:
-
-```powershell
-adb uninstall com.utopia.pxviewr
-pwsh -NoLogo -File .\scripts\install-android-release.ps1
-```
-
-```sh
-adb uninstall com.utopia.pxviewr
-sh ./scripts/install-android-release.sh
-```
-
-## Known Pitfalls
-
-### Wrong Node version
-
-Symptom:
-- Metro bundling crashes
-- `transformFile` / React Native bundler errors
-
-Fix:
-- always use the repo's `use-node14` script for your platform
-- always invoke JS-side tasks through the repo scripts
-
-### CN network / Maven timeout
-
-Symptom:
-- Gradle cannot fetch `maven.google.com` / `jcenter()`
-
-Fix:
-- keep using the repository-local `.gradle-user-home` created by
-  `scripts/use-android-jdk11.ps1`
-- set `GRADLE_USER_HOME` explicitly only when a shared cache is needed
-- that directory already contains the Aliyun mirror init script
-
-### photodraweeview missing
-
-Symptom:
-- `Project with path ':photodraweeview' could not be found`
-
-Fix:
-- verify `android/settings.gradle` still includes `:photodraweeview`
-- restore from git if removed
-
-### PackageList cannot find symbol after clean
-
-Symptom:
-- `:app:compileReleaseJavaWithJavac FAILED`
-- `import com.facebook.react.PackageList` — cannot find symbol
-
-Cause:
-- In a single `gradlew clean assembleRelease` invocation, javac can run
-  before the `clean`/`generatePackageList` ordering settles the generated
-  `build/generated/rncli/src/main/java/com/facebook/react/PackageList.java`,
-  so the compile source set misses it. Gradle then still finishes the
-  remaining independent tasks (writing PackageList.java), so a plain retry
-  without `clean` succeeds and hides the problem.
-
-Fix:
-- the build scripts run `gradlew clean` in its own invocation before
-  `assembleRelease`/`assembleDebug`; keep that split when editing them
-
-### `android.support.annotation does not exist` on a fresh checkout
-
-Symptom:
-- `:react-native-photo-view-ex:compileReleaseJavaWithJavac FAILED`
-- imports of `android.support.annotation.*` unresolved
-
-Cause:
-- pre-AndroidX sources in older RN libs; the local `node_modules` was
-  jetified at some point, so only fresh installs (CI) hit it
-
-Fix:
-- run `npx jetify` after `npm ci` (package.json also declares it as
-  `postinstall`)
-
-### NDK `stripReleaseDebugSymbols` fails on CI runners
-
-Symptom:
-- `No toolchains found in the NDK toolchains folder for ABI with prefix: arm-linux-androideabi`
-
-Cause:
-- GitHub runners ship NDK 29+ (and export `ANDROID_NDK_HOME`/`ANDROID_NDK_ROOT`);
-  its toolchain layout removed the legacy prefixes AGP 3.5.3 expects.
-  Local builds pass precisely because the local SDK has no NDK installed at
-  all — AGP then skips the strip task and `doNotStrip "**/*.so"` ships the
-  native libs as-is.
-
-Fix (CI only):
-- the workflow removes `${ANDROID_HOME}/ndk*` and clears the env vars
-  before assembling; keep both if the step is rewritten
-
-### AAPT `android:attr/colorError not found` on fresh npm install
-
-Symptom:
-- `:<lib>:verifyReleaseResources` fails; appcompat/core values-v26/v28
-  reference attrs missing from the link target
-
-Cause:
-- some published RN libraries hardcode low compileSdk versions (e.g.
-  `react-native-localization@1.0.12` pins `compileSdkVersion 25`) while the
-  local `node_modules` copy may have been hand-patched — so only fresh
-  installs (CI, new machines) hit it
-
-Fix:
-- `android/build.gradle` forces every Android module onto the root
-  compileSdk/buildTools via a `subprojects.afterEvaluate` override;
-  never rely on hand-edited `node_modules` surviving `npm ci`
-
-## Verification Sequence
-
-Before claiming success:
-
-1. Run the Jest script for your platform
-2. Build the intended APK with the repo script; Debug and Release both pre-bundle JS and skip the duplicate Gradle Bundle task
-3. If device testing matters, install and check:
-   - app opens
-   - login works
-   - novel inline images render in-place
+- `.github/workflows/ci.yml`: PR & `main` checks — Jest + lockfile gate (`ubuntu-latest`, Node 24), Android Release APK (`ubuntu-latest`, Node 24 + JDK 21), and unsigned iOS Simulator Release build (`macos-15`, Node 24 + CocoaPods + `xcodebuild`).
+- `.github/workflows/android-release.yml`: Release tag / `workflow_dispatch` APK build & GitHub Release attachment.
 
 ## Output Paths
 
-- Debug APK: `android/app/build/outputs/apk/debug/app-debug.apk`
-- Release APK: `android/app/build/outputs/apk/release/app-release.apk`
-- JS bundle: `android/app/src/main/assets/index.android.bundle`
-
-## When To Deviate
-
-Only bypass the scripts if:
-
-1. a script itself is failing
-2. you are debugging the script
-3. you need a one-off Gradle target not covered yet
-
-If you add a repeated manual command twice, promote it into `scripts/` and update this skill.
+- Android Release APK: `android/app/build/outputs/apk/release/app-release.apk`
+- Android Debug APK: `android/app/build/outputs/apk/debug/app-debug.apk`
+- iOS Simulator build: `ios/build/Build/Products/<Configuration>-iphonesimulator/PxViewR.app`
