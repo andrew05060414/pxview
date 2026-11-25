@@ -22,7 +22,11 @@ jest.mock('../../src/components/PXImage', () => {
   };
 });
 
-const NovelInlineImage = require('../../src/components/NovelInlineImage').default;
+const {
+  default: NovelInlineImage,
+  clearNovelInlineImageCache,
+  prefetchIllustDetail,
+} = require('../../src/components/NovelInlineImage');
 
 const flushPromises = () => Promise.resolve();
 
@@ -46,6 +50,7 @@ const createDeferred = () => {
 describe('NovelInlineImage', () => {
   beforeEach(() => {
     mockIllustDetail.mockReset();
+    clearNovelInlineImageCache();
   });
 
   afterEach(() => {
@@ -70,6 +75,49 @@ describe('NovelInlineImage', () => {
         'Text',
       ).props.children,
     ).toBe('Loading image...');
+
+    tree.unmount();
+    deferred.resolve({ illust: {} });
+    await act(async () => {
+      await deferred.promise;
+      await flushPromises();
+    });
+  });
+
+  it('shares an in-flight illust detail request for the same image id', async () => {
+    const deferred = createDeferred();
+    illustDetail.mockReturnValueOnce(deferred.promise);
+
+    let firstTree;
+    let secondTree;
+    await act(async () => {
+      firstTree = renderer.create(<NovelInlineImage illustId="24095674" />);
+      secondTree = renderer.create(<NovelInlineImage imageId="24095674" />);
+      await flushPromises();
+    });
+
+    expect(mockIllustDetail).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      deferred.resolve({
+        illust: {
+          width: 120,
+          height: 60,
+          image_urls: { large: 'https://example.com/shared.jpg' },
+        },
+      });
+      await deferred.promise;
+      await flushPromises();
+    });
+
+    expect(JSON.stringify(firstTree.toJSON())).toContain(
+      'px-image-https://example.com/shared.jpg',
+    );
+    expect(JSON.stringify(secondTree.toJSON())).toContain(
+      'px-image-https://example.com/shared.jpg',
+    );
+    firstTree.unmount();
+    secondTree.unmount();
   });
 
   it('falls back when the image request resolves without a URL', async () => {
@@ -135,9 +183,11 @@ describe('NovelInlineImage', () => {
 
     expect(imageNode.props.uri).toBe('https://example.com/image.jpg');
     expect(imageNode.props.resizeMode).toBe('contain');
+    expect(imageNode.props.resizeMethod).toBe('scale');
+    expect(imageNode.props.fadeDuration).toBe(0);
     expect(imageNode.props.style).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ backgroundColor: '#f2f2f2' }),
+        expect.objectContaining({ backgroundColor: 'rgba(128,128,128,0.12)' }),
         expect.objectContaining({ aspectRatio: 2 }),
       ]),
     );
@@ -475,18 +525,7 @@ describe('NovelInlineImage', () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
-  it('calls Image.getSizeWithHeaders when embedded url is present but metadata has no width/height, and renders with fetched ratio', async () => {
-    const getSizeWithHeaders = jest.spyOn(
-      require('react-native').Image,
-      'getSizeWithHeaders',
-    );
-
-    let getSizeSuccess;
-    getSizeWithHeaders.mockImplementationOnce((url, headers, success) => {
-      expect(headers).toEqual({ referer: 'http://www.pixiv.net' });
-      getSizeSuccess = success;
-    });
-
+  it('prefers original url over 1200x1200 for sharp display on high-dpi screens', async () => {
     let tree;
     await act(async () => {
       tree = renderer.create(
@@ -495,26 +534,18 @@ describe('NovelInlineImage', () => {
           imageKind="uploadedimage"
           embeddedImages={{
             24115550: {
-              // No width/height fields — API provides URLs only
-              urls: { original: 'https://example.com/portrait.jpg' },
+              width: 600,
+              height: 400,
+              urls: {
+                original: 'https://example.com/uploaded-original.png',
+                '1200x1200': 'https://example.com/uploaded-1200.jpg',
+                '600x600': 'https://example.com/uploaded-600.jpg',
+              },
             },
           }}
         />,
       );
-    });
-
-    // Should still be loading (Image.getSizeWithHeaders not yet resolved)
-    expect(JSON.stringify(tree.toJSON())).toContain('Loading image...');
-    expect(getSizeWithHeaders).toHaveBeenCalledWith(
-      'https://example.com/portrait.jpg',
-      { referer: 'http://www.pixiv.net' },
-      expect.any(Function),
-      expect.any(Function),
-    );
-
-    // Resolve getSize with portrait dimensions (400x800 => ratio 0.5)
-    await act(async () => {
-      getSizeSuccess(400, 800);
+      await flushPromises();
     });
 
     const imageNode = findHostNodeByAccessibilityLabel(
@@ -522,25 +553,89 @@ describe('NovelInlineImage', () => {
       'novel-inline-image-24115550',
       'Image',
     );
-    expect(imageNode.props.uri).toBe('https://example.com/portrait.jpg');
-    expect(imageNode.props.style).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ aspectRatio: 0.5 }),
-      ]),
-    );
+    expect(imageNode.props.uri).toBe('https://example.com/uploaded-original.png');
+    expect(imageNode.props.resizeMethod).toBe('scale');
     expect(mockIllustDetail).not.toHaveBeenCalled();
   });
 
-  it('falls back to onLoad aspect ratio handling when Image.getSizeWithHeaders errors', async () => {
+  it('prefers original_image_url over large for sharp pixivimage illustrations', async () => {
+    illustDetail.mockResolvedValueOnce({
+      illust: {
+        width: 1000,
+        height: 1500,
+        image_urls: {
+          large: 'https://example.com/illust-large.jpg',
+          medium: 'https://example.com/illust-medium.jpg',
+        },
+        meta_single_page: {
+          original_image_url: 'https://example.com/illust-original.png',
+        },
+      },
+    });
+
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage imageId="24095674" imageKind="pixivimage" />,
+      );
+      await flushPromises();
+    });
+
+    const imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24095674',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/illust-original.png');
+  });
+
+  it('reuses cached illustDetail responses across remounts in virtualized lists', async () => {
+    illustDetail.mockResolvedValueOnce({
+      illust: {
+        width: 800,
+        height: 400,
+        image_urls: { large: 'https://example.com/cached-illust.jpg' },
+      },
+    });
+
+    let firstTree;
+    await act(async () => {
+      firstTree = renderer.create(<NovelInlineImage illustId="24095674" />);
+      await flushPromises();
+    });
+    firstTree.unmount();
+
+    let secondTree;
+    await act(async () => {
+      secondTree = renderer.create(<NovelInlineImage illustId="24095674" />);
+      await flushPromises();
+    });
+
+    expect(mockIllustDetail).toHaveBeenCalledTimes(1);
+    const imageNode = findHostNodeByAccessibilityLabel(
+      secondTree.root,
+      'novel-inline-image-24095674',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/cached-illust.jpg');
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ aspectRatio: 2 })]),
+    );
+    secondTree.unmount();
+  });
+
+  it('renders embedded image immediately without Image.getSizeWithHeaders and caches ratio from onLoad', async () => {
     const getSizeWithHeaders = jest.spyOn(
       require('react-native').Image,
       'getSizeWithHeaders',
     );
 
-    let getSizeError;
-    getSizeWithHeaders.mockImplementationOnce((url, _headers, _success, error) => {
-      getSizeError = error;
-    });
+    const embeddedImages = {
+      24115550: {
+        // No width/height fields — API provides URLs only
+        urls: { original: 'https://example.com/portrait.jpg' },
+      },
+    };
 
     let tree;
     await act(async () => {
@@ -548,20 +643,12 @@ describe('NovelInlineImage', () => {
         <NovelInlineImage
           imageId="24115550"
           imageKind="uploadedimage"
-          embeddedImages={{
-            24115550: {
-              urls: { original: 'https://example.com/portrait.jpg' },
-            },
-          }}
+          embeddedImages={embeddedImages}
         />,
       );
     });
 
-    expect(getSizeWithHeaders).toHaveBeenCalled();
-
-    await act(async () => {
-      getSizeError(new Error('network error'));
-    });
+    expect(getSizeWithHeaders).not.toHaveBeenCalled();
 
     const imageNode = findHostNodeByAccessibilityLabel(
       tree.root,
@@ -571,7 +658,9 @@ describe('NovelInlineImage', () => {
     expect(imageNode.props.uri).toBe('https://example.com/portrait.jpg');
 
     await act(async () => {
-      imageNode.props.onLoad({ nativeEvent: { source: { width: 100, height: 100 } } });
+      imageNode.props.onLoad({
+        nativeEvent: { source: { width: 400, height: 800 } },
+      });
     });
 
     const imageNodeAfterLoad = findHostNodeByAccessibilityLabel(
@@ -580,121 +669,33 @@ describe('NovelInlineImage', () => {
       'Image',
     );
     expect(imageNodeAfterLoad.props.style).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ aspectRatio: 1 }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ aspectRatio: 0.5 })]),
     );
-    expect(mockIllustDetail).not.toHaveBeenCalled();
-  });
-
-  it('ignores getSizeWithHeaders result after unmount', async () => {
-    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const getSizeWithHeaders = jest.spyOn(
-      require('react-native').Image,
-      'getSizeWithHeaders',
-    );
-
-    let getSizeSuccess;
-    getSizeWithHeaders.mockImplementationOnce((url, _headers, success) => {
-      getSizeSuccess = success;
-    });
-
-    let tree;
-    await act(async () => {
-      tree = renderer.create(
-        <NovelInlineImage
-          imageId="24115550"
-          imageKind="uploadedimage"
-          embeddedImages={{
-            24115550: {
-              urls: { original: 'https://example.com/portrait.jpg' },
-            },
-          }}
-        />,
-      );
-      await flushPromises();
-    });
-
     act(() => {
       tree.unmount();
     });
 
+    // Remount (as happens in FlatList virtualization): should use cached aspect ratio immediately
+    let remounted;
     await act(async () => {
-      getSizeSuccess(400, 800);
-    });
-
-    expect(consoleError).not.toHaveBeenCalled();
-  });
-
-  it('ignores getSizeWithHeaders result after imageId changes (stale request guard)', async () => {
-    const getSizeWithHeaders = jest.spyOn(
-      require('react-native').Image,
-      'getSizeWithHeaders',
-    );
-
-    let firstGetSizeSuccess;
-    let secondGetSizeSuccess;
-    getSizeWithHeaders
-      .mockImplementationOnce((url, _headers, success) => {
-        firstGetSizeSuccess = success;
-      })
-      .mockImplementationOnce((url, _headers, success) => {
-        secondGetSizeSuccess = success;
-      });
-
-    const embeddedImages1 = {
-      24115550: { urls: { original: 'https://example.com/first.jpg' } },
-    };
-    const embeddedImages2 = {
-      24115551: { urls: { original: 'https://example.com/second.jpg' } },
-    };
-
-    let tree;
-    await act(async () => {
-      tree = renderer.create(
+      remounted = renderer.create(
         <NovelInlineImage
           imageId="24115550"
           imageKind="uploadedimage"
-          embeddedImages={embeddedImages1}
-        />,
-      );
-      await flushPromises();
-    });
-
-    // Update to a new imageId — this triggers componentDidUpdate which resets state
-    // and schedules loadImage via setState callback (async). We need to flush that
-    // before secondGetSizeSuccess is available.
-    await act(async () => {
-      tree.update(
-        <NovelInlineImage
-          imageId="24115551"
-          imageKind="uploadedimage"
-          embeddedImages={embeddedImages2}
+          embeddedImages={embeddedImages}
         />,
       );
     });
-
-    // Now both getSize calls have been initiated; resolve second (new) request first
-    await act(async () => {
-      secondGetSizeSuccess(200, 400);
-    });
-
-    // Now resolve the stale first request — should be ignored
-    await act(async () => {
-      firstGetSizeSuccess(400, 800);
-    });
-
-    const imageNode = findHostNodeByAccessibilityLabel(
-      tree.root,
-      'novel-inline-image-24115551',
+    const remountedImage = findHostNodeByAccessibilityLabel(
+      remounted.root,
+      'novel-inline-image-24115550',
       'Image',
     );
-    expect(imageNode.props.uri).toBe('https://example.com/second.jpg');
-    expect(imageNode.props.style).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ aspectRatio: 0.5 }),
-      ]),
+    expect(remountedImage.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ aspectRatio: 0.5 })]),
     );
+    expect(mockIllustDetail).not.toHaveBeenCalled();
+    remounted.unmount();
   });
 
   it('skips Image.getSizeWithHeaders when embedded metadata includes width and height', async () => {
@@ -751,14 +752,6 @@ describe('NovelInlineImage', () => {
         'getSizeWithHeaders',
       );
 
-      let getSizeError;
-      getSizeWithHeaders.mockImplementationOnce(
-        (receivedUrl, _headers, _success, error) => {
-          expect(receivedUrl).toBe(imageUrl);
-          getSizeError = error;
-        },
-      );
-
       let tree;
       await act(async () => {
         tree = renderer.create(
@@ -774,17 +767,7 @@ describe('NovelInlineImage', () => {
         );
       });
 
-      expect(getSizeWithHeaders).toHaveBeenCalledWith(
-        imageUrl,
-        { referer: 'http://www.pixiv.net' },
-        expect.any(Function),
-        expect.any(Function),
-      );
-      expect(JSON.stringify(tree.toJSON())).toContain('Loading image...');
-
-      await act(async () => {
-        getSizeError(new Error('format metadata unavailable'));
-      });
+      expect(getSizeWithHeaders).not.toHaveBeenCalled();
 
       let imageNode = findHostNodeByAccessibilityLabel(
         tree.root,
@@ -862,5 +845,725 @@ describe('NovelInlineImage', () => {
         'Text',
       ).props.children,
     ).toBe('Image unavailable (image request failed)');
+  });
+
+  it('does not lock multi-page pixivimage page 2+ to page 1 illust dimensions and caches actual onLoad ratio', async () => {
+    const page1Url = 'https://example.com/multi-page-1.jpg';
+    const page2Url = 'https://example.com/multi-page-2.jpg';
+    illustDetail.mockResolvedValueOnce({
+      illust: {
+        width: 1536,
+        height: 1024,
+        meta_pages: [
+          { image_urls: { original: page1Url } },
+          { image_urls: { original: page2Url } },
+        ],
+      },
+    });
+
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="147842449"
+          imageKind="pixivimage"
+          pageNumber={2}
+          maxWidth={400}
+        />,
+      );
+      await flushPromises();
+    });
+
+    let imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-147842449',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe(page2Url);
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 400,
+          height: Math.round(400 / (4 / 3)),
+        }),
+      ]),
+    );
+    expect(imageNode.props.style).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ aspectRatio: 1.5 }),
+      ]),
+    );
+
+    const portraitRatio = 832 / 1216;
+    await act(async () => {
+      imageNode.props.onLoad({
+        nativeEvent: {
+          source: { uri: page2Url, width: 832, height: 1216 },
+        },
+      });
+    });
+
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-147842449',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 400,
+          height: Math.round(400 / portraitRatio),
+          aspectRatio: portraitRatio,
+        }),
+      ]),
+    );
+    tree.unmount();
+
+    let remounted;
+    await act(async () => {
+      remounted = renderer.create(
+        <NovelInlineImage
+          imageId="147842449"
+          imageKind="pixivimage"
+          pageNumber={2}
+          maxWidth={400}
+        />,
+      );
+      await flushPromises();
+    });
+
+    const remountedNode = findHostNodeByAccessibilityLabel(
+      remounted.root,
+      'novel-inline-image-147842449',
+      'Image',
+    );
+    expect(remountedNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 400,
+          height: Math.round(400 / portraitRatio),
+          aspectRatio: portraitRatio,
+        }),
+      ]),
+    );
+    expect(mockIllustDetail).toHaveBeenCalledTimes(1);
+    remounted.unmount();
+  });
+
+  it('corrects aspect ratio from onLoad even when metadata ratio differs and ignores mismatched source uri', async () => {
+    const targetUrl = 'https://example.com/mismatch-check.jpg';
+    illustDetail.mockResolvedValueOnce({
+      illust: {
+        width: 1500,
+        height: 1000,
+        image_urls: { large: targetUrl },
+      },
+    });
+
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="998877"
+          imageKind="pixivimage"
+          maxWidth={300}
+        />,
+      );
+      await flushPromises();
+    });
+
+    let imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-998877',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ aspectRatio: 1.5, height: 200 }),
+      ]),
+    );
+
+    // Mismatched URI should be ignored
+    await act(async () => {
+      imageNode.props.onLoad({
+        nativeEvent: {
+          source: {
+            uri: 'https://example.com/other.jpg',
+            width: 500,
+            height: 1000,
+          },
+        },
+      });
+    });
+
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-998877',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ aspectRatio: 1.5, height: 200 }),
+      ]),
+    );
+
+    // Matching URI with different actual dimensions updates state and cache
+    await act(async () => {
+      imageNode.props.onLoad({
+        nativeEvent: {
+          source: { uri: targetUrl, width: 600, height: 1200 },
+        },
+      });
+    });
+
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-998877',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 300,
+          height: 600,
+          aspectRatio: 0.5,
+        }),
+      ]),
+    );
+
+    tree.unmount();
+  });
+
+  it('does not lock pixivimage without metadata dimensions to 1:1 and resolves ratio on onLoad', async () => {
+    const targetUrl = 'https://example.com/no-dims.jpg';
+    illustDetail.mockResolvedValueOnce({
+      illust: {
+        image_urls: { large: targetUrl },
+      },
+    });
+
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="776655"
+          imageKind="pixivimage"
+          maxWidth={400}
+        />,
+      );
+      await flushPromises();
+    });
+
+    let imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-776655',
+      'Image',
+    );
+    expect(imageNode.props.style).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ aspectRatio: 1 }),
+      ]),
+    );
+
+    await act(async () => {
+      imageNode.props.onLoad({
+        nativeEvent: {
+          source: { uri: targetUrl, width: 1000, height: 2000 },
+        },
+      });
+    });
+
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-776655',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 400,
+          height: 800,
+          aspectRatio: 0.5,
+        }),
+      ]),
+    );
+  });
+
+  it('falls back through secondary embedded URLs on error and supports tap-to-retry after all URLs fail', async () => {
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115550"
+          imageKind="uploadedimage"
+          embeddedImages={{
+            24115550: {
+              width: 600,
+              height: 400,
+              urls: {
+                original: 'https://example.com/orig-broken.png',
+                '1200x1200': 'https://example.com/1200-fallback.jpg',
+                medium: 'https://example.com/med-fallback.jpg',
+              },
+            },
+          }}
+        />,
+      );
+      await flushPromises();
+    });
+
+    let imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/orig-broken.png');
+
+    // 1st error -> falls back to 1200x1200
+    await act(async () => {
+      imageNode.props.onError();
+    });
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/1200-fallback.jpg');
+
+    // 2nd error -> falls back to medium
+    await act(async () => {
+      imageNode.props.onError();
+    });
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/med-fallback.jpg');
+
+    // 3rd error -> shows retryable failure text
+    await act(async () => {
+      imageNode.props.onError();
+    });
+    const errorText = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Text',
+    );
+    expect(errorText.props.children).toBe(
+      'Image unavailable (image request failed)',
+    );
+    expect(typeof errorText.props.onPress).toBe('function');
+
+    // Tap to retry -> resets to primary URL
+    await act(async () => {
+      errorText.props.onPress();
+    });
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/orig-broken.png');
+  });
+
+  it('retries illustDetail request when user taps failed placeholder', async () => {
+    illustDetail
+      .mockRejectedValueOnce(new Error('network blip'))
+      .mockResolvedValueOnce({
+        illust: {
+          width: 800,
+          height: 400,
+          image_urls: { large: 'https://example.com/recovered.jpg' },
+        },
+      });
+
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage imageId="554433" imageKind="pixivimage" />,
+      );
+      await flushPromises();
+    });
+
+    const errorText = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-554433',
+      'Text',
+    );
+    expect(errorText.props.children).toBe(
+      'Image unavailable (illust detail request failed)',
+    );
+
+    await act(async () => {
+      errorText.props.onPress();
+      await flushPromises();
+    });
+
+    const imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-554433',
+      'Image',
+    );
+    expect(imageNode.props.uri).toBe('https://example.com/recovered.jpg');
+    expect(mockIllustDetail).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores onLoad and onError callbacks after unmount without warnings', async () => {
+    const consoleError = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115550"
+          imageKind="uploadedimage"
+          embeddedImages={{
+            24115550: {
+              urls: { original: 'https://example.com/unmount-callback.jpg' },
+            },
+          }}
+        />,
+      );
+    });
+
+    const imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    const { onLoad, onError } = imageNode.props;
+    tree.unmount();
+
+    act(() => {
+      onLoad({
+        nativeEvent: {
+          source: {
+            uri: 'https://example.com/unmount-callback.jpg',
+            width: 500,
+            height: 1000,
+          },
+        },
+      });
+      onError();
+    });
+
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('guards against invalid or extreme aspect ratio dimensions', async () => {
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115550"
+          imageKind="uploadedimage"
+          maxWidth={300}
+          embeddedImages={{
+            24115550: {
+              width: -100,
+              height: 0,
+              urls: { original: 'https://example.com/extreme.jpg' },
+            },
+          }}
+        />,
+      );
+    });
+
+    let imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 300,
+          height: Math.round(300 / (4 / 3)),
+        }),
+      ]),
+    );
+
+    await act(async () => {
+      imageNode.props.onLoad({
+        nativeEvent: {
+          source: {
+            uri: 'https://example.com/extreme.jpg',
+            width: 1,
+            height: 10000,
+          },
+        },
+      });
+    });
+
+    imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(imageNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 300,
+          height: 3000,
+        }),
+      ]),
+    );
+  });
+
+  it('keeps loaded state intact when embeddedImages reference changes without altering this image', async () => {
+    const sharedUrl = 'https://example.com/stable-ref.jpg';
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115550"
+          imageKind="uploadedimage"
+          maxWidth={300}
+          embeddedImages={{
+            24115550: { urls: { original: sharedUrl } },
+          }}
+        />,
+      );
+    });
+
+    const imageNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    await act(async () => {
+      imageNode.props.onLoad({
+        nativeEvent: { source: { uri: sharedUrl, width: 300, height: 600 } },
+      });
+    });
+
+    // Update with a new embeddedImages object reference containing the same entry
+    await act(async () => {
+      tree.update(
+        <NovelInlineImage
+          imageId="24115550"
+          imageKind="uploadedimage"
+          maxWidth={300}
+          embeddedImages={{
+            24115550: { urls: { original: sharedUrl } },
+            99999999: { urls: { original: 'https://example.com/other.jpg' } },
+          }}
+        />,
+      );
+    });
+
+    const updatedNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115550',
+      'Image',
+    );
+    expect(updatedNode.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          width: 300,
+          height: 600,
+          aspectRatio: 0.5,
+        }),
+      ]),
+    );
+  });
+
+  it('renders progressive preview + ActivityIndicator first, upgrades to single-layer primary after onLoad, and skips preview on remount', async () => {
+    const { ActivityIndicator } = require('react-native');
+    const origUrl = 'https://example.com/prog-orig.png';
+    const previewUrl = 'https://example.com/prog-large.jpg';
+    let tree;
+
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115551"
+          imageKind="uploadedimage"
+          maxWidth={400}
+          embeddedImages={{
+            24115551: {
+              urls: {
+                original: origUrl,
+                large: previewUrl,
+              },
+            },
+          }}
+        />,
+      );
+    });
+
+    // Initially renders preview, spinner, and transparent primary overlay
+    const previewNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-preview-24115551',
+      'Image',
+    );
+    const primaryNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115551',
+      'Image',
+    );
+    expect(previewNode.props.uri).toBe(previewUrl);
+    expect(primaryNode.props.uri).toBe(origUrl);
+    expect(tree.root.findAllByType(ActivityIndicator)).toHaveLength(1);
+
+    // Preview loads -> hides spinner and updates aspect ratio to 0.5 (height = 800)
+    await act(async () => {
+      previewNode.props.onLoad({
+        nativeEvent: {
+          source: { uri: previewUrl, width: 600, height: 1200 },
+        },
+      });
+    });
+
+    expect(tree.root.findAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(tree.toJSON().type).toBe('View');
+    expect(tree.toJSON().props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ width: 400, height: 800, aspectRatio: 0.5 }),
+      ]),
+    );
+
+    // Primary loads -> unmounts preview layer and collapses to single Image
+    await act(async () => {
+      primaryNode.props.onLoad({
+        nativeEvent: {
+          source: { uri: origUrl, width: 1200, height: 2400 },
+        },
+      });
+    });
+
+    expect(
+      tree.root.findAll(
+        (n) =>
+          n.type === 'Image' &&
+          n.props.accessibilityLabel === 'novel-inline-image-preview-24115551',
+      ),
+    ).toHaveLength(0);
+    expect(tree.toJSON().type).toBe('Image');
+    expect(tree.toJSON().props.uri).toBe(origUrl);
+    tree.unmount();
+
+    // Remount -> already in loadedImageUrlsCache, skips preview and spinner immediately
+    let remounted;
+    await act(async () => {
+      remounted = renderer.create(
+        <NovelInlineImage
+          imageId="24115551"
+          imageKind="uploadedimage"
+          maxWidth={400}
+          embeddedImages={{
+            24115551: {
+              urls: {
+                original: origUrl,
+                large: previewUrl,
+              },
+            },
+          }}
+        />,
+      );
+    });
+
+    expect(remounted.toJSON().type).toBe('Image');
+    expect(remounted.root.findAllByType(ActivityIndicator)).toHaveLength(0);
+    remounted.unmount();
+  });
+
+  it('keeps primary image loading when preview layer errors and falls back to preview when primary errors', async () => {
+    const origUrl = 'https://example.com/prog2-orig.png';
+    const previewUrl = 'https://example.com/prog2-large.jpg';
+    let tree;
+
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage
+          imageId="24115552"
+          imageKind="uploadedimage"
+          maxWidth={400}
+          embeddedImages={{
+            24115552: {
+              width: 800,
+              height: 400,
+              urls: {
+                original: origUrl,
+                large: previewUrl,
+              },
+            },
+          }}
+        />,
+      );
+    });
+
+    const previewNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-preview-24115552',
+      'Image',
+    );
+    await act(async () => {
+      previewNode.props.onError();
+    });
+
+    expect(
+      tree.root.findAll(
+        (n) =>
+          n.type === 'Image' &&
+          n.props.accessibilityLabel === 'novel-inline-image-preview-24115552',
+      ),
+    ).toHaveLength(0);
+
+    // Primary still present and if it errors, switches to urlIndex=1 (previewUrl)
+    const primaryNode = findHostNodeByAccessibilityLabel(
+      tree.root,
+      'novel-inline-image-24115552',
+      'Image',
+    );
+    expect(primaryNode.props.uri).toBe(origUrl);
+
+    await act(async () => {
+      primaryNode.props.onError();
+    });
+
+    expect(tree.toJSON().type).toBe('Image');
+    expect(tree.toJSON().props.uri).toBe(previewUrl);
+  });
+
+  it('prefetchIllustDetail warms cache safely and swallows rejections', async () => {
+    illustDetail
+      .mockRejectedValueOnce(new Error('network error'))
+      .mockResolvedValueOnce({
+        illust: {
+          width: 900,
+          height: 600,
+          image_urls: { large: 'https://example.com/prefetched.jpg' },
+        },
+      });
+
+    await expect(prefetchIllustDetail(null)).resolves.toBeNull();
+    await expect(prefetchIllustDetail('88001')).resolves.toBeNull();
+    await expect(prefetchIllustDetail('88002')).resolves.toEqual(
+      expect.objectContaining({
+        illust: expect.objectContaining({ width: 900, height: 600 }),
+      }),
+    );
+
+    // Subsequent mount uses cached illustDetail without another API call
+    let tree;
+    await act(async () => {
+      tree = renderer.create(
+        <NovelInlineImage imageId="88002" imageKind="pixivimage" />,
+      );
+    });
+
+    expect(mockIllustDetail).toHaveBeenCalledTimes(2);
+    expect(
+      findHostNodeByAccessibilityLabel(
+        tree.root,
+        'novel-inline-image-88002',
+        'Image',
+      ).props.uri,
+    ).toBe('https://example.com/prefetched.jpg');
   });
 });

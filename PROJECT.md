@@ -33,6 +33,26 @@
 | M3 | iOS Build & Bundling Scripts | `scripts/bundle-ios-release.sh`, `scripts/build-ios-debug.sh`, `scripts/build-ios-release.sh` | M1, M2 | DONE |
 | M4 | Cross-Platform Feature Alignment & Pragmatic Fixes | `src/` novel reader, AI/bookmarks, search, unit test suite verification | None | PLANNED |
 | M5 | End-to-End Verification & Toolchain Compilation | Full build & test pipeline execution (`pod install`, bundle, `xcodebuild`, Jest) | M1, M2, M3, M4 | PLANNED |
+| M6 | Dependency Modernization (RN 0.63.5 → current stable, New Architecture) | `package.json`, regenerated `android/` + `ios/` (or Expo prebuild), library replacements, targetSdk 36 / Xcode 26 compliance | M5 | ASSESSED — see `docs/2026-09-29-dependency-upgrade-assessment-zh.md` |
+
+## Toolchain Status & Dependency Baseline (2026-09-29)
+
+The toolchain below is **frozen**. It builds and the app works, but every component is end-of-life; do not bump any of these in a feature branch.
+
+| Component | Pinned | Notes |
+|---|---|---|
+| React Native / React | 0.63.5 / 16.13.1 | 24 minor versions behind current (0.87.x); RN ≥ 0.82 is New-Architecture-only |
+| Node.js | 14.21.3 (`scripts/use-node14.*`) | Required by Metro 0.59 bundling; Jest also passes on Node 22 |
+| JDK / AGP / Gradle | 11 / 3.5.3 / 6.2 | Cannot compile against SDK ≥ 31 |
+| compileSdk / targetSdk | 29 / 29 | Google Play requires targetSdk 36 since 2026-08-31 |
+| iOS | RN 0.63 Podfile, deployment target 15.0 | App Store requires Xcode 26 / iOS 26 SDK builds since 2026-04-28; RN 0.63 does not build on Xcode 26 |
+| Workarounds in place | `jetify` postinstall, vendored `android/photodraweeview` (jcenter shutdown), forced `compileSdkVersion` for all subprojects, NDK removal in CI, `--legacy-peer-deps` | Each disappears with the upgrade |
+
+Consequences:
+
+- **Store publishing (Google Play or App Store) is not possible without the M6 upgrade.** Sideload APKs via GitHub Releases continue to work.
+- Distribution IDs `com.utopia.pxviewr` (Android `applicationId` / iOS bundle id) belong to the upstream author's store listing and must be changed before any store submission from this fork.
+- Effort, options (upgrade vs. rewrite, bare RN vs. Expo prebuild), per-store workload and the recommended phase plan are in `docs/2026-09-29-dependency-upgrade-assessment-zh.md`. The 2026-04-05 roadmap note is superseded by that document.
 
 ## Interface Contracts
 ### `ios/Podfile` ↔ `xcodebuild`

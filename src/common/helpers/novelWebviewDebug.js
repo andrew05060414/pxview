@@ -1,3 +1,4 @@
+import { getEmbeddedImageCandidateIds } from './novelInlineImage';
 import { extractLegacyNovelCandidates } from './novelWebviewParser';
 
 const stringifyFlag = (value) => (value ? 'Y' : 'N');
@@ -18,18 +19,6 @@ const getCollectionValues = (value) => {
   return [];
 };
 
-const getCandidateIds = (item) =>
-  [
-    item && item.id,
-    item && item.illustId,
-    item && item.imageId,
-    item && item.novelImageId,
-    item && item.illust_id,
-    item && item.image_id,
-  ]
-    .filter((value) => value !== undefined && value !== null)
-    .map((value) => String(value));
-
 const buildNovelWebviewDebugInfo = (rawHtml, response) => {
   const html = typeof rawHtml === 'string' ? rawHtml : '';
   const parsed = response && typeof response === 'object' ? response : {};
@@ -45,11 +34,11 @@ const buildNovelWebviewDebugInfo = (rawHtml, response) => {
     .slice(0, 3);
   const illustValues = getCollectionValues(parsed.illusts);
   const illustIds = illustValues
-    .flatMap((item) => getCandidateIds(item))
+    .flatMap((item) => getEmbeddedImageCandidateIds(item))
     .slice(0, 5);
   const glossaryValues = getCollectionValues(parsed.glossaryItems);
   const glossaryIds = glossaryValues
-    .flatMap((item) => getCandidateIds(item))
+    .flatMap((item) => getEmbeddedImageCandidateIds(item))
     .slice(0, 5);
   const parsedKeys = Object.keys(parsed).sort();
 

@@ -1,5 +1,11 @@
 # PXView 调试、验证与 APK 打包流程手册
 
+> 适用范围：**当前冻结的工具链**（RN 0.63.5 / Node 14 / JDK 11 / AGP 3.5.3）。
+> 这套工具链能用但已全部 EOL，且无法满足 Google Play（targetSdk 36）和 App Store（Xcode 26）的提交要求；升级评估、工期和阶段计划见
+> [`2026-09-29-dependency-upgrade-assessment-zh.md`](./2026-09-29-dependency-upgrade-assessment-zh.md)。
+> 升级落地后本文需要重写；在那之前，本文和 `.claude/skills/pxview-build/SKILL.md` 里的流程是准的。
+> 跨平台脚本版本（macOS / Linux / WSL 的 `.sh`）见 `scripts/`，本文命令以 Windows PowerShell 为例。
+
 ## 目标
 
 这份文档是给后续继续维护这个老 React Native 项目时直接照着用的。

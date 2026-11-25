@@ -1,4 +1,5 @@
-﻿import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { Platform, NativeModules, Dimensions } from 'react-native';
 import { createMaterialBottomTabNavigator } from '@react-navigation/material-bottom-tabs';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -21,12 +22,47 @@ const TabBarIcon = ({ color, name, iconType }) => {
 const AppTabNavigator = ({ initialRouteName }) => {
   const { i18n } = useLocalization();
   const theme = useTheme();
+  const [navInsetBottom, setNavInsetBottom] = useState(0);
+
+  useEffect(() => {
+    if (
+      Platform.OS !== 'android' ||
+      !NativeModules.SystemBars ||
+      typeof NativeModules.SystemBars.getNavigationBarInsetBottom !== 'function'
+    ) {
+      return undefined;
+    }
+
+    let mounted = true;
+    const refreshInset = () => {
+      NativeModules.SystemBars.getNavigationBarInsetBottom()
+        .then((inset) => {
+          if (mounted && typeof inset === 'number' && inset >= 0) {
+            setNavInsetBottom(inset);
+          }
+        })
+        .catch(() => {});
+    };
+
+    refreshInset();
+    const subscription = Dimensions.addEventListener('change', refreshInset);
+    return () => {
+      mounted = false;
+      if (subscription && typeof subscription.remove === 'function') {
+        subscription.remove();
+      } else {
+        Dimensions.removeEventListener('change', refreshInset);
+      }
+    };
+  }, []);
+
   return (
     <Tab.Navigator
       initialRouteName={initialRouteName}
       labeled
       barStyle={{
         backgroundColor: theme.colors.bottomTabBarBackground,
+        paddingBottom: Platform.OS === 'android' ? navInsetBottom : 0,
       }}
     >
       <Tab.Screen

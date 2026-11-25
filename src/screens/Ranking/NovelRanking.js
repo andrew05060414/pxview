@@ -92,10 +92,13 @@ class NovelRanking extends Component {
     const { routes, index } = this.state;
     const { rankingType } = navigationRoute.params;
     const { rankingMode, reload } = route;
-    const isMaleNovelRanking = rankingMode === RANKING_FOR_UI.DAILY_MALE_NOVEL;
+    const isGenderedNovelRanking = [
+      RANKING_FOR_UI.DAILY_MALE_NOVEL,
+      RANKING_FOR_UI.DAILY_FEMALE_NOVEL,
+    ].includes(rankingMode);
     const selectedLanguage =
       novelRankingLanguage || NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE;
-    const renderHeader = isMaleNovelRanking
+    const renderHeader = isGenderedNovelRanking
       ? () => (
           <NovelRankingLanguageFilter
             value={selectedLanguage}
@@ -118,7 +121,9 @@ class NovelRanking extends Component {
             rankingMode={rankingMode}
             route={route}
             reload={reload}
-            options={isMaleNovelRanking ? { language: selectedLanguage } : null}
+            options={
+              isGenderedNovelRanking ? { language: selectedLanguage } : null
+            }
             renderHeader={renderHeader}
           />
         )}

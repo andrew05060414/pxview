@@ -1,26 +1,34 @@
-import React, { Component } from 'react';
+import React, { Component, PureComponent } from 'react';
 import {
   View,
   StyleSheet,
-  ScrollView,
+  FlatList,
   Linking,
   TouchableOpacity,
   Modal,
   Dimensions,
+  Platform,
 } from 'react-native';
 import HtmlView from 'react-native-htmlview';
 import entities from 'entities';
 import { Text } from 'react-native-paper';
 import PXTabView from './PXTabView';
-import NovelInlineImage from './NovelInlineImage';
+import NovelInlineImage, { prefetchIllustDetail } from './NovelInlineImage';
+import {
+  computeConstrainedImageHeight,
+  findEmbeddedImageById,
+  resolveEmbeddedImageAspectRatio,
+} from '../common/helpers/novelInlineImage';
 import { MODAL_TYPES } from '../common/constants';
-import { globalStyleVariables } from '../styles';
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    width: globalStyleVariables.getWindowWidth(),
+    flexGrow: 1,
     padding: 10,
+    paddingBottom: 36,
+  },
+  list: {
+    flex: 1,
   },
   novelChapter: {
     fontSize: 20,
@@ -31,9 +39,23 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#007AFF',
   },
+  percentPill: {
+    position: 'absolute',
+    bottom: 24,
+    backgroundColor: 'rgba(30,30,30,0.45)',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    zIndex: 80,
+  },
+  percentPillText: {
+    color: '#fff',
+    fontSize: 11,
+  },
 });
 
 const MAX_HTML_CHUNK_LENGTH = 3000;
+const VIRTUAL_TEXT_CHUNK_LENGTH = 1500;
 const PROTECTED_TAGS = new Set(['a', 'chapter', 'jump', 'px-image']);
 const SPLITTABLE_PROTECTED_TAGS = new Set(['a', 'chapter', 'jump']);
 
@@ -222,49 +244,394 @@ export const chunkHtmlPreservingTags = (
   return chunks;
 };
 
+const parseTagAttributes = (tag) => {
+  const attrs = {};
+  const attrPattern = /([a-zA-Z0-9_-]+)\s*=\s*(?:'([^']*)'|"([^"]*)")/g;
+  let match = attrPattern.exec(tag);
+  while (match) {
+    attrs[match[1]] = match[2] !== undefined ? match[2] : match[3];
+    match = attrPattern.exec(tag);
+  }
+  return attrs;
+};
+
+export const splitHtmlIntoBlocks = (
+  html,
+  maxTextChunkLength = VIRTUAL_TEXT_CHUNK_LENGTH,
+) => {
+  if (!html) {
+    return [];
+  }
+
+  const tokens = tokenizeHtml(html);
+  const blocks = [];
+  let textBuffer = '';
+  let wrapperDepth = 0;
+
+  const flushTextBuffer = () => {
+    if (!textBuffer) {
+      return;
+    }
+    const chunks = chunkHtmlPreservingTags(textBuffer, maxTextChunkLength);
+    chunks.forEach((chunk) => {
+      if (chunk) {
+        blocks.push({
+          type: 'html',
+          key: `html-${blocks.length}`,
+          value: chunk,
+        });
+      }
+    });
+    textBuffer = '';
+  };
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    const tagInfo = getTagInfo(token);
+
+    if (tagInfo && SPLITTABLE_PROTECTED_TAGS.has(tagInfo.name)) {
+      if (!tagInfo.isClosing) {
+        wrapperDepth += 1;
+      } else if (wrapperDepth > 0) {
+        wrapperDepth -= 1;
+      }
+      textBuffer += token;
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+
+    if (
+      wrapperDepth === 0 &&
+      tagInfo &&
+      !tagInfo.isClosing &&
+      tagInfo.name === 'px-image'
+    ) {
+      flushTextBuffer();
+      const isSelfClosing = /\/>$/.test(token);
+      let openTag = token;
+      if (!isSelfClosing) {
+        const region = collectProtectedRegion(tokens, index);
+        if (region) {
+          openTag = region.openTag;
+          index = region.nextIndex;
+        }
+      }
+      const attrs = parseTagAttributes(openTag);
+      const parsedPageNumber = parseInt(attrs['data-page-number'], 10);
+      blocks.push({
+        type: 'image',
+        key: `img-${blocks.length}-${attrs['data-illust-id'] || 'unknown'}`,
+        imageId: attrs['data-illust-id'],
+        imageKind: attrs['data-image-kind'],
+        pageNumber: Number.isNaN(parsedPageNumber) ? null : parsedPageNumber,
+      });
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+
+    textBuffer += token;
+  }
+
+  flushTextBuffer();
+  return blocks;
+};
+
 // --- Modal slider constants ---
 const MODAL_TRACK_WIDTH = 4;
 const MODAL_THUMB_W = 28;
 const MODAL_THUMB_H = 60;
 const MODAL_SLIDER_WIDTH = 100;
 const MODAL_SLIDER_RIGHT_PAD = 20;
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+const INITIAL_NUM_TO_RENDER = 10;
 
-class NovelPage extends Component {
+export const estimateBlockHeight = (
+  block,
+  { fontSize = 16, lineHeight = 1.6, maxWidth = 340, embeddedImages } = {},
+) => {
+  if (!block) {
+    return 0;
+  }
+  if (block.type === 'image') {
+    const meta = findEmbeddedImageById(embeddedImages, block.imageId);
+    const ratio = resolveEmbeddedImageAspectRatio(meta) || 0.85;
+    return Math.max(120, computeConstrainedImageHeight(maxWidth, ratio) + 12);
+  }
+  const plainText = (block.value || '').replace(/<[^>]+>/g, '');
+  if (!plainText) {
+    return Math.round(fontSize * lineHeight);
+  }
+  const charsPerLine = Math.max(8, Math.floor(maxWidth / (fontSize * 1.02)));
+  const lines = plainText.split('\n').reduce((total, segment) => {
+    if (!segment.length) {
+      return total + 1;
+    }
+    return total + Math.max(1, Math.ceil(segment.length / charsPerLine));
+  }, 0);
+  return Math.max(
+    Math.round(fontSize * lineHeight),
+    Math.round(lines * fontSize * lineHeight),
+  );
+};
+
+class NovelHtmlChunk extends PureComponent {
+  render() {
+    const {
+      value,
+      renderNode,
+      textComponentProps,
+      TextComponent,
+    } = this.props;
+    return (
+      <HtmlView
+        value={value}
+        renderNode={renderNode}
+        textComponentProps={textComponentProps}
+        TextComponent={TextComponent}
+      />
+    );
+  }
+}
+
+class PercentPill extends PureComponent {
   constructor(props) {
     super(props);
-    this.scrollRef = React.createRef();
-    this.modalDragStartY = 0;
-    this.modalDragStartScrollY = 0;
-    this.isModalDragging = false;
     this.state = {
-      scrollY: 0,
-      contentHeight: 0,
-      containerHeight: 0,
-      modalOpen: false,
-      modalDragging: false,
+      visible: false,
+      pct: '0.0',
     };
   }
 
+  update = (visible, pct) => {
+    if (this.state.visible === visible && this.state.pct === pct) {
+      return;
+    }
+    this.setState({ visible, pct });
+  };
+
+  render() {
+    const { side, onOpenModal } = this.props;
+    const { visible, pct } = this.state;
+    if (!visible) {
+      return null;
+    }
+    const pos = side === 'left' ? { left: 14 } : { right: 14 };
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={onOpenModal}
+        style={[styles.percentPill, pos]}
+      >
+        <Text style={styles.percentPillText}>{pct}%</Text>
+      </TouchableOpacity>
+    );
+  }
+}
+
+class NovelPage extends PureComponent {
+  constructor(props) {
+    super(props);
+    this.listRef = React.createRef();
+    this.pillRef = React.createRef();
+    this.scrollY = 0;
+    this.contentHeight = 0;
+    this.containerHeight = 0;
+    this.touchStartX = 0;
+    this.touchStartY = 0;
+    this.touchStartTime = 0;
+    this.modalDragStartY = 0;
+    this.modalDragStartThumbTop = 0;
+    this.isModalDragging = false;
+    this.prefetchedImageIds = new Set();
+    this.estimatedHeights = this.computeEstimatedHeights(props);
+    this.highestRenderedIndex = Math.min(
+      Math.max(0, (props.blocks ? props.blocks.length : 0) - 1),
+      INITIAL_NUM_TO_RENDER - 1,
+    );
+    this.state = {
+      modalOpen: false,
+      modalDragging: false,
+      modalThumbTop: 0,
+    };
+  }
+
+  componentDidMount() {
+    this.prefetchAheadIllustMetadata(-1);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (
+      this.props.blocks !== prevProps.blocks ||
+      this.props.fontSize !== prevProps.fontSize ||
+      this.props.lineHeight !== prevProps.lineHeight ||
+      this.props.maxWidth !== prevProps.maxWidth ||
+      this.props.embeddedImages !== prevProps.embeddedImages
+    ) {
+      this.estimatedHeights = this.computeEstimatedHeights(this.props);
+      if (this.props.blocks !== prevProps.blocks) {
+        this.prefetchedImageIds.clear();
+        this.highestRenderedIndex = Math.min(
+          Math.max(0, (this.props.blocks ? this.props.blocks.length : 0) - 1),
+          INITIAL_NUM_TO_RENDER - 1,
+        );
+        this.prefetchAheadIllustMetadata(-1);
+      }
+      this.syncPercentPill();
+    }
+  }
+
+  prefetchAheadIllustMetadata(fromIndex) {
+    const { blocks = [], embeddedImages } = this.props;
+    let prefetchedCount = 0;
+    for (
+      let i = Math.max(0, fromIndex + 1);
+      i < blocks.length && prefetchedCount < 3;
+      i += 1
+    ) {
+      const block = blocks[i];
+      if (
+        block &&
+        block.type === 'image' &&
+        block.imageId &&
+        block.imageKind !== 'uploadedimage'
+      ) {
+        const cacheKey = String(block.imageId);
+        if (
+          !this.prefetchedImageIds.has(cacheKey) &&
+          !findEmbeddedImageById(embeddedImages, block.imageId)
+        ) {
+          this.prefetchedImageIds.add(cacheKey);
+          prefetchIllustDetail(block.imageId);
+        }
+        prefetchedCount += 1;
+      }
+    }
+  }
+
+  computeEstimatedHeights(props) {
+    const {
+      blocks = [],
+      fontSize,
+      lineHeight,
+      maxWidth,
+      embeddedImages,
+    } = props;
+    return blocks.map((block) =>
+      estimateBlockHeight(block, {
+        fontSize,
+        lineHeight,
+        maxWidth,
+        embeddedImages,
+      }),
+    );
+  }
+
+  getUnrenderedTailHeight() {
+    let tail = 0;
+    for (
+      let i = this.highestRenderedIndex + 1;
+      i < this.estimatedHeights.length;
+      i += 1
+    ) {
+      tail += this.estimatedHeights[i];
+    }
+    return tail;
+  }
+
+  getEffectiveContentHeight() {
+    return this.contentHeight + this.getUnrenderedTailHeight();
+  }
+
   getScrollable() {
-    const { contentHeight, containerHeight } = this.state;
-    return Math.max(0, contentHeight - containerHeight);
+    return Math.max(0, this.getEffectiveContentHeight() - this.containerHeight);
   }
 
   getRatio() {
-    const { scrollY } = this.state;
     const scrollable = this.getScrollable();
     if (!scrollable) return 0;
-    return Math.max(0, Math.min(1, scrollY / scrollable));
+    return Math.max(0, Math.min(1, this.scrollY / scrollable));
+  }
+
+  syncPercentPill(overrideRatio = null) {
+    if (!this.pillRef.current) {
+      return;
+    }
+    const scrollable = this.getScrollable();
+    const visible = scrollable > 10;
+    const ratio = overrideRatio !== null ? overrideRatio : this.getRatio();
+    const pct = visible ? (ratio * 100).toFixed(1) : '0.0';
+    this.pillRef.current.update(visible, pct);
   }
 
   handleScroll = (e) => {
-    this.setState({ scrollY: e.nativeEvent.contentOffset.y });
+    this.scrollY = e.nativeEvent.contentOffset.y;
+    if (!this.isModalDragging) {
+      this.syncPercentPill();
+    }
+  };
+
+  handleContentSizeChange = (_w, h) => {
+    this.contentHeight = h;
+    if (!this.isModalDragging) {
+      this.syncPercentPill();
+    }
+  };
+
+  handleLayout = (e) => {
+    this.containerHeight = e.nativeEvent.layout.height;
+    if (!this.isModalDragging) {
+      this.syncPercentPill();
+    }
+  };
+
+  handleTouchStart = (e) => {
+    const touch = e && e.nativeEvent;
+    if (!touch) return;
+    this.touchStartX = touch.pageX;
+    this.touchStartY = touch.pageY;
+    this.touchStartTime = Date.now();
+  };
+
+  handleTouchEnd = (e) => {
+    const { onToggleHeader, shouldIgnoreTap } = this.props;
+    const touch = e && e.nativeEvent;
+    if (!onToggleHeader || !touch || !this.touchStartTime) {
+      return;
+    }
+    const dx = Math.abs(touch.pageX - this.touchStartX);
+    const dy = Math.abs(touch.pageY - this.touchStartY);
+    const dt = Date.now() - this.touchStartTime;
+    this.touchStartTime = 0;
+    if (dx < 10 && dy < 10 && dt < 280) {
+      if (shouldIgnoreTap && shouldIgnoreTap()) {
+        return;
+      }
+      onToggleHeader();
+    }
+  };
+
+  handleScrollToIndexFailed = (info) => {
+    if (!this.listRef.current) {
+      return;
+    }
+    const offset = Math.max(0, info.averageItemLength * info.index);
+    this.listRef.current.scrollToOffset({ offset, animated: false });
+    setTimeout(() => {
+      if (this.listRef.current) {
+        this.listRef.current.scrollToIndex({
+          index: info.index,
+          animated: false,
+          viewPosition: 0,
+        });
+      }
+    }, 60);
   };
 
   // --- Modal navigation ---
   openModal = () => {
-    this.setState({ modalOpen: true });
+    this.setState({
+      modalOpen: true,
+      modalThumbTop: this.getModalThumbTop(),
+    });
   };
 
   closeModal = () => {
@@ -273,7 +640,7 @@ class NovelPage extends Component {
   };
 
   getModalTrackHeight() {
-    return SCREEN_HEIGHT - 200;
+    return Dimensions.get('window').height - 200;
   }
 
   getModalThumbTop() {
@@ -284,13 +651,16 @@ class NovelPage extends Component {
 
   handleModalGrant = (e) => {
     this.isModalDragging = true;
-    this.setState({ modalDragging: true });
+    const currentThumbTop = this.getModalThumbTop();
+    this.setState({ modalDragging: true, modalThumbTop: currentThumbTop });
     // Stop momentum
-    const { scrollY } = this.state;
-    if (this.scrollRef.current) {
-      this.scrollRef.current.scrollTo({ y: scrollY, animated: false });
+    if (this.listRef.current) {
+      this.listRef.current.scrollToOffset({
+        offset: this.scrollY,
+        animated: false,
+      });
     }
-    this.modalDragStartScrollY = scrollY;
+    this.modalDragStartThumbTop = currentThumbTop;
     this.modalDragStartY = e.nativeEvent.pageY;
   };
 
@@ -302,20 +672,56 @@ class NovelPage extends Component {
     const maxTop = trackH - MODAL_THUMB_H;
     if (!maxTop) return;
     const dy = e.nativeEvent.pageY - this.modalDragStartY;
-    const scrollDelta = (dy / maxTop) * scrollable;
-    const nextY = Math.max(
+    const nextThumbTop = Math.max(
       0,
-      Math.min(this.modalDragStartScrollY + scrollDelta, scrollable),
+      Math.min(this.modalDragStartThumbTop + dy, maxTop),
     );
-    if (this.scrollRef.current) {
-      this.scrollRef.current.scrollTo({ y: nextY, animated: false });
+    const targetRatio = nextThumbTop / maxTop;
+    const targetOffset = targetRatio * scrollable;
+    const materializedScrollable = Math.max(
+      0,
+      this.contentHeight - this.containerHeight,
+    );
+
+    if (this.listRef.current) {
+      if (
+        targetOffset <= materializedScrollable ||
+        this.highestRenderedIndex >= this.estimatedHeights.length - 1
+      ) {
+        this.scrollY = targetOffset;
+        this.listRef.current.scrollToOffset({
+          offset: targetOffset,
+          animated: false,
+        });
+      } else {
+        let acc = this.contentHeight;
+        let targetIndex = this.estimatedHeights.length - 1;
+        for (
+          let i = this.highestRenderedIndex + 1;
+          i < this.estimatedHeights.length;
+          i += 1
+        ) {
+          acc += this.estimatedHeights[i];
+          if (acc >= targetOffset + this.containerHeight * 0.5) {
+            targetIndex = i;
+            break;
+          }
+        }
+        this.listRef.current.scrollToIndex({
+          index: targetIndex,
+          animated: false,
+          viewPosition: 0,
+        });
+      }
     }
-    this.setState({ scrollY: nextY });
+    this.syncPercentPill(targetRatio);
+    this.setState({ modalThumbTop: nextThumbTop });
   };
 
   handleModalRelease = () => {
     this.isModalDragging = false;
     this.setState({ modalDragging: false });
+    this.syncPercentPill();
   };
 
   getSliderSide() {
@@ -331,37 +737,49 @@ class NovelPage extends Component {
     return sliderSide === 'left' ? 'left' : 'right';
   }
 
-  renderPercentPill() {
-    const scrollable = this.getScrollable();
-    if (scrollable <= 10) return null;
-    const pct = (this.getRatio() * 100).toFixed(1);
-    const side = this.getPercentageSide();
-    const pos = side === 'left' ? { left: 14 } : { right: 14 };
+  keyExtractor = (block) => block.key;
+
+  renderBlock = ({ item: block, index }) => {
+    if (index > this.highestRenderedIndex) {
+      this.highestRenderedIndex = index;
+    }
+    this.prefetchAheadIllustMetadata(index);
+    const {
+      debugInfo,
+      embeddedImages,
+      maxWidth,
+      renderNode,
+      textComponentProps,
+      TextComponent,
+    } = this.props;
+
+    if (block.type === 'image') {
+      return (
+        <NovelInlineImage
+          debugInfo={debugInfo}
+          imageId={block.imageId}
+          imageKind={block.imageKind}
+          pageNumber={block.pageNumber}
+          embeddedImages={embeddedImages}
+          maxWidth={maxWidth}
+        />
+      );
+    }
+
     return (
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={this.openModal}
-        style={{
-          position: 'absolute',
-          bottom: 16,
-          ...pos,
-          backgroundColor: 'rgba(30,30,30,0.45)',
-          paddingVertical: 5,
-          paddingHorizontal: 12,
-          borderRadius: 14,
-          zIndex: 80,
-        }}
-      >
-        <Text style={{ color: '#fff', fontSize: 11 }}>{pct}%</Text>
-      </TouchableOpacity>
+      <NovelHtmlChunk
+        value={block.value}
+        renderNode={renderNode}
+        textComponentProps={textComponentProps}
+        TextComponent={TextComponent}
+      />
     );
-  }
+  };
 
   renderModalNav() {
-    const { modalOpen, modalDragging } = this.state;
+    const { modalOpen, modalDragging, modalThumbTop } = this.state;
     if (!modalOpen) return null;
     const trackH = this.getModalTrackHeight();
-    const modalThumbTop = this.getModalThumbTop();
     const side = this.getSliderSide();
     const isLeft = side === 'left';
 
@@ -442,24 +860,57 @@ class NovelPage extends Component {
     );
   }
 
+  getListExtraData() {
+    const { maxWidth, fontSize, lineHeight, embeddedImages } = this.props;
+    if (
+      !this.cachedListExtraData ||
+      this.cachedListExtraData.maxWidth !== maxWidth ||
+      this.cachedListExtraData.fontSize !== fontSize ||
+      this.cachedListExtraData.lineHeight !== lineHeight ||
+      this.cachedListExtraData.embeddedImages !== embeddedImages
+    ) {
+      this.cachedListExtraData = {
+        maxWidth,
+        fontSize,
+        lineHeight,
+        embeddedImages,
+      };
+    }
+    return this.cachedListExtraData;
+  }
+
   render() {
-    const { children } = this.props;
+    const { blocks } = this.props;
 
     return (
       <View style={{ flex: 1 }}>
-        <ScrollView
-          ref={this.scrollRef}
-          scrollEventThrottle={16}
+        <FlatList
+          ref={this.listRef}
+          style={styles.list}
+          contentContainerStyle={styles.container}
+          data={blocks}
+          extraData={this.getListExtraData()}
+          renderItem={this.renderBlock}
+          keyExtractor={this.keyExtractor}
+          scrollEventThrottle={64}
           onScroll={this.handleScroll}
-          onContentSizeChange={(w, h) => this.setState({ contentHeight: h })}
-          onLayout={(e) =>
-            this.setState({ containerHeight: e.nativeEvent.layout.height })
-          }
-        >
-          {children}
-        </ScrollView>
+          onContentSizeChange={this.handleContentSizeChange}
+          onLayout={this.handleLayout}
+          onTouchStart={this.handleTouchStart}
+          onTouchEnd={this.handleTouchEnd}
+          onScrollToIndexFailed={this.handleScrollToIndexFailed}
+          initialNumToRender={INITIAL_NUM_TO_RENDER}
+          maxToRenderPerBatch={3}
+          updateCellsBatchingPeriod={50}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
+        />
 
-        {this.renderPercentPill()}
+        <PercentPill
+          ref={this.pillRef}
+          side={this.getPercentageSide()}
+          onOpenModal={this.openModal}
+        />
         {this.renderModalNav()}
       </View>
     );
@@ -470,6 +921,10 @@ class NovelViewer extends Component {
   constructor(props) {
     super(props);
     const { items, index } = props;
+    this.pageBlocksCache = new Map();
+    this.cachedTextComponentPropsKey = null;
+    this.cachedTextComponentProps = null;
+    this.lastLinkPressTime = 0;
     this.state = {
       // eslint-disable-next-line react/no-unused-state
       index,
@@ -480,8 +935,11 @@ class NovelViewer extends Component {
   }
 
   componentDidUpdate(prevProps) {
-    const { index } = this.props;
-    const { index: prevIndex } = prevProps;
+    const { index, items } = this.props;
+    const { index: prevIndex, items: prevItems } = prevProps;
+    if (items !== prevItems) {
+      this.pageBlocksCache.clear();
+    }
     if (index !== prevIndex) {
       // eslint-disable-next-line react/no-did-update-set-state
       this.setState({
@@ -490,6 +948,26 @@ class NovelViewer extends Component {
       });
     }
   }
+
+  getMemoizedHtmlTextComponentProps = () => {
+    const { fontSize, lineHeight } = this.props;
+    const cacheKey = `${fontSize}-${lineHeight}`;
+    if (this.cachedTextComponentPropsKey !== cacheKey) {
+      this.cachedTextComponentPropsKey = cacheKey;
+      this.cachedTextComponentProps = this.getHtmlTextComponentProps();
+    }
+    return this.cachedTextComponentProps;
+  };
+
+  getBlocksForPage = (sceneIndex, item) => {
+    const cached = this.pageBlocksCache.get(sceneIndex);
+    if (cached && cached.item === item) {
+      return cached.blocks;
+    }
+    const blocks = splitHtmlIntoBlocks(item);
+    this.pageBlocksCache.set(sceneIndex, { item, blocks });
+    return blocks;
+  };
 
   getHtmlTextComponentProps = (textProps = {}) => {
     const { fontSize, lineHeight } = this.props;
@@ -585,6 +1063,12 @@ class NovelViewer extends Component {
       style: styles.novelChapter,
     });
 
+  markLinkPress = () => {
+    this.lastLinkPressTime = Date.now();
+  };
+
+  shouldIgnoreTap = () => Date.now() - this.lastLinkPressTime < 200;
+
   renderAnchorNode = (node, index, parent, defaultRenderer) => {
     const { href } = node.attribs || {};
 
@@ -594,7 +1078,12 @@ class NovelViewer extends Component {
       parent,
       defaultRenderer,
       {
-        onPress: href ? () => Linking.openURL(decodeHtmlText(href)) : undefined,
+        onPress: href
+          ? () => {
+              this.markLinkPress();
+              Linking.openURL(decodeHtmlText(href));
+            }
+          : undefined,
         style: styles.pageLink,
       },
     );
@@ -613,7 +1102,10 @@ class NovelViewer extends Component {
         parent,
         defaultRenderer,
         {
-          onPress: () => onPressPageLink(page),
+          onPress: () => {
+            this.markLinkPress();
+            onPressPageLink(page);
+          },
           style: styles.pageLink,
         },
       );
@@ -631,17 +1123,27 @@ class NovelViewer extends Component {
       return (
         <NovelInlineImage
           key={index}
+          inline
           debugInfo={debugInfo}
           imageId={imageId}
           imageKind={imageKind}
           pageNumber={Number.isNaN(parsedPageNumber) ? null : parsedPageNumber}
           embeddedImages={embeddedImages}
-          maxWidth={globalStyleVariables.WINDOW_WIDTH - 20}
+          maxWidth={this.getContentMaxWidth()}
         />
       );
     }
     // other nodes render by default renderer
     return undefined;
+  };
+
+  getContentMaxWidth = () => {
+    const { windowWidth } = this.props;
+    const width =
+      typeof windowWidth === 'number' && windowWidth > 0
+        ? windowWidth
+        : Dimensions.get('window').width;
+    return Math.max(100, width - 20);
   };
 
   handleOnPressOpenSettings = () => {
@@ -656,28 +1158,40 @@ class NovelViewer extends Component {
 
   renderScene = ({ route }) => {
     const { routes } = this.state;
-    const { novelId, fontSize, lineHeight, items, index } = this.props;
+    const {
+      novelId,
+      items,
+      fontSize,
+      lineHeight,
+      debugInfo,
+      embeddedImages,
+      sliderSide,
+      sliderPercentageSide,
+      onToggleHeader,
+    } = this.props;
     const sceneIndex = routes.indexOf(route);
     const item = items[sceneIndex];
-    const pagedItem = chunkHtmlPreservingTags(item);
-    // render text by chunks to prevent over text limit while preserving HTML tags
+    const blocks = this.getBlocksForPage(sceneIndex, item);
+    const maxWidth = this.getContentMaxWidth();
+    const textComponentProps = this.getMemoizedHtmlTextComponentProps();
+
     return (
       <NovelPage
-        sliderSide={this.props.sliderSide}
-        sliderPercentageSide={this.props.sliderPercentageSide}
-      >
-        <View style={styles.container}>
-          {pagedItem.map((t, i) => (
-            <HtmlView
-              key={`${novelId}-${index}-${i}`} // eslint-disable-line react/no-array-index-key
-              value={t}
-              renderNode={this.handleRenderNode}
-              textComponentProps={this.getHtmlTextComponentProps()}
-              TextComponent={this.renderHtmlViewTextComponent}
-            />
-          ))}
-        </View>
-      </NovelPage>
+        key={`${novelId}-scene-${sceneIndex}`}
+        blocks={blocks}
+        fontSize={fontSize}
+        lineHeight={lineHeight}
+        debugInfo={debugInfo}
+        embeddedImages={embeddedImages}
+        maxWidth={maxWidth}
+        renderNode={this.handleRenderNode}
+        textComponentProps={textComponentProps}
+        TextComponent={this.renderHtmlViewTextComponent}
+        sliderSide={sliderSide}
+        sliderPercentageSide={sliderPercentageSide}
+        onToggleHeader={onToggleHeader}
+        shouldIgnoreTap={this.shouldIgnoreTap}
+      />
     );
   };
 
@@ -691,7 +1205,7 @@ class NovelViewer extends Component {
         renderTabBar={this.renderTabBar}
         renderScene={this.renderScene}
         onIndexChange={onIndexChange}
-        lazyPreloadDistance={2}
+        lazyPreloadDistance={1}
       />
     );
   }

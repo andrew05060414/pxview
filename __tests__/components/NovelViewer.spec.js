@@ -51,7 +51,12 @@ jest.mock('../../src/components/PXImage', () => {
 const {
   default: NovelViewer,
   chunkHtmlPreservingTags,
+  splitHtmlIntoBlocks,
+  estimateBlockHeight,
 } = require('../../src/components/NovelViewer');
+const {
+  clearNovelInlineImageCache,
+} = require('../../src/components/NovelInlineImage');
 
 const flushPromises = () => Promise.resolve();
 
@@ -162,11 +167,19 @@ describe('NovelViewer inline images', () => {
   beforeEach(() => {
     mockIllustDetail.mockReset();
     mockIllustDetail.mockResolvedValue({ illust: {} });
+    clearNovelInlineImageCache();
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
   });
+
+  afterAll(
+    () =>
+      new Promise((resolve) => {
+        setTimeout(resolve, 100);
+      }),
+  );
 
   it('renders the real inline image component for px-image nodes in the page flow', async () => {
     mockIllustDetail.mockResolvedValueOnce({
@@ -433,9 +446,9 @@ describe('NovelViewer inline images', () => {
   });
 
   it('renders chapter text after the custom chapter renderer rewrite', () => {
-    let tree;
+    let instance;
     act(() => {
-      tree = renderer.create(
+      instance = renderer.create(
         <NovelViewer
           novelId={1}
           items={['<chapter>Chapter title</chapter>body']}
@@ -449,9 +462,12 @@ describe('NovelViewer inline images', () => {
       );
     });
 
-    const json = JSON.stringify(tree.toJSON());
-    expect(json).toContain('Chapter title');
-    expect(json).not.toContain('<chapter>');
+    const renderedTexts = instance.root
+      .findAll((node) => node.type === 'Text')
+      .map((node) => node.props.children)
+      .filter((child) => typeof child === 'string');
+    expect(renderedTexts).toContain('Chapter title');
+    expect(renderedTexts.join('')).not.toContain('<chapter>');
   });
 
   it('keeps jump-link behavior after the custom chapter renderer rewrite', () => {
@@ -895,5 +911,241 @@ describe('NovelViewer inline images', () => {
     );
 
     expect(inlineTextContainer).not.toBeNull();
+  });
+
+  it('splits top-level px-image tags into dedicated virtualized blocks while keeping nested images inline', () => {
+    const html =
+      "intro<px-image data-illust-id='111' data-image-kind='uploadedimage'></px-image>" +
+      "middle<a href='https://example.com'><px-image data-illust-id='222'></px-image></a>" +
+      "<px-image data-illust-id='333' data-image-kind='pixivimage' data-page-number='2'></px-image>outro";
+
+    const blocks = splitHtmlIntoBlocks(html);
+
+    expect(blocks.map((b) => b.type)).toEqual([
+      'html',
+      'image',
+      'html',
+      'image',
+      'html',
+    ]);
+    expect(blocks[0].value).toBe('intro');
+    expect(blocks[1]).toMatchObject({
+      type: 'image',
+      imageId: '111',
+      imageKind: 'uploadedimage',
+      pageNumber: null,
+    });
+    expect(blocks[2].value).toContain("data-illust-id='222'");
+    expect(blocks[3]).toMatchObject({
+      type: 'image',
+      imageId: '333',
+      imageKind: 'pixivimage',
+      pageNumber: 2,
+    });
+    expect(blocks[4].value).toBe('outro');
+  });
+
+  it('renders page content inside a virtualized FlatList and caps lazyPreloadDistance to 1', async () => {
+    const { FlatList } = require('react-native');
+    let instance;
+    await act(async () => {
+      instance = renderer.create(
+        <NovelViewer
+          novelId={1}
+          items={["before<px-image data-illust-id='24095674'></px-image>after"]}
+          index={0}
+          fontSize={16}
+          lineHeight={1.6}
+          onIndexChange={() => {}}
+          onPressPageLink={() => {}}
+          openModal={() => {}}
+        />,
+      );
+      await flushPromises();
+    });
+
+    const flatList = instance.root.findByType(FlatList);
+    expect(flatList.props.windowSize).toBe(5);
+    expect(flatList.props.data).toHaveLength(3);
+  });
+
+  it('includes unrendered virtualized tail height in scroll percentage instead of sticking near 98%', async () => {
+    const { FlatList } = require('react-native');
+    const longPage = Array.from(
+      { length: 20 },
+      (_, idx) =>
+        `${'文'.repeat(400)}<px-image data-illust-id='${1000 + idx}' data-image-kind='uploadedimage'></px-image>`,
+    ).join('');
+
+    let instance;
+    await act(async () => {
+      instance = renderer.create(
+        <NovelViewer
+          novelId={1}
+          items={[longPage]}
+          embeddedImages={{}}
+          index={0}
+          fontSize={16}
+          lineHeight={1.6}
+          onIndexChange={() => {}}
+          onPressPageLink={() => {}}
+          openModal={() => {}}
+        />,
+      );
+      await flushPromises();
+    });
+
+    const flatList = instance.root.findByType(FlatList);
+    expect(flatList.props.data.length).toBeGreaterThan(20);
+    expect(
+      estimateBlockHeight(flatList.props.data[0], {
+        fontSize: 16,
+        lineHeight: 1.6,
+        maxWidth: 340,
+      }),
+    ).toBeGreaterThan(100);
+
+    // Simulate viewport=800, only first 8 blocks materialized (contentHeight=3000), scrolled to y=2150
+    await act(async () => {
+      flatList.props.onLayout({ nativeEvent: { layout: { height: 800 } } });
+      flatList.props.onContentSizeChange(360, 3000);
+      flatList.props.onScroll({ nativeEvent: { contentOffset: { y: 2150 } } });
+    });
+
+    const pctTextNode = instance.root.find(
+      (node) =>
+        node.type === 'Text' &&
+        Array.isArray(node.props.children) &&
+        node.props.children[1] === '%',
+    );
+    const pctValue = parseFloat(pctTextNode.props.children[0]);
+    expect(pctValue).toBeGreaterThan(0);
+    expect(pctValue).toBeLessThan(50);
+  });
+
+  it('toggles header on short tap inside page body but ignores scroll drags', async () => {
+    const { FlatList } = require('react-native');
+    const onToggleHeader = jest.fn();
+    let instance;
+    await act(async () => {
+      instance = renderer.create(
+        <NovelViewer
+          novelId={1}
+          items={['hello novel']}
+          index={0}
+          fontSize={16}
+          lineHeight={1.6}
+          onIndexChange={() => {}}
+          onPressPageLink={() => {}}
+          onToggleHeader={onToggleHeader}
+          openModal={() => {}}
+        />,
+      );
+      await flushPromises();
+    });
+
+    const flatList = instance.root.findByType(FlatList);
+    // Short tap -> toggles header
+    act(() => {
+      flatList.props.onTouchStart({ nativeEvent: { pageX: 150, pageY: 300 } });
+      flatList.props.onTouchEnd({ nativeEvent: { pageX: 152, pageY: 301 } });
+    });
+    expect(onToggleHeader).toHaveBeenCalledTimes(1);
+
+    // Scroll drag -> does NOT toggle header
+    act(() => {
+      flatList.props.onTouchStart({ nativeEvent: { pageX: 150, pageY: 300 } });
+      flatList.props.onTouchEnd({ nativeEvent: { pageX: 150, pageY: 220 } });
+    });
+    expect(onToggleHeader).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates NovelInlineImage maxWidth when windowWidth prop changes (fold/rotate)', async () => {
+    let instance;
+    await act(async () => {
+      instance = renderer.create(
+        <NovelViewer
+          novelId={1}
+          items={["before<px-image data-illust-id='24095674'></px-image>after"]}
+          index={0}
+          fontSize={16}
+          lineHeight={1.6}
+          windowWidth={400}
+          onIndexChange={() => {}}
+          onPressPageLink={() => {}}
+          openModal={() => {}}
+        />,
+      );
+      await flushPromises();
+    });
+
+    let inlineImage = instance.root.findByType(
+      require('../../src/components/NovelInlineImage').default,
+    );
+    expect(inlineImage.props.maxWidth).toBe(380);
+
+    await act(async () => {
+      instance.update(
+        <NovelViewer
+          novelId={1}
+          items={["before<px-image data-illust-id='24095674'></px-image>after"]}
+          index={0}
+          fontSize={16}
+          lineHeight={1.6}
+          windowWidth={800}
+          onIndexChange={() => {}}
+          onPressPageLink={() => {}}
+          openModal={() => {}}
+        />,
+      );
+      await flushPromises();
+    });
+
+    inlineImage = instance.root.findByType(
+      require('../../src/components/NovelInlineImage').default,
+    );
+    expect(inlineImage.props.maxWidth).toBe(780);
+    instance.unmount();
+  });
+
+  it('prefetches metadata for up to 3 upcoming pixivimage blocks ahead and marks chapter images inline', async () => {
+    const htmlWithFiveImages = [
+      "<chapter>ch<px-image data-illust-id='9000' data-image-kind='pixivimage'></px-image></chapter>",
+      "<px-image data-illust-id='9001' data-image-kind='pixivimage'></px-image>",
+      "<px-image data-illust-id='9002' data-image-kind='pixivimage'></px-image>",
+      "<px-image data-illust-id='9003' data-image-kind='pixivimage'></px-image>",
+      "<px-image data-illust-id='9004' data-image-kind='pixivimage'></px-image>",
+    ].join('text');
+
+    let instance;
+    await act(async () => {
+      instance = renderer.create(
+        <NovelViewer
+          novelId={1}
+          items={[htmlWithFiveImages]}
+          index={0}
+          fontSize={16}
+          lineHeight={1.6}
+          onIndexChange={() => {}}
+          onPressPageLink={() => {}}
+          openModal={() => {}}
+        />,
+      );
+      await flushPromises();
+    });
+
+    const calledIds = mockIllustDetail.mock.calls.map((args) => String(args[0]));
+    expect(calledIds).toContain('9001');
+    expect(calledIds).toContain('9002');
+    expect(calledIds).toContain('9003');
+    // Check inline prop on chapter image
+    const inlineImages = instance.root.findAllByType(
+      require('../../src/components/NovelInlineImage').default,
+    );
+    const chapterInline = inlineImages.find(
+      (n) => String(n.props.imageId) === '9000',
+    );
+    expect(chapterInline.props.inline).toBe(true);
+    instance.unmount();
   });
 });

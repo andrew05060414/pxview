@@ -1,5 +1,5 @@
 import { normalize } from 'normalizr';
-import { takeEvery, all, apply, call, put } from 'redux-saga/effects';
+import { takeEvery, all, apply, call, delay, put } from 'redux-saga/effects';
 import { fetchRankingSuccess, fetchRankingFailure } from '../actions/ranking';
 import { addError } from '../actions/error';
 import pixiv from '../helpers/apiClient';
@@ -160,10 +160,25 @@ export function* getNovelRankingLanguage(novel) {
   }
 }
 
+const LANGUAGE_LOOKUP_BATCH_SIZE = 4;
+const LANGUAGE_LOOKUP_BATCH_DELAY_MS = 700;
+
 export function* filterSimplifiedChineseNovels(novels) {
-  const languages = yield all(
-    novels.map((novel) => call(getNovelRankingLanguage, novel)),
-  );
+  const languages = [];
+  for (
+    let offset = 0;
+    offset < novels.length;
+    offset += LANGUAGE_LOOKUP_BATCH_SIZE
+  ) {
+    const batch = novels.slice(offset, offset + LANGUAGE_LOOKUP_BATCH_SIZE);
+    const batchLanguages = yield all(
+      batch.map((novel) => call(getNovelRankingLanguage, novel)),
+    );
+    languages.push(...batchLanguages);
+    if (offset + LANGUAGE_LOOKUP_BATCH_SIZE < novels.length) {
+      yield delay(LANGUAGE_LOOKUP_BATCH_DELAY_MS);
+    }
+  }
   return novels.filter(
     (novel, index) =>
       languages[index] === NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE,
