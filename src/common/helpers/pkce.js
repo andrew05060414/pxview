@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { asyncPkceChallenge } from 'react-native-pkce-challenge';
+import pkceChallenge from 'react-native-pkce-challenge';
 
 const PKCE_STORAGE_KEY = '@pxview/pkce';
 
@@ -19,7 +19,9 @@ class PKCE {
   };
 
   static async generatePKCE() {
-    const { codeChallenge, codeVerifier } = await asyncPkceChallenge();
+    const { codeChallenge, codeVerifier } = await Promise.resolve(
+      pkceChallenge(),
+    );
     this.pkce = {
       codeChallenge,
       codeVerifier,
