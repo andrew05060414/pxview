@@ -1,5 +1,13 @@
 import { normalize } from 'normalizr';
-import { takeEvery, all, apply, call, delay, put } from 'redux-saga/effects';
+import {
+  takeEvery,
+  takeLatest,
+  all,
+  apply,
+  call,
+  delay,
+  put,
+} from 'redux-saga/effects';
 import { fetchRankingSuccess, fetchRankingFailure } from '../actions/ranking';
 import { addError } from '../actions/error';
 import pixiv from '../helpers/apiClient';
@@ -185,6 +193,28 @@ export function* filterSimplifiedChineseNovels(novels) {
   );
 }
 
+// These modes filter results by language after the response arrives, so a
+// late response for a previous filter must not be appended to the new list.
+const LANGUAGE_FILTERED_RANKING_MODES = [
+  RANKING_FOR_UI.DAILY_MALE_NOVEL,
+  RANKING_FOR_UI.DAILY_FEMALE_NOVEL,
+];
+
+const isRankingRequestFor = (rankingMode) => ({ type, payload }) =>
+  type === RANKING.REQUEST && payload.rankingMode === rankingMode;
+
 export function* watchFetchRanking() {
-  yield takeEvery(RANKING.REQUEST, handleFetchRanking);
+  yield all([
+    // One takeLatest per mode: the two lists refetch together when the
+    // language changes and must not cancel each other.
+    ...LANGUAGE_FILTERED_RANKING_MODES.map((rankingMode) =>
+      takeLatest(isRankingRequestFor(rankingMode), handleFetchRanking),
+    ),
+    takeEvery(
+      ({ type, payload }) =>
+        type === RANKING.REQUEST &&
+        !LANGUAGE_FILTERED_RANKING_MODES.includes(payload.rankingMode),
+      handleFetchRanking,
+    ),
+  ]);
 }

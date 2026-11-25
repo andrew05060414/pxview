@@ -64,7 +64,11 @@ function* handleNetworkRestore() {
     for (let i = 0; i < modes.length; i += 1) {
       const mode = modes[i];
       if (state.ranking[mode] && state.ranking[mode].error) {
-        yield put(fetchRanking(mode, undefined, undefined, true));
+        // Keep the options of the failed request (language filter, past
+        // ranking date) so the retry loads the same list.
+        yield put(
+          fetchRanking(mode, state.ranking[mode].options, undefined, true),
+        );
       }
     }
   }

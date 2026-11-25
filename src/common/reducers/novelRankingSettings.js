@@ -9,6 +9,10 @@ const initState = {
 
 const validLanguages = [null, ...Object.values(NOVEL_RANKING_LANGUAGES)];
 
+export const getPreferredNovelRankingLanguage = (state) =>
+  state.novelRankingSettings.language ??
+  NOVEL_RANKING_LANGUAGES.SIMPLIFIED_CHINESE;
+
 export default function novelRankingSettings(state = initState, action) {
   switch (action.type) {
     case NOVEL_RANKING_SETTINGS.SET:
