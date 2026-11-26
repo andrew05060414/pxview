@@ -14,6 +14,7 @@ import Share from 'react-native-share';
 import { logEvent } from '../../common/helpers/firebase';
 import { AndroidBackHandler } from 'react-navigation-backhandler';
 import enhanceSaveImage from '../../components/HOC/enhanceSaveImage';
+import withWindowWidth from '../../components/withWindowWidth';
 import NovelDetailContent from '../../components/NovelDetailContent';
 import PXHeader from '../../components/PXHeader';
 import PXViewPager from '../../components/PXViewPager';
@@ -42,16 +43,11 @@ const THUMBNAIL_SIZE = 30;
 const styles = StyleSheet.create({
   content: {
     flex: 1,
-    width: globalStyleVariables.getWindowWidth(),
+    width: '100%',
   },
   headerTitleContainer: {
     flex: 1,
     alignItems: Platform.OS === 'android' ? 'flex-start' : 'center',
-    ...Platform.select({
-      ios: {
-        maxWidth: globalStyleVariables.getWindowWidth() - 150,
-      },
-    }),
   },
   headerThumnailNameContainer: {
     flexDirection: 'row',
@@ -314,9 +310,16 @@ class NovelDetail extends Component {
   renderHeaderTitle = (item) => {
     const {
       navigation: { push },
+      windowWidth,
     } = this.props;
+    const resolvedWidth = windowWidth || globalStyleVariables.getWindowWidth();
     return (
-      <View style={styles.headerTitleContainer}>
+      <View
+        style={[
+          styles.headerTitleContainer,
+          Platform.OS === 'ios' && { maxWidth: resolvedWidth - 150 },
+        ]}
+      >
         <PXTouchable
           style={styles.headerThumnailNameContainer}
           onPress={() => push(SCREENS.UserDetail, { userId: item.user.id })}
@@ -363,9 +366,12 @@ class NovelDetail extends Component {
   );
 
   renderContent = ({ item, index: itemIndex }) => {
-    const { navigation, authUser, route, index } = this.props;
+    const { navigation, authUser, route, index, windowWidth } = this.props;
+    const contentStyle = windowWidth
+      ? [styles.content, { width: windowWidth }]
+      : styles.content;
     return (
-      <View key={item.id} style={styles.content}>
+      <View key={item.id} style={contentStyle}>
         <PXHeader
           headerTitle={this.renderHeaderTitle(item)}
           headerRight={this.renderHeaderRight(item)}
@@ -504,49 +510,51 @@ class NovelDetail extends Component {
   }
 }
 
-export default withTheme(
-  enhanceSaveImage(
-    connectLocalization(
-      connect(
-        () => {
-          const getDetailItem = makeGetDetailNovelItem();
-          return (state, props) => {
-            const item = getDetailItem(state, props);
-            const isMuteUser = item
-              ? state.muteUsers.items.some((m) => m.id === item.user.id)
-              : false;
-            const {
-              id: novelIdFromQS,
-              novelId,
-              items,
-              index,
-              onListEndReached,
-              parentListKey,
-            } = props.route?.params || {};
-            const rawId = novelIdFromQS ?? novelId;
-            const parsedId =
-              rawId != null && rawId !== '' ? parseInt(rawId, 10) : NaN;
-            const id = Number.isNaN(parsedId) ? undefined : parsedId;
-            return {
-              novelId: id || item?.id,
-              novelDetail: id ? state.novelDetail[id] : undefined, // get novelDetail from api if load from deep link
-              item,
-              isMuteUser,
-              isFromDeepLink: !!id,
-              items,
-              index,
-              onListEndReached,
-              parentListKey,
-              authUser: state.auth.user,
+export default withWindowWidth(
+  withTheme(
+    enhanceSaveImage(
+      connectLocalization(
+        connect(
+          () => {
+            const getDetailItem = makeGetDetailNovelItem();
+            return (state, props) => {
+              const item = getDetailItem(state, props);
+              const isMuteUser = item
+                ? state.muteUsers.items.some((m) => m.id === item.user.id)
+                : false;
+              const {
+                id: novelIdFromQS,
+                novelId,
+                items,
+                index,
+                onListEndReached,
+                parentListKey,
+              } = props.route?.params || {};
+              const rawId = novelIdFromQS ?? novelId;
+              const parsedId =
+                rawId != null && rawId !== '' ? parseInt(rawId, 10) : NaN;
+              const id = Number.isNaN(parsedId) ? undefined : parsedId;
+              return {
+                novelId: id || item?.id,
+                novelDetail: id ? state.novelDetail[id] : undefined, // get novelDetail from api if load from deep link
+                item,
+                isMuteUser,
+                isFromDeepLink: !!id,
+                items,
+                index,
+                onListEndReached,
+                parentListKey,
+                authUser: state.auth.user,
+              };
             };
-          };
-        },
-        {
-          ...browsingHistoryNovelsActionCreators,
-          ...muteUsersActionCreators,
-          ...novelDetailActionCreators,
-        },
-      )(NovelDetail),
+          },
+          {
+            ...browsingHistoryNovelsActionCreators,
+            ...muteUsersActionCreators,
+            ...novelDetailActionCreators,
+          },
+        )(NovelDetail),
+      ),
     ),
   ),
 );

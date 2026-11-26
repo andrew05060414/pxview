@@ -281,7 +281,7 @@ const App = ({ testTarget }) => {
   }
 
   return (
-    <PaperProvider theme={theme}>
+    <PaperProvider theme={theme} settings={{ rippleEffectEnabled: false }}>
       {!rehydrated && !(isExpBuild() && testTarget) ? (
         <Loader />
       ) : (

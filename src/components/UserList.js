@@ -1,5 +1,11 @@
 import React, { Component, forwardRef } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  FlatList,
+  RefreshControl,
+  useWindowDimensions,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Text, useTheme } from 'react-native-paper';
 import Loader from './Loader';
@@ -51,7 +57,7 @@ const styles = StyleSheet.create({
 
 class UserList extends Component {
   renderItem = ({ item }) => {
-    const { theme } = this.props;
+    const { theme, windowWidth } = this.props;
     return (
       <View
         key={item.user.id}
@@ -68,6 +74,7 @@ class UserList extends Component {
                 illustId={illust.id}
                 index={index}
                 numColumns={PREVIEW_COLUMNS}
+                windowWidth={windowWidth}
                 onPressItem={() =>
                   this.handleOnPressIllustPreview(item.illusts, index)
                 }
@@ -82,6 +89,7 @@ class UserList extends Component {
                 novelId={novel.id}
                 index={index}
                 numColumns={PREVIEW_COLUMNS}
+                windowWidth={windowWidth}
                 onPressItem={() =>
                   this.handleOnPressNovelPreview(item.novels, index)
                 }
@@ -147,6 +155,7 @@ class UserList extends Component {
       onRefresh,
       theme,
       innerRef,
+      windowWidth,
     } = this.props;
     return (
       <View
@@ -157,6 +166,7 @@ class UserList extends Component {
           <FlatList
             ref={innerRef}
             data={items}
+            extraData={windowWidth}
             keyExtractor={(item) => item.user.id.toString()}
             renderItem={this.renderItem}
             onEndReachedThreshold={0.1}
@@ -175,8 +185,15 @@ class UserList extends Component {
 export default forwardRef((props, ref) => {
   const navigation = useNavigation();
   const theme = useTheme();
+  const { width: windowWidth } = useWindowDimensions();
   return (
     // eslint-disable-next-line react/jsx-props-no-spreading
-    <UserList {...props} navigation={navigation} theme={theme} innerRef={ref} />
+    <UserList
+      {...props}
+      navigation={navigation}
+      theme={theme}
+      windowWidth={windowWidth}
+      innerRef={ref}
+    />
   );
 });

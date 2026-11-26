@@ -126,6 +126,7 @@ class RankingHorizontalList extends Component {
           illustId={item.id}
           index={index}
           numColumns={columns}
+          windowWidth={windowWidth}
           onPressItem={() => this.handleOnPressItem(item)}
         />
       </View>
@@ -139,10 +140,11 @@ class RankingHorizontalList extends Component {
       rankingType,
       i18n,
       theme,
+      windowWidth,
     } = this.props;
-    const sliderWidth = globalStyleVariables.getWindowWidth();
-    const itemWidth =
-      globalStyleVariables.getWindowWidth() / 3 + ITEM_HORIZONTAL_PADDING * 2;
+    const currentWidth = windowWidth ?? globalStyleVariables.getWindowWidth();
+    const columns = getResponsiveGridColumns(currentWidth);
+    const itemWidth = currentWidth / columns + ITEM_HORIZONTAL_PADDING * 2;
     return (
       <View style={styles.container}>
         <View style={styles.titleContainer}>

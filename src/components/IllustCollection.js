@@ -80,6 +80,7 @@ const IllustCollection = (props) => {
                 illustId={item.id}
                 index={index}
                 numColumns={illustColumns}
+                windowWidth={windowWidth}
                 onPressItem={() =>
                   push(SCREENS.Detail, { items: illusts, index })
                 }

@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { View, Image } from 'react-native';
+import withWindowWidth from './withWindowWidth';
 import { globalStyleVariables } from '../styles';
 
 class PXCacheImage extends Component {
@@ -41,12 +42,15 @@ class PXCacheImage extends Component {
   }
 
   render() {
-    const { uri, style, ...otherProps } = this.props;
+    const { uri, style, windowWidth, ...otherProps } = this.props;
     const { width, height } = this.state;
+    const winW = windowWidth || globalStyleVariables.getWindowWidth();
+    const displayWidth = width > winW ? winW : width;
+    const displayHeight = width ? (displayWidth * height) / width : 0;
     return width && height ? (
       <View
         style={{
-          width: globalStyleVariables.getWindowWidth(),
+          width: winW,
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
@@ -62,11 +66,8 @@ class PXCacheImage extends Component {
           }}
           style={[
             {
-              width:
-                width > globalStyleVariables.getWindowWidth()
-                  ? globalStyleVariables.getWindowWidth()
-                  : width,
-              height: (globalStyleVariables.getWindowWidth() * height) / width,
+              width: displayWidth,
+              height: displayHeight,
             },
             style,
           ]}
@@ -77,4 +78,4 @@ class PXCacheImage extends Component {
   }
 }
 
-export default PXCacheImage;
+export default withWindowWidth(PXCacheImage);

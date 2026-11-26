@@ -8,12 +8,12 @@ import {
   TouchableRipple,
 } from 'react-native-paper';
 import { connectLocalization } from './Localization';
+import withWindowWidth from './withWindowWidth';
 import { globalStyleVariables } from '../styles';
 
 const styles = StyleSheet.create({
   dialogContentContainer: {
     paddingHorizontal: 0,
-    maxHeight: globalStyleVariables.getWindowHeight() - 200,
   },
   row: {
     flexDirection: 'row',
@@ -96,7 +96,10 @@ class SingleChoiceDialog extends Component {
       scrollable,
       i18n,
       enableOkButton,
+      windowHeight,
     } = this.props;
+    const maxDialogHeight =
+      (windowHeight || globalStyleVariables.getWindowHeight()) - 200;
     return (
       <Modal
         animationType="fade"
@@ -107,11 +110,21 @@ class SingleChoiceDialog extends Component {
         <Dialog dismissable={false} onDismiss={onPressCancel} visible={visible}>
           <Dialog.Title>{title}</Dialog.Title>
           {scrollable ? (
-            <Dialog.ScrollArea style={styles.dialogContentContainer}>
+            <Dialog.ScrollArea
+              style={[
+                styles.dialogContentContainer,
+                { maxHeight: maxDialogHeight },
+              ]}
+            >
               <ScrollView>{this.renderItems()}</ScrollView>
             </Dialog.ScrollArea>
           ) : (
-            <Dialog.Content style={styles.dialogContentContainer}>
+            <Dialog.Content
+              style={[
+                styles.dialogContentContainer,
+                { maxHeight: maxDialogHeight },
+              ]}
+            >
               {this.renderItems()}
             </Dialog.Content>
           )}
@@ -131,4 +144,4 @@ class SingleChoiceDialog extends Component {
   }
 }
 
-export default connectLocalization(SingleChoiceDialog);
+export default withWindowWidth(connectLocalization(SingleChoiceDialog));

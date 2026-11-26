@@ -4,6 +4,7 @@ import { withTheme, Text } from 'react-native-paper';
 import Loader from './Loader';
 import PXTouchable from './PXTouchable';
 import PXCacheImage from './PXCacheImage';
+import withWindowWidth from './withWindowWidth';
 import { globalStyleVariables } from '../styles';
 
 const styles = StyleSheet.create({
@@ -25,28 +26,25 @@ class PXCacheImageTouchable extends Component {
     this.state = {
       width: initWidth,
       height: initHeight,
+      naturalWidth: null,
+      naturalHeight: null,
       loading: true,
     };
   }
 
   handleOnFoundImageSize = (width, height, url) => {
     if (width && height) {
-      const newWidth =
-        width > globalStyleVariables.getWindowWidth()
-          ? globalStyleVariables.getWindowWidth()
-          : width;
-      const newHeight =
-        ((width > globalStyleVariables.getWindowWidth()
-          ? globalStyleVariables.getWindowWidth()
-          : width) *
-          height) /
-        width;
+      const { windowWidth, onFoundImageSize } = this.props;
+      const winW = windowWidth || globalStyleVariables.getWindowWidth();
+      const newWidth = width > winW ? winW : width;
+      const newHeight = (newWidth * height) / width;
       this.setState({
         width: newWidth,
         height: newHeight,
+        naturalWidth: width,
+        naturalHeight: height,
         loading: false,
       });
-      const { onFoundImageSize } = this.props;
       if (onFoundImageSize) {
         onFoundImageSize(newWidth, newHeight, url);
       }
@@ -68,8 +66,14 @@ class PXCacheImageTouchable extends Component {
   };
 
   render() {
-    const { uri, pageNumber, style, imageStyle, theme } = this.props;
-    const { height, loading } = this.state;
+    const { uri, pageNumber, style, imageStyle, theme, windowWidth } = this.props;
+    const { height, naturalWidth, naturalHeight, loading } = this.state;
+    const winW = windowWidth || globalStyleVariables.getWindowWidth();
+    let resolvedHeight = height;
+    if (naturalWidth && naturalHeight) {
+      const resolvedImageWidth = naturalWidth > winW ? winW : naturalWidth;
+      resolvedHeight = (resolvedImageWidth * naturalHeight) / naturalWidth;
+    }
     return (
       <PXTouchable
         onPress={this.handleOnPressImage}
@@ -77,8 +81,8 @@ class PXCacheImageTouchable extends Component {
         style={[
           style,
           {
-            width: globalStyleVariables.getWindowWidth(),
-            height,
+            width: winW,
+            height: resolvedHeight,
             backgroundColor: theme.colors.surface,
           },
         ]}
@@ -100,4 +104,4 @@ class PXCacheImageTouchable extends Component {
   }
 }
 
-export default withTheme(PXCacheImageTouchable);
+export default withWindowWidth(withTheme(PXCacheImageTouchable));

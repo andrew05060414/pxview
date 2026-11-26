@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet, Text, useWindowDimensions } from 'react-native';
 import PXTouchable from './PXTouchable';
 import PXImage from './PXImage';
 import OverlayNovelPages from './OverlayNovelPages';
@@ -42,7 +42,10 @@ const NovelGridViewItem = ({
   isHighlight,
   isMute,
   isShowLikeCount,
+  windowWidth,
 }) => {
+  const { width: liveWidth } = useWindowDimensions();
+  const winW = windowWidth || liveWidth || globalStyleVariables.getWindowWidth();
   const imageWidthOffset = isHighlight ? HIGHLIGHT_BORDER_WIDTH * 2 + 1 : 1;
   return (
     <PXTouchable
@@ -51,8 +54,8 @@ const NovelGridViewItem = ({
           marginRight: index % numColumns < numColumns - 1 ? 1 : 0,
           marginBottom: 1,
           backgroundColor: globalStyleVariables.BACKGROUND_COLOR,
-          width: globalStyleVariables.getWindowWidth() / numColumns - 1,
-          height: globalStyleVariables.getWindowWidth() / numColumns - 1,
+          width: winW / numColumns - 1,
+          height: winW / numColumns - 1,
         },
         containerStyle,
         isHighlight && styles.highlight,
@@ -69,12 +72,8 @@ const NovelGridViewItem = ({
             style={[
               {
                 resizeMode: 'cover',
-                width:
-                  globalStyleVariables.getWindowWidth() / numColumns -
-                  imageWidthOffset,
-                height:
-                  globalStyleVariables.getWindowWidth() / numColumns -
-                  imageWidthOffset,
+                width: winW / numColumns - imageWidthOffset,
+                height: winW / numColumns - imageWidthOffset,
               },
               imageStyle,
             ]}

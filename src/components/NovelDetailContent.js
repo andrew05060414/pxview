@@ -7,6 +7,7 @@ import PXCacheImageTouchable from './PXCacheImageTouchable';
 import OverlayNovelPages from './OverlayNovelPages';
 import OverlayMutedIndicator from './OverlayMutedIndicator';
 import DetailFooter from './DetailFooter';
+import withWindowWidth from './withWindowWidth';
 import * as searchHistoryActionCreators from '../common/actions/searchHistory';
 import { makeGetTagsWithStatus } from '../common/selectors';
 import { SCREENS, SEARCH_TYPES } from '../common/constants';
@@ -15,7 +16,7 @@ import { globalStyleVariables } from '../styles';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // width: globalStyleVariables.WINDOW_WIDTH,
+    width: '100%',
   },
   image: {
     resizeMode: 'contain',
@@ -115,6 +116,7 @@ class NovelDetailContent extends Component {
       isMuteUser,
       onLongPressImage,
       theme,
+      windowWidth,
     } = this.props;
     const {
       isOpenTagBottomSheet,
@@ -125,9 +127,10 @@ class NovelDetailContent extends Component {
     if (!isMounted) {
       return null;
     }
+    const currentWidth = windowWidth || globalStyleVariables.getWindowWidth();
     const isMute = tags.some((t) => t.isMute) || isMuteUser;
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { width: currentWidth }]}>
         <ScrollView>
           {isMute ? (
             <View
@@ -143,7 +146,7 @@ class NovelDetailContent extends Component {
               <PXCacheImageTouchable
                 key={item.image_urls.medium}
                 uri={item.image_urls.medium}
-                initWidth={globalStyleVariables.getWindowHeight()}
+                initWidth={currentWidth}
                 initHeight={200}
                 imageStyle={styles.image}
                 onPress={this.handleOnPressNovelImage}
@@ -179,16 +182,18 @@ class NovelDetailContent extends Component {
   }
 }
 
-export default withTheme(
-  connect(() => {
-    const getTagsWithStatus = makeGetTagsWithStatus();
-    return (state, props) => ({
-      highlightTags: state.highlightTags.items,
-      muteTags: state.muteTags.items,
-      isMuteUser: state.muteUsers.items.some(
-        (m) => m.id === props.item.user.id,
-      ),
-      tags: getTagsWithStatus(state, props),
-    });
-  }, searchHistoryActionCreators)(NovelDetailContent),
+export default withWindowWidth(
+  withTheme(
+    connect(() => {
+      const getTagsWithStatus = makeGetTagsWithStatus();
+      return (state, props) => ({
+        highlightTags: state.highlightTags.items,
+        muteTags: state.muteTags.items,
+        isMuteUser: state.muteUsers.items.some(
+          (m) => m.id === props.item.user.id,
+        ),
+        tags: getTagsWithStatus(state, props),
+      });
+    }, searchHistoryActionCreators)(NovelDetailContent),
+  ),
 );

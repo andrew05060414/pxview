@@ -380,6 +380,8 @@ class NovelHtmlChunk extends PureComponent {
       renderNode,
       textComponentProps,
       TextComponent,
+      // eslint-disable-next-line no-unused-vars
+      maxWidth,
     } = this.props;
     return (
       <HtmlView
@@ -640,7 +642,12 @@ class NovelPage extends PureComponent {
   };
 
   getModalTrackHeight() {
-    return Dimensions.get('window').height - 200;
+    const { windowHeight } = this.props;
+    const height =
+      typeof windowHeight === 'number' && windowHeight > 0
+        ? windowHeight
+        : Dimensions.get('window').height;
+    return height - 200;
   }
 
   getModalThumbTop() {
@@ -769,6 +776,7 @@ class NovelPage extends PureComponent {
     return (
       <NovelHtmlChunk
         value={block.value}
+        maxWidth={maxWidth}
         renderNode={renderNode}
         textComponentProps={textComponentProps}
         TextComponent={TextComponent}
@@ -1184,6 +1192,7 @@ class NovelViewer extends Component {
         debugInfo={debugInfo}
         embeddedImages={embeddedImages}
         maxWidth={maxWidth}
+        windowHeight={this.props.windowHeight}
         renderNode={this.handleRenderNode}
         textComponentProps={textComponentProps}
         TextComponent={this.renderHtmlViewTextComponent}
@@ -1195,6 +1204,38 @@ class NovelViewer extends Component {
     );
   };
 
+  getRenderScene = () => {
+    const {
+      windowWidth,
+      windowHeight,
+      items,
+      fontSize,
+      lineHeight,
+      embeddedImages,
+      sliderSide,
+      sliderPercentageSide,
+    } = this.props;
+    const deps = [
+      windowWidth,
+      windowHeight,
+      items,
+      fontSize,
+      lineHeight,
+      embeddedImages,
+      sliderSide,
+      sliderPercentageSide,
+    ];
+    const changed =
+      !this.cachedRenderScene ||
+      !this.cachedRenderSceneDeps ||
+      deps.some((dep, i) => dep !== this.cachedRenderSceneDeps[i]);
+    if (changed) {
+      this.cachedRenderSceneDeps = deps;
+      this.cachedRenderScene = (sceneProps) => this.renderScene(sceneProps);
+    }
+    return this.cachedRenderScene;
+  };
+
   renderTabBar = () => null;
 
   render() {
@@ -1203,7 +1244,7 @@ class NovelViewer extends Component {
       <PXTabView
         navigationState={this.state}
         renderTabBar={this.renderTabBar}
-        renderScene={this.renderScene}
+        renderScene={this.getRenderScene()}
         onIndexChange={onIndexChange}
         lazyPreloadDistance={1}
       />

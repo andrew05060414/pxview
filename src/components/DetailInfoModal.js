@@ -22,6 +22,7 @@ import Tags from './Tags';
 import PXTouchable from './PXTouchable';
 import PXThumbnail from './PXThumbnail';
 import TagBottomSheet from './TagBottomSheet';
+import withWindowWidth from './withWindowWidth';
 import * as searchHistoryActionCreators from '../common/actions/searchHistory';
 import { makeGetTagsWithStatus } from '../common/selectors';
 import { SEARCH_TYPES, SCREENS } from '../common/constants';
@@ -91,12 +92,7 @@ const styles = StyleSheet.create({
 class DetailInfoModal extends Component {
   static defaultProps = {
     duration: 300,
-    height: Math.floor(
-      (globalStyleVariables.getWindowHeight() -
-        globalStyleVariables.APPBAR_HEIGHT -
-        globalStyleVariables.STATUSBAR_HEIGHT) *
-        0.6,
-    ),
+    height: null,
   };
 
   constructor(props) {
@@ -110,20 +106,41 @@ class DetailInfoModal extends Component {
   }
 
   componentDidUpdate(prevProps) {
-    const { visible } = this.props;
-    const { visible: prevVisible } = prevProps;
+    const { visible, windowHeight } = this.props;
+    const { visible: prevVisible, windowHeight: prevWindowHeight } = prevProps;
     if (visible !== null && visible !== prevVisible) {
       this.setModalVisible(visible);
+    } else if (
+      this.state.modalVisible &&
+      windowHeight !== prevWindowHeight
+    ) {
+      this.state.animatedHeight.setValue(this.getResolvedHeight());
     }
   }
 
+  getResolvedHeight = () => {
+    const { height, windowHeight } = this.props;
+    if (height != null) {
+      return height;
+    }
+    const resolvedWindowHeight =
+      windowHeight || globalStyleVariables.getWindowHeight();
+    return Math.floor(
+      (resolvedWindowHeight -
+        globalStyleVariables.APPBAR_HEIGHT -
+        globalStyleVariables.STATUSBAR_HEIGHT) *
+        0.6,
+    );
+  };
+
   setModalVisible = (visible) => {
-    const { height, duration } = this.props;
+    const { duration } = this.props;
     const { modalVisible, animatedHeight } = this.state;
     if (visible && !modalVisible) {
+      const resolvedHeight = this.getResolvedHeight();
       this.setState({ modalVisible: visible });
       Animated.timing(animatedHeight, {
-        toValue: height,
+        toValue: resolvedHeight,
         duration,
         useNativeDriver: false,
       }).start();
@@ -359,15 +376,17 @@ class DetailInfoModal extends Component {
   }
 }
 
-export default withTheme(
-  connectLocalization(
-    connect(() => {
-      const getTagsWithStatus = makeGetTagsWithStatus();
-      return (state, props) => ({
-        highlightTags: state.highlightTags.items,
-        muteTags: state.muteTags.items,
-        tags: getTagsWithStatus(state, props),
-      });
-    }, searchHistoryActionCreators)(DetailInfoModal),
+export default withWindowWidth(
+  withTheme(
+    connectLocalization(
+      connect(() => {
+        const getTagsWithStatus = makeGetTagsWithStatus();
+        return (state, props) => ({
+          highlightTags: state.highlightTags.items,
+          muteTags: state.muteTags.items,
+          tags: getTagsWithStatus(state, props),
+        });
+      }, searchHistoryActionCreators)(DetailInfoModal),
+    ),
   ),
 );
