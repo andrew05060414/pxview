@@ -25,6 +25,11 @@ react {
 
 def enableProguardInReleaseBuilds = false
 
+def reactNativeArchitectures() {
+    def value = project.getProperties().get("reactNativeArchitectures")
+    return value ? value.split(",").collect { it.trim() }.findAll { it } : ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
+}
+
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 android {
@@ -58,6 +63,19 @@ android {
             storePassword(findProperty('PXVIEWR_RELEASE_STORE_PASSWORD') ?: 'android')
             keyAlias(findProperty('PXVIEWR_RELEASE_KEY_ALIAS') ?: 'androiddebugkey')
             keyPassword(findProperty('PXVIEWR_RELEASE_KEY_PASSWORD') ?: 'android')
+        }
+    }
+    splits {
+        abi {
+            reset()
+            enable true
+            universalApk true
+            include(*reactNativeArchitectures())
+        }
+    }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
     buildTypes {

@@ -56,35 +56,48 @@ jobs:
             sleep 15
           done
 
-      - name: Verify APK ABI coverage (32-bit and 64-bit)
+      - name: Verify APK ABI coverage (split + universal)
         run: |
-          APK="android/app/build/outputs/apk/release/app-release.apk"
-          for abi in armeabi-v7a arm64-v8a x86 x86_64; do
-            unzip -l "$APK" | grep -q "lib/$abi/" || { echo "Missing ABI $abi in $APK"; exit 1; }
+          RELEASE_DIR="android/app/build/outputs/apk/release"
+          UNIVERSAL_APK="$RELEASE_DIR/app-universal-release.apk"
+          ARM64_APK="$RELEASE_DIR/app-arm64-v8a-release.apk"
+          for apk in "$UNIVERSAL_APK" "$ARM64_APK" "$RELEASE_DIR/app-armeabi-v7a-release.apk"; do
+            [ -f "$apk" ] || { echo "Missing expected APK: $apk"; exit 1; }
           done
+          for abi in armeabi-v7a arm64-v8a x86 x86_64; do
+            unzip -l "$UNIVERSAL_APK" | grep -q "lib/$abi/" || { echo "Missing ABI $abi in $UNIVERSAL_APK"; exit 1; }
+          done
+          unzip -l "$ARM64_APK" | grep -q "lib/arm64-v8a/" || { echo "Missing arm64-v8a in $ARM64_APK"; exit 1; }
+          if unzip -l "$ARM64_APK" | grep -qE "lib/(armeabi-v7a|x86|x86_64)/"; then
+            echo "Unexpected extra ABI in $ARM64_APK"
+            exit 1
+          fi
 
-      - name: Rename APK
+      - name: Rename APKs
         run: |
+          RELEASE_DIR="android/app/build/outputs/apk/release"
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
             SUFFIX="$GITHUB_REF_NAME"
           else
             SUFFIX="$(git rev-parse --short HEAD)"
           fi
-          mv android/app/build/outputs/apk/release/app-release.apk \
-            "android/app/build/outputs/apk/release/PxViewR-$SUFFIX.apk"
-          ls -la android/app/build/outputs/apk/release/
+          mv "$RELEASE_DIR/app-arm64-v8a-release.apk" "$RELEASE_DIR/PxViewR-$SUFFIX-arm64-v8a.apk"
+          mv "$RELEASE_DIR/app-armeabi-v7a-release.apk" "$RELEASE_DIR/PxViewR-$SUFFIX-armeabi-v7a.apk"
+          mv "$RELEASE_DIR/app-universal-release.apk" "$RELEASE_DIR/PxViewR-$SUFFIX-universal.apk"
+          rm -f "$RELEASE_DIR"/app-*-release.apk
+          ls -lh "$RELEASE_DIR"/PxViewR-*.apk
 
       - name: Attach APK to release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            android/app/build/outputs/apk/release/*.apk
+            android/app/build/outputs/apk/release/PxViewR-*.apk
 
       - name: Upload APK artifact
         if: github.event_name != 'release'
         uses: actions/upload-artifact@v4
         with:
           name: pxviewr-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/release/PxViewR-*.apk
           if-no-files-found: error
