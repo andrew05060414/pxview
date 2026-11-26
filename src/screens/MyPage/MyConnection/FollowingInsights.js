@@ -172,7 +172,8 @@ const FollowingInsights = ({ navigation }) => {
           </View>
           <Button
             mode={syncing ? 'outlined' : 'contained'}
-            color={globalStyleVariables.PRIMARY_COLOR}
+            buttonColor={syncing ? undefined : globalStyleVariables.PRIMARY_COLOR}
+            textColor={syncing ? globalStyleVariables.PRIMARY_COLOR : '#fff'}
             loading={syncing}
             onPress={handleOnPressSync}
           >

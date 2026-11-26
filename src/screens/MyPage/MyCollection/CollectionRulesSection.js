@@ -65,7 +65,7 @@ const CollectionRulesSection = ({ navigation }) => {
         title={rule.name}
         description={`${matched.length} ${i18n.worksCount}`}
         left={({ color, style }) => (
-          <List.Icon color={color} style={style} icon="folder-filter" />
+          <List.Icon color={color} style={style} icon="folder-search-outline" />
         )}
       >
         {matched.length === 0 ? (
@@ -99,7 +99,7 @@ const CollectionRulesSection = ({ navigation }) => {
         <Button
           compact
           mode="text"
-          color={globalStyleVariables.PRIMARY_COLOR}
+          textColor={globalStyleVariables.PRIMARY_COLOR}
           onPress={handleOnPressResetRules}
         >
           {i18n.restoreDefault}

@@ -23,7 +23,7 @@ const PXBottomSheetCancelButton = ({ onPress, text, textStyle, theme }) => (
   <PXTouchable onPress={onPress}>
     <View style={styles.bottomSheetListItem}>
       <IonicIcon
-        name="md-close"
+        name="close"
         size={24}
         style={styles.bottomSheetCancelIcon}
         color={theme.colors.text}

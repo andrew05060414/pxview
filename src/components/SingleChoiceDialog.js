@@ -129,11 +129,17 @@ class SingleChoiceDialog extends Component {
             </Dialog.Content>
           )}
           <Dialog.Actions>
-            <Button primary onPress={onPressCancel}>
+            <Button
+              textColor={globalStyleVariables.PRIMARY_COLOR}
+              onPress={onPressCancel}
+            >
               {cancelLabel || i18n.cancel}
             </Button>
             {enableOkButton && (
-              <Button primary onPress={this.handleOnPressOk}>
+              <Button
+                textColor={globalStyleVariables.PRIMARY_COLOR}
+                onPress={this.handleOnPressOk}
+              >
                 {okLabel || i18n.ok}
               </Button>
             )}

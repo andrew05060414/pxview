@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { PropTypes } from 'prop-types';
 import { connect } from 'react-redux';
-import { MD3DarkTheme as DarkTheme } from 'react-native-paper';
+import { MD2DarkTheme as DarkTheme } from 'react-native-paper';
 import PXTouchable from './PXTouchable';
 import PXImage from './PXImage';
 import OverlayImagePages from './OverlayImagePages';

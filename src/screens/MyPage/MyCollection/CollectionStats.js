@@ -249,7 +249,8 @@ const CollectionStats = ({ navigation }) => {
               </View>
               <Button
                 mode={syncing ? 'outlined' : 'contained'}
-                color={globalStyleVariables.PRIMARY_COLOR}
+                buttonColor={syncing ? undefined : globalStyleVariables.PRIMARY_COLOR}
+                textColor={syncing ? globalStyleVariables.PRIMARY_COLOR : '#fff'}
                 loading={syncing}
                 onPress={handleOnPressSync}
               >
@@ -294,7 +295,16 @@ const CollectionStats = ({ navigation }) => {
               {hasAiConfig ? (
                 <Button
                   mode={classifications.classifying ? 'outlined' : 'contained'}
-                  color={globalStyleVariables.PRIMARY_COLOR}
+                  buttonColor={
+                    classifications.classifying
+                      ? undefined
+                      : globalStyleVariables.PRIMARY_COLOR
+                  }
+                  textColor={
+                    classifications.classifying
+                      ? globalStyleVariables.PRIMARY_COLOR
+                      : '#fff'
+                  }
                   loading={classifications.classifying}
                   disabled={counts.total === 0}
                   onPress={handleOnPressClassify}
@@ -306,7 +316,7 @@ const CollectionStats = ({ navigation }) => {
               ) : (
                 <Button
                   mode="outlined"
-                  color={globalStyleVariables.PRIMARY_COLOR}
+                  textColor={globalStyleVariables.PRIMARY_COLOR}
                   onPress={handleOnPressOpenAiSettings}
                 >
                   {i18n.collectionStatsAiClassifyConfigPrompt}
@@ -360,7 +370,7 @@ const CollectionStats = ({ navigation }) => {
                 <Button
                   mode="outlined"
                   compact
-                  color={globalStyleVariables.PRIMARY_COLOR}
+                  textColor={globalStyleVariables.PRIMARY_COLOR}
                   loading={isGeneratingTasteSummary}
                   disabled={
                     isGeneratingTasteSummary || tasteProfile.total === 0

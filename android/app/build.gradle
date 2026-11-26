@@ -37,8 +37,8 @@ android {
         applicationId "com.utopia.pxviewr"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 601
-        versionName "6.0.1"
+        versionCode 602
+        versionName "6.0.2"
         manifestPlaceholders = [
             firebaseAnalyticsDeactivated: hasRealGoogleServices ? "false" : "true",
             firebaseCrashlyticsCollectionEnabled: hasRealGoogleServices ? "true" : "false",

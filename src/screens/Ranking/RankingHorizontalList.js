@@ -22,7 +22,11 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   image: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
     resizeMode: 'contain',
   },
   sliderContainer: {

@@ -17,7 +17,7 @@ jest.mock('react-native-paper', () => {
         },
       }),
     Text: (props) => ReactLib.createElement('Text', props, props.children),
-    MD3DarkTheme: { colors: { surface: '#121212' } },
+    MD2DarkTheme: { colors: { surface: '#121212' } },
   };
 });
 

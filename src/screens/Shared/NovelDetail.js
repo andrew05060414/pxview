@@ -452,6 +452,7 @@ class NovelDetail extends Component {
                 <FAB
                   style={styles.fab}
                   icon={renderButton}
+                  animated={false}
                   onPress={onPress}
                   onLongPress={onLongPress}
                 />

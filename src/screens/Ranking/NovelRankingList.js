@@ -6,6 +6,10 @@ import * as rankingActionCreators from '../../common/actions/ranking';
 import { makeGetNovelRankingItems } from '../../common/selectors';
 
 class NovelRankingList extends Component {
+  static defaultProps = {
+    reload: true,
+  };
+
   componentDidMount() {
     const {
       ranking,
@@ -67,10 +71,6 @@ class NovelRankingList extends Component {
     );
   }
 }
-
-NovelRankingList.defaultProps = {
-  reload: true,
-};
 
 export default connect(() => {
   const getRankingItems = makeGetNovelRankingItems();
