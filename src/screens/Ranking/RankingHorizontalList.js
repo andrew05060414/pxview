@@ -177,7 +177,7 @@ class RankingHorizontalList extends Component {
             keyExtractor={(item) => item.id.toString()}
             showsHorizontalScrollIndicator={false}
             snapToInterval={itemWidth}
-            decelerationRate={0.9}
+            decelerationRate="fast"
           />
         )}
       </View>

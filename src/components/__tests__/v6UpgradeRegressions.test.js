@@ -249,4 +249,37 @@ describe('v6.0.2 library upgrade regressions', () => {
     expect(colorsXml).toContain('#2e97d8');
     expect(colorsXml).not.toContain('#26a599');
   });
+
+  test('pins react-native-pager-view to native ViewPager2 (8.x) and fast ranking carousel deceleration', () => {
+    const packageJson = JSON.parse(
+      fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'),
+    );
+    expect(packageJson.dependencies['react-native-pager-view']).toMatch(/^8\./);
+
+    const pagerAndroidSrc = path.join(
+      repoRoot,
+      'node_modules',
+      'react-native-pager-view',
+      'android',
+      'src',
+      'main',
+      'java',
+      'com',
+      'reactnativepagerview',
+    );
+    const nestedHostPath = path.join(pagerAndroidSrc, 'NestedScrollableHost.kt');
+    expect(fs.existsSync(nestedHostPath)).toBe(true);
+    expect(fs.readFileSync(nestedHostPath, 'utf8')).toContain(
+      'NativeGestureUtil.notifyNativeGestureStarted',
+    );
+    expect(fs.existsSync(path.join(pagerAndroidSrc, 'ComposePagerView.kt'))).toBe(
+      false,
+    );
+
+    const rankingListJs = fs.readFileSync(
+      path.join(repoRoot, 'src', 'screens', 'Ranking', 'RankingHorizontalList.js'),
+      'utf8',
+    );
+    expect(rankingListJs).toContain('decelerationRate="fast"');
+  });
 });
