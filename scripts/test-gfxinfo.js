@@ -33,4 +33,29 @@ for (const bad of ['Janky frames: 0', capture.slice(0, -marker.length),
   assert.strictEqual(run(bad).status, 1);
 }
 assert.strictEqual(run(capture, '0').status, 1);
+
+const utf8Bom = Buffer.concat([
+  Buffer.from([0xef, 0xbb, 0xbf]),
+  Buffer.from(series.join('\n'), 'utf8'),
+]);
+assert.strictEqual(JSON.parse(run(utf8Bom).stdout).p95_ms, 19);
+
+const utf16LeBom = Buffer.concat([
+  Buffer.from([0xff, 0xfe]),
+  Buffer.from(capture, 'utf16le'),
+]);
+assert.deepStrictEqual(JSON.parse(run(utf16LeBom).stdout), {
+  profile_blocks: 2, refresh_hz: 100, frames: 3, excluded_flagged: 1,
+  excluded_invalid: 3, over_budget_frames: 1, p95_ms: 10.000001,
+});
+
+const utf16BeBody = Buffer.from(capture, 'utf16le');
+utf16BeBody.swap16();
+const utf16BeBom = Buffer.concat([Buffer.from([0xfe, 0xff]), utf16BeBody]);
+assert.deepStrictEqual(JSON.parse(run(utf16BeBom).stdout), {
+  profile_blocks: 2, refresh_hz: 100, frames: 3, excluded_flagged: 1,
+  excluded_invalid: 3, over_budget_frames: 1, p95_ms: 10.000001,
+});
+
+assert.strictEqual(run(Buffer.from([0xff, 0xfe, 0x30])).status, 1);
 console.log('gfxinfo CLI checks passed (synthetic input)');
