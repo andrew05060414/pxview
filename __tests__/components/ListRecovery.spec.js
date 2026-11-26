@@ -1,5 +1,5 @@
 import React from 'react';
-import renderer from 'react-test-renderer';
+import renderer, { act } from 'react-test-renderer';
 import { FlatList } from 'react-native';
 
 jest.mock('react-native-paper', () => ({
@@ -29,13 +29,16 @@ const listProps = {
 describe('failed list recovery', () => {
   it('keeps illustration lists pull-to-refreshable after a failed load', () => {
     const onRefresh = jest.fn();
-    const tree = renderer.create(
-      <IllustList
-        {...listProps}
-        data={failedListData}
-        onRefresh={onRefresh}
-      />,
-    );
+    let tree;
+    act(() => {
+      tree = renderer.create(
+        <IllustList
+          {...listProps}
+          data={failedListData}
+          onRefresh={onRefresh}
+        />,
+      );
+    });
 
     const list = tree.root.findByType(FlatList);
     expect(list.props.data).toEqual([]);
@@ -44,9 +47,12 @@ describe('failed list recovery', () => {
 
   it('keeps novel lists pull-to-refreshable after a failed load', () => {
     const onRefresh = jest.fn();
-    const tree = renderer.create(
-      <NovelList {...listProps} data={failedListData} onRefresh={onRefresh} />,
-    );
+    let tree;
+    act(() => {
+      tree = renderer.create(
+        <NovelList {...listProps} data={failedListData} onRefresh={onRefresh} />,
+      );
+    });
 
     const list = tree.root.findByType(FlatList);
     expect(list.props.data).toEqual([]);

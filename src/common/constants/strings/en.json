@@ -323,5 +323,12 @@
   "collectionRulesTitle": "Smart Rules",
   "collectionTasteTitle": "AI Taste & Aesthetic Profile",
   "collectionTasteGenerate": "Generate Taste Summary",
-  "collectionTasteGenerating": "Analyzing aesthetic preferences..."
+  "collectionTasteGenerating": "Analyzing aesthetic preferences...",
+  "backupRestoreFromFile": "Restore from Backup File",
+  "backupRestoreFromFileDescription": "Choose a backup.json file from system storage",
+  "backupChooseFile": "Choose File",
+  "backupError": "Backup operation failed, please try again",
+  "backupInvalidFile": "Invalid backup file format",
+  "collectionExportError": "Failed to export bookmarks",
+  "sessionExpiredRelogin": "Session expired, please log in again"
 }

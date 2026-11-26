@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, InteractionManager, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
 import UserList from '../components/UserList';
 import { connectLocalization } from '../components/Localization';
@@ -23,9 +23,7 @@ class SearchUsersResult extends Component {
       word,
     } = this.props;
     clearSearchUsers(navigationStateKey);
-    InteractionManager.runAfterInteractions(() => {
-      fetchSearchUsers(navigationStateKey, word);
-    });
+    fetchSearchUsers(navigationStateKey, word);
   }
 
   componentDidUpdate(prevProps) {

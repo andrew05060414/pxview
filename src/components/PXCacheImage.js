@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, Image, InteractionManager } from 'react-native';
+import { View, Image } from 'react-native';
 import { globalStyleVariables } from '../styles';
 
 class PXCacheImage extends Component {
@@ -17,23 +17,23 @@ class PXCacheImage extends Component {
   componentDidMount() {
     const { uri, onFoundImageSize } = this.props;
     this.mounted = true;
-    InteractionManager.runAfterInteractions(() => {
-      Image.getSizeWithHeaders(
-        uri,
-        {
-          referer: 'http://www.pixiv.net',
-        },
-        (width, height) => {
-          if (this.mounted) {
-            this.setState({
-              width,
-              height,
-            });
+    Image.getSizeWithHeaders(
+      uri,
+      {
+        referer: 'https://www.pixiv.net',
+      },
+      (width, height) => {
+        if (this.mounted) {
+          this.setState({
+            width,
+            height,
+          });
+          if (onFoundImageSize) {
             onFoundImageSize(width, height, uri);
           }
-        },
-      );
-    });
+        }
+      },
+    );
   }
 
   componentWillUnmount() {
@@ -57,7 +57,7 @@ class PXCacheImage extends Component {
           source={{
             uri,
             headers: {
-              referer: 'http://www.pixiv.net',
+              referer: 'https://www.pixiv.net',
             },
           }}
           style={[

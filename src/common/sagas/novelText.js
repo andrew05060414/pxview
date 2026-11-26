@@ -34,6 +34,17 @@ const extractUploadedImageIdsFromText = (text) => {
   return Array.from(uploadedImageIds);
 };
 
+const hasMissingUploadedImageMetadata = (text, embeddedImages) => {
+  const uploadedImageIds = extractUploadedImageIdsFromText(text);
+  return (
+    uploadedImageIds.length > 0 &&
+    uploadedImageIds.some(
+      (uploadedImageId) =>
+        !hasEmbeddedImageForId(embeddedImages, uploadedImageId),
+    )
+  );
+};
+
 const mergeImageCollection = (target, collection) => {
   if (!collection) {
     return target;
@@ -90,6 +101,7 @@ export function* handleFetchNovelText(action) {
     let ajaxText = '';
     let ajaxEmbeddedImages = {};
     let ajaxFallbackReason = null;
+    let ajaxDebugInfo = null;
 
     const ajaxUrl = `https://www.pixiv.net/ajax/novel/${novelId}`;
     const ajaxOptions = {
@@ -130,22 +142,27 @@ export function* handleFetchNovelText(action) {
             .slice(0, 8)
             .join('|')}`,
         };
-        const hasMissingUploadedImageMetadata =
-          uploadedImageIds.length > 0 &&
-          uploadedImageIds.some(
-            (uploadedImageId) =>
-              !hasEmbeddedImageForId(embeddedImages, uploadedImageId),
-          );
+        const missingUploadedImageMetadata = hasMissingUploadedImageMetadata(
+          text,
+          embeddedImages,
+        );
 
-        if (hasText && !hasMissingUploadedImageMetadata) {
+        if (hasText && !missingUploadedImageMetadata) {
           yield put(
-            fetchNovelTextSuccess(text, novelId, embeddedImages, debugInfo),
+            fetchNovelTextSuccess(
+              text,
+              novelId,
+              embeddedImages,
+              debugInfo,
+              false,
+            ),
           );
           return;
         }
 
         ajaxText = text;
         ajaxEmbeddedImages = embeddedImages;
+        ajaxDebugInfo = debugInfo;
         ajaxFallbackReason = !hasText
           ? 'missing text in ajax response'
           : 'missing uploaded image metadata';
@@ -155,9 +172,43 @@ export function* handleFetchNovelText(action) {
       // Fall through to the legacy webview endpoint for older or restricted flows.
     }
 
-    const rawResponse = yield apply(pixiv, pixiv.novelWebview, [novelId, true]);
-    const response = extractNovelWebviewData(rawResponse, novelId) || {};
-    const debugInfo = buildNovelWebviewDebugInfo(rawResponse, response);
+    let rawResponse;
+    let response = {};
+    let debugInfo;
+    try {
+      rawResponse = yield apply(pixiv, pixiv.novelWebview, [novelId, true]);
+      response = extractNovelWebviewData(rawResponse, novelId) || {};
+      debugInfo = buildNovelWebviewDebugInfo(rawResponse, response);
+    } catch (webviewError) {
+      const hasAjaxText =
+        typeof ajaxText === 'string' && ajaxText.trim().length > 0;
+      if (hasAjaxText) {
+        const partialDebugInfo = {
+          ...(ajaxDebugInfo || { source: 'ajax' }),
+          ajaxFallback: {
+            reason: ajaxFallbackReason,
+            webviewError: String(webviewError),
+          },
+          summary: `${ajaxDebugInfo?.summary || 'source=ajax'} ajaxFallback=${ajaxFallbackReason} webviewFailed=true`,
+        };
+        const ajaxImagesIncomplete = hasMissingUploadedImageMetadata(
+          ajaxText,
+          ajaxEmbeddedImages,
+        );
+        yield put(
+          fetchNovelTextSuccess(
+            ajaxText,
+            novelId,
+            ajaxEmbeddedImages,
+            partialDebugInfo,
+            ajaxImagesIncomplete,
+          ),
+        );
+        return;
+      }
+      throw webviewError;
+    }
+
     const text = (response && (response.text || response.content)) || '';
     const embeddedImagesFromResponse = extractEmbeddedImages(response);
     const uploadedImageCandidates = extractUploadedImageCandidatesFromHtml(
@@ -190,12 +241,17 @@ export function* handleFetchNovelText(action) {
           summary: `${debugInfo.summary} ajaxFallback=${ajaxFallbackReason}`,
         }
       : debugInfo;
+    const finalImagesIncomplete = hasMissingUploadedImageMetadata(
+      finalText,
+      embeddedImages,
+    );
     yield put(
       fetchNovelTextSuccess(
         finalText,
         novelId,
         embeddedImages,
         finalDebugInfo,
+        finalImagesIncomplete,
       ),
     );
   } catch (err) {

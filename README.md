@@ -44,30 +44,27 @@ PxView also know as PxView R is an unofficial Pixiv app client for Android and i
 
 ## Project Status (this fork)
 
-This fork is maintained on a **frozen legacy toolchain**: React Native 0.63.5, Node 14, JDK 11, AGP 3.5.3, compileSdk/targetSdk 29. It builds and runs, but it cannot currently be submitted to Google Play (targetSdk 36 required since 2026-08-31) or the App Store (Xcode 26 / iOS 26 SDK required since 2026-04-28). Distribution is via APKs attached to GitHub Releases.
+As of **v6.0.0**, this fork runs on the modern **React Native 0.87.1 New Architecture** toolchain (React 19.2.3, Hermes, Node 24, JDK 21, AGP 8/Gradle 9.4, Android `compileSdk 37` / `targetSdk 36` with Edge-to-Edge, iOS 15.5+ / Swift `AppDelegate` & `SceneDelegate` / CocoaPods static frameworks / Xcode 27.2).
 
-- Dependency upgrade assessment, effort estimates, upgrade-vs-rewrite analysis and per-store publishing workload: [`docs/2026-09-29-dependency-upgrade-assessment-zh.md`](./docs/2026-09-29-dependency-upgrade-assessment-zh.md)
-- Day-to-day debug / build / APK workflow on the current toolchain: [`docs/2026-05-17-pxview-debug-build-workflow-zh.md`](./docs/2026-05-17-pxview-debug-build-workflow-zh.md)
-- Repo build scripts and known pitfalls: [`scripts/`](./scripts) and [`.claude/skills/pxview-build/SKILL.md`](./.claude/skills/pxview-build/SKILL.md)
-
-Do not bump `react-native`, Gradle/AGP/JDK, or Node in feature branches — see the assessment for the planned migration.
+- Dependency upgrade assessment (historical M6 context): [`docs/2026-09-29-dependency-upgrade-assessment-zh.md`](./docs/2026-09-29-dependency-upgrade-assessment-zh.md)
+- Repo build scripts: [`scripts/`](./scripts)
+- CI workflows: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) (Jest + Android Release APK + iOS Simulator) and [`.github/workflows/android-release.yml`](./.github/workflows/android-release.yml)
 
 ## Getting Started
 
-Toolchain requirements (current, pinned): **Node 14.21.3**, **JDK 11**, Android SDK with platform 29 (no NDK needed), CocoaPods for iOS. The helper scripts under `scripts/` locate these for you (`use-node14.*`, `use-android-jdk11.*`).
+Toolchain requirements: **Node 24** (`>= 22.11.0`), **JDK 21**, Android SDK (`compileSdk 37`, `targetSdk 36`, `buildTools 37.0.0`, `NDK 27.1.12297006`), and **Xcode 26+ / CocoaPods 1.17+** for iOS.
 
 1. `$ git clone <this repository>`
-2. `$ npm ci --legacy-peer-deps` (RN 0.63-era packages declare stale peer ranges; `postinstall` runs `jetify` for pre-AndroidX libraries)
-3. `$ npm run pod-install` (iOS only)
-4. Set up Firebase account on [Firebase](https://console.firebase.google.com/). 
-	- Create a new project, and enable Google Analytics
-	- [Android] Add android app on firebase console, download `google-services.json` and move to `/android/app` folder
-	- [iOS] Add iOS app on firebase console, download `GoogleService-Info.plist` and move to `/ios` folder
-	- (Optional) In app feedback feature: Create Realtime Database from firebase console and enable rules to write to `feedback`
-	- For local/CI builds without a Firebase project, a placeholder `google-services.json` with the matching package name is enough (see `.github/workflows/android-release.yml`); iOS starts in offline mode if the plist is absent.
-5.	Run the app
-	- [Android] `$ npm run android`, or `sh ./scripts/build-android-debug.sh` for a pre-bundled debug APK
-	- [iOS] `$ npm run ios`, or `sh ./scripts/build-ios-debug.sh`
+2. `$ npm ci` (strict peer resolution, zero `--legacy-peer-deps`, zero `jetify`)
+3. `$ cd ios && pod install` (iOS only)
+4. (Optional) Configure Firebase on [Firebase](https://console.firebase.google.com/):
+	- [Android] Place `google-services.json` at `android/app/google-services.json` (gitignored)
+	- [iOS] Place `GoogleService-Info.plist` at `ios/PxViewR/GoogleService-Info.plist` (gitignored)
+	- Without a real Firebase config (or with placeholder values), both Android/iOS native initialization and JS helpers silently disable Firebase collection with zero errors or background retries.
+5. Run the app or build locally:
+	- [Tests] `$ npm test` or `$ npm run test:gate`
+	- [Android] `$ npm run android`, or `scripts/build-android-release.ps1` / `scripts/build-android-release.sh`
+	- [iOS] `$ npm run ios`, or `sh ./scripts/build-ios-release.sh`
 
 ## Application Architecture
 - [redux](https://github.com/reactjs/redux) is a predictable state container for JavaScript apps, 

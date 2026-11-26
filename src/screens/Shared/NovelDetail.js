@@ -3,17 +3,15 @@ import {
   StyleSheet,
   Text,
   View,
-  InteractionManager,
   Platform,
   LayoutAnimation,
   UIManager,
   DeviceEventEmitter,
 } from 'react-native';
 import { connect } from 'react-redux';
-import { withTheme } from 'react-native-paper';
-import analytics from '@react-native-firebase/analytics';
+import { withTheme, FAB } from 'react-native-paper';
 import Share from 'react-native-share';
-import ActionButton from 'react-native-action-button';
+import { logEvent } from '../../common/helpers/firebase';
 import { AndroidBackHandler } from 'react-navigation-backhandler';
 import enhanceSaveImage from '../../components/HOC/enhanceSaveImage';
 import NovelDetailContent from '../../components/NovelDetailContent';
@@ -73,6 +71,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  fab: {
+    position: 'absolute',
+    right: 30,
+    bottom: 30,
+    backgroundColor: '#fff',
+  },
 });
 
 class NovelDetail extends Component {
@@ -100,27 +104,25 @@ class NovelDetail extends Component {
       addBrowsingHistoryNovels,
       fetchNovelDetail,
     } = this.props;
-    InteractionManager.runAfterInteractions(() => {
-      if (this.detailView) {
-        this.setState({ mounting: false });
-      }
-      if (isFromDeepLink) {
-        fetchNovelDetail(novelId);
-        analytics().logEvent(`Screen_${SCREENS.NovelDetail}`, {
-          id: novelId.toString(),
-          fromDeepLink: true,
-        });
-      } else if (item) {
-        this.masterListUpdateListener = DeviceEventEmitter.addListener(
-          'masterListUpdate',
-          this.handleOnMasterListUpdate,
-        );
-        analytics().logEvent(`Screen_${SCREENS.NovelDetail}`, {
-          id: item.id.toString(),
-        });
-        addBrowsingHistoryNovels(item.id);
-      }
-    });
+    if (this.detailView) {
+      this.setState({ mounting: false });
+    }
+    if (isFromDeepLink) {
+      fetchNovelDetail(novelId);
+      logEvent(`Screen_${SCREENS.NovelDetail}`, {
+        id: novelId.toString(),
+        fromDeepLink: true,
+      });
+    } else if (item) {
+      this.masterListUpdateListener = DeviceEventEmitter.addListener(
+        'masterListUpdate',
+        this.handleOnMasterListUpdate,
+      );
+      logEvent(`Screen_${SCREENS.NovelDetail}`, {
+        id: item.id.toString(),
+      });
+      addBrowsingHistoryNovels(item.id);
+    }
   }
 
   componentDidUpdate(prevProps) {
@@ -192,12 +194,10 @@ class NovelDetail extends Component {
       setParams({
         index,
       });
-      InteractionManager.runAfterInteractions(() => {
-        addBrowsingHistoryNovels(items[index].id);
-        analytics().logEvent(`Screen_${SCREENS.NovelDetail}`, {
-          id: items[index].id.toString(),
-          fromSwipe: true,
-        });
+      addBrowsingHistoryNovels(items[index].id);
+      logEvent(`Screen_${SCREENS.NovelDetail}`, {
+        id: items[index].id.toString(),
+        fromSwipe: true,
       });
     }
   };
@@ -420,11 +420,6 @@ class NovelDetail extends Component {
     );
   }
 
-  renderBookmarkButtonIcon = () => {
-    const { item } = this.props;
-    return <BookmarkNovelButton item={item} />;
-  };
-
   render() {
     const { item, isMuteUser, i18n, navigation, route, theme } = this.props;
     const {
@@ -445,11 +440,16 @@ class NovelDetail extends Component {
         >
           {this.renderMainContent()}
           {isActionButtonVisible && item && (
-            <ActionButton
-              buttonColor="rgba(255,255,255,1)"
-              bgColor="red"
-              renderIcon={this.renderBookmarkButtonIcon}
-              fixNativeFeedbackRadius
+            <BookmarkNovelButton
+              item={item}
+              render={({ onPress, onLongPress, renderButton }) => (
+                <FAB
+                  style={styles.fab}
+                  icon={renderButton}
+                  onPress={onPress}
+                  onLongPress={onLongPress}
+                />
+              )}
             />
           )}
           <DetailInfoModal
@@ -522,11 +522,14 @@ export default withTheme(
               index,
               onListEndReached,
               parentListKey,
-            } = props.route.params;
-            const id = parseInt(novelIdFromQS || novelId, 0);
+            } = props.route?.params || {};
+            const rawId = novelIdFromQS ?? novelId;
+            const parsedId =
+              rawId != null && rawId !== '' ? parseInt(rawId, 10) : NaN;
+            const id = Number.isNaN(parsedId) ? undefined : parsedId;
             return {
               novelId: id || item?.id,
-              novelDetail: state.novelDetail[id], // get novelDetail from api if load from deep link
+              novelDetail: id ? state.novelDetail[id] : undefined, // get novelDetail from api if load from deep link
               item,
               isMuteUser,
               isFromDeepLink: !!id,

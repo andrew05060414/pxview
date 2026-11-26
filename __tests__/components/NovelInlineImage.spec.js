@@ -1,12 +1,12 @@
 import React from 'react';
 import renderer, { act } from 'react-test-renderer';
 
-const illustDetail = jest.fn();
+const mockIllustDetail = jest.fn();
 
 jest.mock('../../src/common/helpers/apiClient', () => ({
   __esModule: true,
   default: {
-    illustDetail: (...args) => illustDetail(...args),
+    illustDetail: (...args) => mockIllustDetail(...args),
   },
 }));
 
@@ -49,7 +49,7 @@ const createDeferred = () => {
 
 describe('NovelInlineImage', () => {
   beforeEach(() => {
-    illustDetail.mockReset();
+    mockIllustDetail.mockReset();
     clearNovelInlineImageCache();
   });
 
@@ -59,9 +59,12 @@ describe('NovelInlineImage', () => {
 
   it('shows loading while the image request is in flight', async () => {
     const deferred = createDeferred();
-    illustDetail.mockReturnValueOnce(deferred.promise);
+    mockIllustDetail.mockReturnValueOnce(deferred.promise);
 
-    const tree = renderer.create(<NovelInlineImage illustId="24095674" />);
+    let tree;
+    act(() => {
+      tree = renderer.create(<NovelInlineImage illustId="24095674" />);
+    });
 
     expect(tree.toJSON().type).toBe('Text');
     expect(JSON.stringify(tree.toJSON())).toContain('Loading image...');
@@ -73,7 +76,9 @@ describe('NovelInlineImage', () => {
       ).props.children,
     ).toBe('Loading image...');
 
-    tree.unmount();
+    act(() => {
+      tree.unmount();
+    });
     deferred.resolve({ illust: {} });
     await act(async () => {
       await deferred.promise;
@@ -83,7 +88,7 @@ describe('NovelInlineImage', () => {
 
   it('shares an in-flight illust detail request for the same image id', async () => {
     const deferred = createDeferred();
-    illustDetail.mockReturnValueOnce(deferred.promise);
+    mockIllustDetail.mockReturnValueOnce(deferred.promise);
 
     let firstTree;
     let secondTree;
@@ -93,7 +98,7 @@ describe('NovelInlineImage', () => {
       await flushPromises();
     });
 
-    expect(illustDetail).toHaveBeenCalledTimes(1);
+    expect(mockIllustDetail).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       deferred.resolve({
@@ -118,7 +123,7 @@ describe('NovelInlineImage', () => {
   });
 
   it('falls back when the image request resolves without a URL', async () => {
-    illustDetail.mockResolvedValueOnce({ illust: {} });
+    mockIllustDetail.mockResolvedValueOnce({ illust: {} });
 
     let tree;
     await act(async () => {
@@ -138,7 +143,7 @@ describe('NovelInlineImage', () => {
   });
 
   it('falls back when the image request rejects', async () => {
-    illustDetail.mockRejectedValueOnce(new Error('request failed'));
+    mockIllustDetail.mockRejectedValueOnce(new Error('request failed'));
 
     let tree;
     await act(async () => {
@@ -158,7 +163,7 @@ describe('NovelInlineImage', () => {
   });
 
   it('forwards stable props to PXImage and falls back if the rendered image reports an error', async () => {
-    illustDetail.mockResolvedValueOnce({
+    mockIllustDetail.mockResolvedValueOnce({
       illust: {
         width: 120,
         height: 60,
@@ -205,7 +210,7 @@ describe('NovelInlineImage', () => {
   });
 
   it('renders loaded images without a block wrapper and preserves the accessibility label', async () => {
-    illustDetail.mockResolvedValueOnce({
+    mockIllustDetail.mockResolvedValueOnce({
       illust: {
         width: 100,
         height: 100,
@@ -229,7 +234,7 @@ describe('NovelInlineImage', () => {
     expect(imageNode.props.uri).toBe('https://example.com/image.jpg');
   });
 
-  it('renders uploaded novel images from embedded image metadata without calling illustDetail', async () => {
+  it('renders uploaded novel images from embedded image metadata without calling mockIllustDetail', async () => {
     let tree;
 
     await act(async () => {
@@ -258,7 +263,7 @@ describe('NovelInlineImage', () => {
     expect(imageNode.props.uri).toBe(
       'https://example.com/uploaded-original.jpg',
     );
-    expect(illustDetail).not.toHaveBeenCalled();
+    expect(mockIllustDetail).not.toHaveBeenCalled();
   });
 
   it('renders uploaded novel images when Pixiv only provides sized textEmbeddedImages urls', async () => {
@@ -291,7 +296,7 @@ describe('NovelInlineImage', () => {
     );
 
     expect(imageNode.props.uri).toBe('https://example.com/uploaded-1200.jpg');
-    expect(illustDetail).not.toHaveBeenCalled();
+    expect(mockIllustDetail).not.toHaveBeenCalled();
   });
 
   it('renders uploaded novel images when metadata is only discoverable by matching embedded image values', async () => {
@@ -324,7 +329,7 @@ describe('NovelInlineImage', () => {
     expect(imageNode.props.uri).toBe(
       'https://example.com/uploaded-by-value.jpg',
     );
-    expect(illustDetail).not.toHaveBeenCalled();
+    expect(mockIllustDetail).not.toHaveBeenCalled();
   });
 
   it('renders uploaded novel images when embedded metadata uses illustId instead of id', async () => {
@@ -357,7 +362,7 @@ describe('NovelInlineImage', () => {
     expect(imageNode.props.uri).toBe(
       'https://example.com/uploaded-by-illust-id.jpg',
     );
-    expect(illustDetail).not.toHaveBeenCalled();
+    expect(mockIllustDetail).not.toHaveBeenCalled();
   });
 
   it('renders uploaded novel images when glossary-style metadata uses imageId and coverUrl', async () => {
@@ -390,7 +395,7 @@ describe('NovelInlineImage', () => {
     expect(imageNode.props.uri).toBe(
       'https://example.com/uploaded-by-glossary-cover-url.jpg',
     );
-    expect(illustDetail).not.toHaveBeenCalled();
+    expect(mockIllustDetail).not.toHaveBeenCalled();
   });
 
   it('shows when uploadedimage metadata is completely missing', async () => {
@@ -417,7 +422,7 @@ describe('NovelInlineImage', () => {
   });
 
   it('uses the requested pixivimage page when resolving multi-page illustrations', async () => {
-    illustDetail.mockResolvedValueOnce({
+    mockIllustDetail.mockResolvedValueOnce({
       illust: {
         meta_pages: [
           { image_urls: { original: 'https://example.com/page-1.jpg' } },
@@ -450,14 +455,22 @@ describe('NovelInlineImage', () => {
   it('ignores stale responses after the illust id changes', async () => {
     const first = createDeferred();
     const second = createDeferred();
-    illustDetail
+    mockIllustDetail
       .mockReturnValueOnce(first.promise)
       .mockReturnValueOnce(second.promise);
 
-    const tree = renderer.create(<NovelInlineImage illustId="24095674" />);
+    let tree;
+    await act(async () => {
+      tree = renderer.create(<NovelInlineImage illustId="24095674" />);
+      await flushPromises();
+    });
 
     await act(async () => {
       tree.update(<NovelInlineImage illustId="24095675" />);
+      await flushPromises();
+    });
+
+    await act(async () => {
       second.resolve({
         illust: {
           width: 100,
@@ -488,11 +501,19 @@ describe('NovelInlineImage', () => {
   it('ignores in-flight responses after unmount', async () => {
     const deferred = createDeferred();
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
-    illustDetail.mockReturnValueOnce(deferred.promise);
+    mockIllustDetail.mockReturnValueOnce(deferred.promise);
 
-    const tree = renderer.create(<NovelInlineImage illustId="24095674" />);
+    let tree;
+    await act(async () => {
+      tree = renderer.create(<NovelInlineImage illustId="24095674" />);
+      await flushPromises();
+    });
 
-    tree.unmount();
+    act(() => {
+      act(() => {
+      tree.unmount();
+    });
+    });
 
     await act(async () => {
       deferred.resolve({
@@ -536,14 +557,13 @@ describe('NovelInlineImage', () => {
       'novel-inline-image-24115550',
       'Image',
     );
-
     expect(imageNode.props.uri).toBe('https://example.com/uploaded-original.png');
     expect(imageNode.props.resizeMethod).toBe('scale');
-    expect(illustDetail).not.toHaveBeenCalled();
+    expect(mockIllustDetail).not.toHaveBeenCalled();
   });
 
   it('prefers original_image_url over large for sharp pixivimage illustrations', async () => {
-    illustDetail.mockResolvedValueOnce({
+    mockIllustDetail.mockResolvedValueOnce({
       illust: {
         width: 1000,
         height: 1500,
@@ -574,7 +594,7 @@ describe('NovelInlineImage', () => {
   });
 
   it('reuses cached illustDetail responses across remounts in virtualized lists', async () => {
-    illustDetail.mockResolvedValueOnce({
+    mockIllustDetail.mockResolvedValueOnce({
       illust: {
         width: 800,
         height: 400,
@@ -595,7 +615,7 @@ describe('NovelInlineImage', () => {
       await flushPromises();
     });
 
-    expect(illustDetail).toHaveBeenCalledTimes(1);
+    expect(mockIllustDetail).toHaveBeenCalledTimes(1);
     const imageNode = findHostNodeByAccessibilityLabel(
       secondTree.root,
       'novel-inline-image-24095674',
@@ -655,7 +675,11 @@ describe('NovelInlineImage', () => {
     expect(imageNodeAfterLoad.props.style).toEqual(
       expect.arrayContaining([expect.objectContaining({ aspectRatio: 0.5 })]),
     );
-    tree.unmount();
+    act(() => {
+      act(() => {
+      tree.unmount();
+    });
+    });
 
     // Remount (as happens in FlatList virtualization): should use cached aspect ratio immediately
     let remounted;
@@ -676,7 +700,7 @@ describe('NovelInlineImage', () => {
     expect(remountedImage.props.style).toEqual(
       expect.arrayContaining([expect.objectContaining({ aspectRatio: 0.5 })]),
     );
-    expect(illustDetail).not.toHaveBeenCalled();
+    expect(mockIllustDetail).not.toHaveBeenCalled();
     remounted.unmount();
   });
 
@@ -787,7 +811,7 @@ describe('NovelInlineImage', () => {
           'Text',
         ).props.children,
       ).toBe('Image unavailable (image request failed)');
-      expect(illustDetail).not.toHaveBeenCalled();
+      expect(mockIllustDetail).not.toHaveBeenCalled();
     },
   );
 
@@ -832,7 +856,7 @@ describe('NovelInlineImage', () => {
   it('does not lock multi-page pixivimage page 2+ to page 1 illust dimensions and caches actual onLoad ratio', async () => {
     const page1Url = 'https://example.com/multi-page-1.jpg';
     const page2Url = 'https://example.com/multi-page-2.jpg';
-    illustDetail.mockResolvedValueOnce({
+    mockIllustDetail.mockResolvedValueOnce({
       illust: {
         width: 1536,
         height: 1024,
@@ -899,7 +923,9 @@ describe('NovelInlineImage', () => {
         }),
       ]),
     );
-    tree.unmount();
+    act(() => {
+      tree.unmount();
+    });
 
     let remounted;
     await act(async () => {
@@ -928,13 +954,13 @@ describe('NovelInlineImage', () => {
         }),
       ]),
     );
-    expect(illustDetail).toHaveBeenCalledTimes(1);
+    expect(mockIllustDetail).toHaveBeenCalledTimes(1);
     remounted.unmount();
   });
 
   it('corrects aspect ratio from onLoad even when metadata ratio differs and ignores mismatched source uri', async () => {
     const targetUrl = 'https://example.com/mismatch-check.jpg';
-    illustDetail.mockResolvedValueOnce({
+    mockIllustDetail.mockResolvedValueOnce({
       illust: {
         width: 1500,
         height: 1000,
@@ -1013,12 +1039,14 @@ describe('NovelInlineImage', () => {
       ]),
     );
 
-    tree.unmount();
+    act(() => {
+      tree.unmount();
+    });
   });
 
   it('does not lock pixivimage without metadata dimensions to 1:1 and resolves ratio on onLoad', async () => {
     const targetUrl = 'https://example.com/no-dims.jpg';
-    illustDetail.mockResolvedValueOnce({
+    mockIllustDetail.mockResolvedValueOnce({
       illust: {
         image_urls: { large: targetUrl },
       },
@@ -1150,7 +1178,7 @@ describe('NovelInlineImage', () => {
   });
 
   it('retries illustDetail request when user taps failed placeholder', async () => {
-    illustDetail
+    mockIllustDetail
       .mockRejectedValueOnce(new Error('network blip'))
       .mockResolvedValueOnce({
         illust: {
@@ -1188,7 +1216,7 @@ describe('NovelInlineImage', () => {
       'Image',
     );
     expect(imageNode.props.uri).toBe('https://example.com/recovered.jpg');
-    expect(illustDetail).toHaveBeenCalledTimes(2);
+    expect(mockIllustDetail).toHaveBeenCalledTimes(2);
   });
 
   it('ignores onLoad and onError callbacks after unmount without warnings', async () => {
@@ -1217,7 +1245,9 @@ describe('NovelInlineImage', () => {
       'Image',
     );
     const { onLoad, onError } = imageNode.props;
-    tree.unmount();
+    act(() => {
+      tree.unmount();
+    });
 
     act(() => {
       onLoad({
@@ -1427,7 +1457,9 @@ describe('NovelInlineImage', () => {
     ).toHaveLength(0);
     expect(tree.toJSON().type).toBe('Image');
     expect(tree.toJSON().props.uri).toBe(origUrl);
-    tree.unmount();
+    act(() => {
+      tree.unmount();
+    });
 
     // Remount -> already in loadedImageUrlsCache, skips preview and spinner immediately
     let remounted;
@@ -1513,7 +1545,7 @@ describe('NovelInlineImage', () => {
   });
 
   it('prefetchIllustDetail warms cache safely and swallows rejections', async () => {
-    illustDetail
+    mockIllustDetail
       .mockRejectedValueOnce(new Error('network error'))
       .mockResolvedValueOnce({
         illust: {
@@ -1539,7 +1571,7 @@ describe('NovelInlineImage', () => {
       );
     });
 
-    expect(illustDetail).toHaveBeenCalledTimes(2);
+    expect(mockIllustDetail).toHaveBeenCalledTimes(2);
     expect(
       findHostNodeByAccessibilityLabel(
         tree.root,

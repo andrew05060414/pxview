@@ -1,4 +1,4 @@
-import entities from 'entities';
+import { decodeHTML } from 'entities';
 
 const safeJsonParse = (value) => {
   if (!value || typeof value !== 'string') {
@@ -89,7 +89,7 @@ const extractMetaTagContent = (rawHtml) => {
     metaTag.match(/content=(["'])([\s\S]*)\1\s*\/?>$/i) ||
     metaTag.match(/content=(["'])([\s\S]*?)\1/i);
 
-  return contentMatch ? entities.decodeHTML(contentMatch[2]) : null;
+  return contentMatch ? decodeHTML(contentMatch[2]) : null;
 };
 
 const extractNovelFromMetaPreloadData = (rawHtml, novelId) => {
@@ -109,7 +109,7 @@ const extractNovelFromNextData = (rawHtml, novelId) => {
     return null;
   }
 
-  const nextData = safeJsonParse(entities.decodeHTML(nextDataMatch[2]));
+  const nextData = safeJsonParse(decodeHTML(nextDataMatch[2]));
   if (!nextData) {
     return null;
   }

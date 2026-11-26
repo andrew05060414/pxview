@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, InteractionManager, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
 import { Text } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -39,10 +39,8 @@ const styles = StyleSheet.create({
 class NovelRankingPreview extends Component {
   componentDidMount() {
     const { rankingMode, options, fetchRanking, clearRanking } = this.props;
-    InteractionManager.runAfterInteractions(() => {
-      clearRanking(rankingMode);
-      fetchRanking(rankingMode, options);
-    });
+    clearRanking(rankingMode);
+    fetchRanking(rankingMode, options);
   }
 
   componentDidUpdate(prevProps) {

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, InteractionManager } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from 'react-native-paper';
@@ -45,11 +45,9 @@ const SearchUsersAutoCompleteResult = (props) => {
 
   useEffect(() => {
     dispatch(clearSearchUsersAutoComplete());
-    InteractionManager.runAfterInteractions(() => {
-      if (word && word.length > 1) {
-        dispatch(fetchSearchUsersAutoComplete(word));
-      }
-    });
+    if (word && word.length > 1) {
+      dispatch(fetchSearchUsersAutoComplete(word));
+    }
   }, [dispatch, word]);
 
   return (

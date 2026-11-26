@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, InteractionManager } from 'react-native';
+import { View } from 'react-native';
 import { connect } from 'react-redux';
 import { connectLocalization } from '../components/Localization';
 import NovelList from '../components/NovelList';
@@ -12,9 +12,7 @@ class SearchNovelsResult extends Component {
   componentDidMount() {
     const { clearSearchNovels, navigationStateKey, word, options } = this.props;
     clearSearchNovels(navigationStateKey);
-    InteractionManager.runAfterInteractions(() => {
-      this.search(word, options);
-    });
+    this.search(word, options);
   }
 
   componentDidUpdate(prevProps) {

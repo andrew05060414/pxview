@@ -253,6 +253,65 @@ describe('handleFetchNovelText', () => {
     expect(generator.next().done).toBe(true);
   });
 
+  test('preserves already-fetched ajax text when webview image fallback fails', () => {
+    const generator = handleFetchNovelText(action);
+    const ajaxUrl = `https://www.pixiv.net/ajax/novel/${novelId}`;
+    const ajaxOptions = {
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        Referer: `https://www.pixiv.net/novel/show.php?id=${novelId}`,
+        'User-Agent':
+          'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    };
+    const ajaxResponse = {
+      error: false,
+      body: {
+        id: novelId,
+        content: 'readable chapter body[uploadedimage:99999]',
+        textEmbeddedImages: {
+          11111: {
+            urls: { original: 'https://i.pximg.net/already-here.jpg' },
+          },
+        },
+      },
+    };
+
+    expect(generator.next().value).toEqual(
+      apply(pixiv, pixiv.requestUrl, [ajaxUrl, ajaxOptions]),
+    );
+    expect(generator.next(ajaxResponse).value).toEqual(
+      apply(pixiv, pixiv.novelWebview, [novelId, true]),
+    );
+    const effectAfterWebviewError = generator.throw(
+      new Error('webview timed out'),
+    ).value;
+    expect(effectAfterWebviewError).toEqual(
+      put({
+        type: 'PIXIV/NOVEL_TEXT_SUCCESS',
+        payload: expect.objectContaining({
+          novelId,
+          text: 'readable chapter body[uploadedimage:99999]',
+          embeddedImages: {
+            11111: {
+              urls: { original: 'https://i.pximg.net/already-here.jpg' },
+            },
+          },
+          embeddedImagesIncomplete: true,
+          debugInfo: expect.objectContaining({
+            ajaxFallback: expect.objectContaining({
+              reason: 'missing uploaded image metadata',
+            }),
+          }),
+          timestamp: expect.any(Number),
+        }),
+      }),
+    );
+    expect(generator.next().done).toBe(true);
+  });
+
   test('dispatches failure when both ajax and webview requests fail', () => {
     const generator = handleFetchNovelText(action);
     const ajaxUrl = `https://www.pixiv.net/ajax/novel/${novelId}`;

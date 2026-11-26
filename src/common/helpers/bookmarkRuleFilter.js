@@ -1,3 +1,5 @@
+import { getClassificationForItem } from './bookmarkItemKey';
+
 const itemValues = (items) =>
   Array.isArray(items) ? items : Object.values(items || {});
 
@@ -66,7 +68,7 @@ export const evaluateRule = (rule, item, classificationMap = {}) => {
 
   // Filter by AI category
   if (rule.category && rule.category !== 'all') {
-    const itemCat = classificationMap[String(item.id)];
+    const itemCat = getClassificationForItem(classificationMap, item);
     if (itemCat !== rule.category) {
       return false;
     }

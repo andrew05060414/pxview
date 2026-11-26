@@ -1,5 +1,4 @@
 import React, { Component } from 'react';
-import { InteractionManager } from 'react-native';
 import { connect } from 'react-redux';
 import NovelList from '../../components/NovelList';
 import * as userBookmarkNovelsActionCreators from '../../common/actions/userBookmarkNovels';
@@ -17,9 +16,7 @@ class UserBookmarkNovels extends Component {
     } = this.props;
     if (!userBookmarkNovels || !userBookmarkNovels.items || reload) {
       clearUserBookmarkNovels(userId);
-      InteractionManager.runAfterInteractions(() => {
-        fetchUserBookmarkNovels(userId, tag);
-      });
+      fetchUserBookmarkNovels(userId, tag);
     }
   }
 

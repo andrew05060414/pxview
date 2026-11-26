@@ -13,6 +13,7 @@ export default function auth(
     loaded: false,
     user: null,
     rehydrated: false,
+    needsTokenRefresh: false,
   },
   action,
 ) {
@@ -22,6 +23,7 @@ export default function auth(
         ...state,
         user: null,
         loaded: false,
+        needsTokenRefresh: false,
       };
     case AUTH_LOGIN.REQUEST:
     case AUTH_SIGNUP.REQUEST:
@@ -38,20 +40,28 @@ export default function auth(
         loaded: true,
         user: action.payload.user,
         timestamp: action.payload.timestamp,
+        needsTokenRefresh: false,
       };
     case AUTH_LOGIN.FAILURE:
     case AUTH_SIGNUP.FAILURE:
+      return {
+        ...state,
+        loading: false,
+        loaded: true,
+      };
     case AUTH_REFRESH_ACCESS_TOKEN.FAILURE:
       return {
         ...state,
         loading: false,
         loaded: true,
+        needsTokenRefresh: Boolean(state.user),
       };
     case REHYDRATE:
       return {
         ...state,
         ...(action.payload && action.payload.auth),
         rehydrated: false,
+        needsTokenRefresh: false,
       };
     case AUTH_REHYDRATE.SUCCESS:
       return {

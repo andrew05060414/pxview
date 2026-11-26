@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, InteractionManager } from 'react-native';
+import { View } from 'react-native';
 import { connect } from 'react-redux';
 import { connectLocalization } from '../components/Localization';
 import IllustList from '../components/IllustList';
@@ -17,9 +17,7 @@ class SearchIllustsResult extends Component {
       options,
     } = this.props;
     clearSearchIllusts(navigationStateKey);
-    InteractionManager.runAfterInteractions(() => {
-      this.search(word, options);
-    });
+    this.search(word, options);
   }
 
   componentDidUpdate(prevProps) {

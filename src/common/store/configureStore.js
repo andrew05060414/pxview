@@ -7,12 +7,14 @@ import {
   persistReducer,
   createTransform,
   createMigrate,
+  getStoredState,
 } from 'redux-persist';
 import autoMergeLevel2 from 'redux-persist/lib/stateReconciler/autoMergeLevel2';
 import getStoredStateMigrateV4 from 'redux-persist/lib/integration/getStoredStateMigrateV4';
-import applyAppStateListener from 'redux-enhancer-react-native-appstate';
+import applyAppStateListener from './appStateEnhancer';
 import FileSystemStorage from 'redux-persist-filesystem-storage';
-import AsyncStorage from '@react-native-community/async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import RNFetchBlob from 'react-native-blob-util';
 import rootReducer from '../reducers';
 import rootSaga from '../sagas';
 import getStoredStateMigrateToFileSystemStorage from './getStoredStateMigrateToFileSystemStorage';
@@ -141,27 +143,135 @@ const myTransform = createTransform(
   },
 );
 
-const clearV4PersistedContents = () =>
-  AsyncStorage.getAllKeys((err, keys) => {
-    if (!err && keys && keys.length) {
-      const keyPrefix = 'persist:root';
-      const v5PersistKeys = keys.filter((key) => key.indexOf(keyPrefix) === 0);
-      if (v5PersistKeys.length) {
-        AsyncStorage.multiRemove(v5PersistKeys, () => Promise.resolve());
-      } else {
-        const v4KeyPrefix = 'reduxPersist:';
-        const v4PersistKeys = keys.filter(
-          (key) => key.indexOf(v4KeyPrefix) === 0,
-        );
-        if (v4PersistKeys.length) {
-          AsyncStorage.multiRemove(v4PersistKeys, () => Promise.resolve());
-        }
-      }
-    }
-    return Promise.resolve();
-  });
+const removeAsyncStorageKeys = async (storage, keys) => {
+  if (!keys || !keys.length) {
+    return;
+  }
+  if (typeof storage.removeMany === 'function') {
+    await storage.removeMany(keys);
+    return;
+  }
+  if (typeof storage.multiRemove === 'function') {
+    await storage.multiRemove(keys);
+    return;
+  }
+  if (typeof storage.removeItem === 'function') {
+    await Promise.all(keys.map((key) => storage.removeItem(key)));
+  }
+};
 
-export default function configureStore() {
+const getAllLegacyKeys = async (storage) => {
+  if (!storage || typeof storage.getAllKeys !== 'function') {
+    return [];
+  }
+  const keys = await new Promise((resolve, reject) => {
+    let settled = false;
+    const done = (err, result) => {
+      if (settled) return;
+      settled = true;
+      if (err) reject(err);
+      else resolve(result || []);
+    };
+    const maybePromise =
+      storage.getAllKeys.length > 0
+        ? storage.getAllKeys(done)
+        : storage.getAllKeys();
+    if (maybePromise && typeof maybePromise.then === 'function') {
+      maybePromise.then(
+        (res) => done(null, res),
+        (err) => done(err),
+      );
+    } else if (storage.getAllKeys.length === 0) {
+      done(null, maybePromise);
+    }
+  });
+  return Array.isArray(keys) ? keys : [];
+};
+
+const findLegacyPersistedKeys = (keys) =>
+  keys.filter(
+    (key) =>
+      typeof key === 'string' &&
+      (key.indexOf('persist:root') === 0 || key.indexOf('reduxPersist:') === 0),
+  );
+
+const verifyPersistedRoot = async (
+  fileStorage,
+  persistConfig,
+  migrationResult,
+  expectedState,
+) => {
+  if (
+    !migrationResult ||
+    (migrationResult.source !== 'filesystem' &&
+      migrationResult.source !== 'asyncstorage_v5' &&
+      migrationResult.source !== 'asyncstorage_v4')
+  ) {
+    return false;
+  }
+
+  const rawRoot = await fileStorage.getItem(`persist:${persistConfig.key}`);
+  if (typeof rawRoot !== 'string' || !rawRoot) {
+    return false;
+  }
+  const parsedRaw = JSON.parse(rawRoot);
+  if (!parsedRaw || typeof parsedRaw !== 'object' || !parsedRaw._persist) {
+    return false;
+  }
+
+  const readBackState = await getStoredState({
+    key: persistConfig.key,
+    storage: fileStorage,
+    transforms: persistConfig.transforms,
+    debug: persistConfig.debug,
+  });
+  if (!readBackState || typeof readBackState !== 'object' || !readBackState._persist) {
+    return false;
+  }
+
+  const whitelistSet = new Set(persistConfig.whitelist || []);
+  const sourceState = migrationResult.state || {};
+  const keysToVerify = Object.keys(sourceState).filter(
+    (k) => k !== '_persist' && whitelistSet.has(k) && sourceState[k] !== undefined,
+  );
+  if (keysToVerify.length === 0) {
+    return false;
+  }
+
+  for (let i = 0; i < keysToVerify.length; i += 1) {
+    const key = keysToVerify[i];
+    if (expectedState && expectedState[key] === undefined) {
+      continue;
+    }
+    if (!Object.prototype.hasOwnProperty.call(parsedRaw, key)) {
+      return false;
+    }
+    if (readBackState[key] === undefined) {
+      return false;
+    }
+    if (key === 'auth') {
+      const expectedUid = expectedState?.auth?.user?.id ?? null;
+      const readUid = readBackState.auth?.user?.id ?? null;
+      if (expectedUid !== readUid) {
+        return false;
+      }
+    } else if (
+      expectedState &&
+      JSON.stringify(readBackState[key]) !== JSON.stringify(expectedState[key])
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+export default function configureStore(options = {}) {
+  const fileStorage = options.fileStorage || FileSystemStorage;
+  const legacyStorage = options.legacyStorage || AsyncStorage;
+  const fileSystem = options.fileSystem || RNFetchBlob.fs;
+  const runSagas = options.runSagas !== false;
+
   let enhancer;
   const sagaMiddleware = createSagaMiddleware();
   const networkMiddleware = createNetworkMiddleware();
@@ -190,13 +300,14 @@ export default function configureStore() {
       'muteTags',
       'muteUsers',
       'saveImageSettings',
+      'initialScreenSettings',
       'novelSettings',
       'novelRankingSettings',
       'entities',
       'auth',
       'i18n',
     ],
-    storage: AsyncStorage,
+    storage: legacyStorage,
     transforms: [myTransform],
   };
 
@@ -221,7 +332,7 @@ export default function configureStore() {
       'readingSettings',
       'trendingSearchSettings',
     ],
-    storage: AsyncStorage,
+    storage: legacyStorage,
     transforms: [myTransform],
     getStoredState: getStoredStateMigrateV4(v4Config),
   };
@@ -231,11 +342,19 @@ export default function configureStore() {
       return state;
     },
     1: (state) => {
+      if (!state || typeof state !== 'object') {
+        return state;
+      }
       const { entities, muteUsers, initialScreenSettings } = state;
+      const usersMap = (entities && entities.users) || {};
+      const muteItems = Array.isArray(muteUsers?.items) ? muteUsers.items : [];
       // migrate from array of id to array of object
-      const items = muteUsers.items
-        .map((id) => {
-          const user = entities.users[id];
+      const items = muteItems
+        .map((idOrUser) => {
+          if (idOrUser && typeof idOrUser === 'object' && idOrUser.id != null) {
+            return idOrUser;
+          }
+          const user = usersMap[idOrUser];
           if (user) {
             return {
               id: user.id,
@@ -246,20 +365,28 @@ export default function configureStore() {
           return null;
         })
         .filter((item) => item);
+      const nextRouteName =
+        initialScreenSettings?.routeName === SCREENS.Ranking
+          ? SCREENS.RankingPreview
+          : initialScreenSettings?.routeName;
       return {
         ...state,
         muteUsers: {
           items,
         },
-        initialScreenSettings: {
-          routeName:
-            initialScreenSettings.routeName === SCREENS.Ranking
-              ? SCREENS.RankingPreview
-              : initialScreenSettings.routeName,
-        },
+        ...(initialScreenSettings
+          ? {
+              initialScreenSettings: {
+                ...initialScreenSettings,
+                routeName: nextRouteName,
+              },
+            }
+          : {}),
       };
     },
   };
+
+  let migrationResult = { source: 'empty', state: undefined };
 
   const persistConfig = {
     key: 'root',
@@ -292,11 +419,17 @@ export default function configureStore() {
       'i18n',
       'theme',
     ],
-    storage: FileSystemStorage,
+    storage: fileStorage,
     transforms: [myTransform],
     getStoredState: getStoredStateMigrateToFileSystemStorage(
       v5Config,
       v4Config,
+      {
+        fileSystem,
+        onResult: (result) => {
+          migrationResult = result || { source: 'empty', state: undefined };
+        },
+      },
     ),
     migrate: createMigrate(migirationToAppV4, {
       debug: process.env.NODE_ENV !== 'production',
@@ -305,9 +438,51 @@ export default function configureStore() {
   };
   const persistedReducer = persistReducer(persistConfig, rootReducer);
   const store = createStore(persistedReducer, undefined, enhancer);
-  sagaMiddleware.run(rootSaga);
+  if (runSagas) {
+    sagaMiddleware.run(rootSaga);
+  }
 
-  const persistor = persistStore(store, undefined, clearV4PersistedContents);
+  let resolveLegacyCleanup;
+  const legacyCleanupPromise = new Promise((resolve) => {
+    resolveLegacyCleanup = resolve;
+  });
+
+  const verifyAndClearLegacyStorage = async () => {
+    try {
+      const allKeys = await getAllLegacyKeys(legacyStorage);
+      const legacyKeys = findLegacyPersistedKeys(allKeys);
+      if (!legacyKeys.length) {
+        return false;
+      }
+      if (
+        migrationResult.source !== 'filesystem' &&
+        migrationResult.source !== 'asyncstorage_v5' &&
+        migrationResult.source !== 'asyncstorage_v4'
+      ) {
+        return false;
+      }
+      const expectedState = store.getState();
+      await persistor.flush();
+      const verified = await verifyPersistedRoot(
+        fileStorage,
+        persistConfig,
+        migrationResult,
+        expectedState,
+      );
+      if (!verified) {
+        return false;
+      }
+      await removeAsyncStorageKeys(legacyStorage, legacyKeys);
+      return true;
+    } catch (_e) {
+      return false;
+    } finally {
+      resolveLegacyCleanup(true);
+    }
+  };
+
+  const persistor = persistStore(store, undefined, verifyAndClearLegacyStorage);
+  persistor.legacyCleanupPromise = legacyCleanupPromise;
   if (module.hot) {
     // eslint-disable-next-line global-require
     const nextRootReducer = require('../reducers');
@@ -318,3 +493,4 @@ export default function configureStore() {
 
   return { store, persistor };
 }
+

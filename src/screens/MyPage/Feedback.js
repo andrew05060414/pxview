@@ -3,11 +3,14 @@ import {
   View,
   StyleSheet,
   DeviceEventEmitter,
-  InteractionManager,
   Keyboard,
 } from 'react-native';
-import database from '@react-native-firebase/database';
 import { connect } from 'react-redux';
+import {
+  isFirebaseConfigured,
+  pushDatabaseValue,
+  getDatabaseServerTimestamp,
+} from '../../common/helpers/firebase';
 import { withTheme, TextInput } from 'react-native-paper';
 import DeviceInfo from 'react-native-device-info';
 import * as RNLocalize from 'react-native-localize';
@@ -49,12 +52,9 @@ class Feedback extends Component {
 
   componentDidMount() {
     this.setHeaderRight();
-    this.ref = database().ref('feedback');
   }
 
-  componentWillUnmount() {
-    this.ref.off();
-  }
+  componentWillUnmount() {}
 
   setHeaderRight = () => {
     const {
@@ -102,28 +102,29 @@ class Feedback extends Component {
     Keyboard.dismiss();
     this.setState({ loading: true });
     const manufacturer = await DeviceInfo.getManufacturer();
-    this.ref
-      .push()
-      .set({
-        platform: DeviceInfo.getSystemName(),
-        manufacturer,
-        brand: DeviceInfo.getBrand(),
-        model: DeviceInfo.getModel(),
-        systemVersion: DeviceInfo.getSystemVersion(),
-        appVersion: DeviceInfo.getVersion(),
-        appBuildNumber: DeviceInfo.getBuildNumber(),
-        locale: RNLocalize.getLocales()[0].languageTag,
-        country: RNLocalize.getCountry(),
-        createdAt: database.ServerValue.TIMESTAMP,
-        feedback,
-        email,
-      })
+    if (!isFirebaseConfigured()) {
+      this.setState({ loading: false });
+      addError(i18n.feedbackError);
+      return;
+    }
+    pushDatabaseValue('feedback', {
+      platform: DeviceInfo.getSystemName(),
+      manufacturer,
+      brand: DeviceInfo.getBrand(),
+      model: DeviceInfo.getModel(),
+      systemVersion: DeviceInfo.getSystemVersion(),
+      appVersion: DeviceInfo.getVersion(),
+      appBuildNumber: DeviceInfo.getBuildNumber(),
+      locale: RNLocalize.getLocales()[0].languageTag,
+      country: RNLocalize.getCountry(),
+      createdAt: getDatabaseServerTimestamp(),
+      feedback,
+      email,
+    })
       .then(() => {
         this.setState({ loading: false });
         goBack();
-        InteractionManager.runAfterInteractions(() => {
-          DeviceEventEmitter.emit('showToast', i18n.feedbackSuccess);
-        });
+        DeviceEventEmitter.emit('showToast', i18n.feedbackSuccess);
       })
       .catch(() => {
         this.setState({ loading: false });

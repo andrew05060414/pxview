@@ -42,18 +42,18 @@ class SearchResultTabs extends Component {
     const { route } = this.props;
     const { route: prevRoute } = prevProps;
     if (
-      route?.params?.target !== prevRoute?.params.target ||
-      route?.params?.period !== prevRoute?.params.period ||
-      route?.params?.sort !== prevRoute?.params.sort ||
-      route?.params?.startDate !== prevRoute?.params.startDate ||
-      route?.params?.endDate !== prevRoute?.params.endDate ||
-      route?.params?.bookmarkNumMin !== prevRoute?.params.bookmarkNumMin ||
-      route?.params?.bookmarkNumMax !== prevRoute?.params.bookmarkNumMax ||
+      route?.params?.target !== prevRoute?.params?.target ||
+      route?.params?.period !== prevRoute?.params?.period ||
+      route?.params?.sort !== prevRoute?.params?.sort ||
+      route?.params?.startDate !== prevRoute?.params?.startDate ||
+      route?.params?.endDate !== prevRoute?.params?.endDate ||
+      route?.params?.bookmarkNumMin !== prevRoute?.params?.bookmarkNumMin ||
+      route?.params?.bookmarkNumMax !== prevRoute?.params?.bookmarkNumMax ||
       route?.params?.bookmarkCountsTag !==
-        prevRoute?.params.bookmarkCountsTag ||
-      route?.params?.minBookmarks !== prevRoute?.params.minBookmarks ||
-      route?.params?.excludeKeywords !== prevRoute?.params.excludeKeywords ||
-      route?.params?.aiType !== prevRoute?.params.aiType
+        prevRoute?.params?.bookmarkCountsTag ||
+      route?.params?.minBookmarks !== prevRoute?.params?.minBookmarks ||
+      route?.params?.excludeKeywords !== prevRoute?.params?.excludeKeywords ||
+      route?.params?.aiType !== prevRoute?.params?.aiType
     ) {
       const {
         target,

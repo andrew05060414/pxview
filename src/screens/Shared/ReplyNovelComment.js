@@ -72,14 +72,17 @@ class ReplyNovelComment extends Component {
     if (result !== prevResult && result.success) {
       const { navigateFrom, novelId } = route.params;
       navigation.dispatch(
-        CommonActions.navigate({
-          name: navigateFrom.name,
-          key: navigateFrom.key,
-          params: {
+        CommonActions.navigate(
+          navigateFrom.name,
+          {
             reload: true,
             fromId: novelId,
           },
-        }),
+          {
+            merge: true,
+            pop: true,
+          },
+        ),
       );
     }
   }

@@ -15,10 +15,10 @@ import {
   Switch,
   Text,
   TextInput,
+  Snackbar,
 } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
-import Toast from 'react-native-easy-toast';
 import { connectLocalization } from '../components/Localization';
 import PXTouchable from '../components/PXTouchable';
 import Separator from '../components/Separator';
@@ -90,11 +90,23 @@ class BookmarkModal extends Component {
 
   constructor(props) {
     super(props);
+    const item = props.item;
+    let tags = [];
+    let selectedTagsCount = 0;
+    if (item && item.tags && item.tags.length) {
+      selectedTagsCount = this.countSelectedTags(item.tags);
+      tags = item.tags.map((tag) => ({
+        ...tag,
+        editable: !!(tag.is_registered || selectedTagsCount < MAX_TAGS_COUNT),
+      }));
+    }
     this.state = {
-      tags: [],
-      isPrivate: false,
-      selectedTagsCount: 0,
+      tags,
+      isPrivate: item ? item.restrict === 'private' : false,
+      selectedTagsCount,
       newTag: null,
+      toastVisible: !!props.initialToastVisible,
+      toastMessage: props.initialToastMessage || '',
     };
   }
 
@@ -131,7 +143,7 @@ class BookmarkModal extends Component {
     let selectedTagsCount = this.countSelectedTags(tags);
     if (!checkedTag.editable) {
       if (selectedTagsCount > MAX_TAGS_COUNT - 1) {
-        this.toast.show(i18n.formatString(i18n.tagsMaxLimit, MAX_TAGS_COUNT));
+        this.showToast(i18n.formatString(i18n.tagsMaxLimit, MAX_TAGS_COUNT));
       }
       return;
     }
@@ -155,6 +167,13 @@ class BookmarkModal extends Component {
     this.setState({
       tags: updatedTags,
       selectedTagsCount,
+    });
+  };
+
+  showToast = (message) => {
+    this.setState({
+      toastVisible: true,
+      toastMessage: message,
     });
   };
 
@@ -197,7 +216,7 @@ class BookmarkModal extends Component {
     } else {
       updatedTags = [newTagEntry, ...tags];
       if (this.countSelectedTags(updatedTags) > MAX_TAGS_COUNT) {
-        this.toast.show(i18n.formatString(i18n.tagsMaxLimit, MAX_TAGS_COUNT));
+        this.showToast(i18n.formatString(i18n.tagsMaxLimit, MAX_TAGS_COUNT));
         this.setState({
           newTag: null,
         });
@@ -328,7 +347,13 @@ class BookmarkModal extends Component {
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
-        <Toast ref={(ref) => (this.toast = ref)} />
+        <Snackbar
+          visible={this.state.toastVisible}
+          onDismiss={() => this.setState({ toastVisible: false })}
+          duration={Snackbar.DURATION_SHORT}
+        >
+          {this.state.toastMessage}
+        </Snackbar>
       </Modal>
     );
   }

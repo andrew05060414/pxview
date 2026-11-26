@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, StyleSheet, InteractionManager } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { withTheme, Button } from 'react-native-paper';
@@ -38,24 +38,34 @@ const styles = StyleSheet.create({
   },
 });
 
+export const resolveInitialNovelPageIndex = ({
+  parsedNovelText,
+  savedPageIndex,
+  novelReadingDirection,
+}) => {
+  if (!Array.isArray(parsedNovelText) || parsedNovelText.length === 0) {
+    return 0;
+  }
+  if (typeof savedPageIndex === 'number' && Number.isFinite(savedPageIndex)) {
+    return Math.min(
+      Math.max(Math.trunc(savedPageIndex), 0),
+      parsedNovelText.length - 1,
+    );
+  }
+  return novelReadingDirection === READING_DIRECTION_TYPES.RIGHT_TO_LEFT
+    ? parsedNovelText.length - 1
+    : 0;
+};
+
 class NovelReader extends Component {
   constructor(props) {
     super(props);
     const { novelReadingDirection, parsedNovelText, savedPageIndex } = props;
-    let index = 0;
-    if (parsedNovelText) {
-      if (
-        savedPageIndex != null &&
-        savedPageIndex > 0 &&
-        savedPageIndex < parsedNovelText.length
-      ) {
-        index = savedPageIndex;
-      } else if (
-        novelReadingDirection === READING_DIRECTION_TYPES.RIGHT_TO_LEFT
-      ) {
-        index = parsedNovelText.length - 1;
-      }
-    }
+    const index = resolveInitialNovelPageIndex({
+      parsedNovelText,
+      savedPageIndex,
+      novelReadingDirection,
+    });
     this.state = {
       index,
       showHeader: false,
@@ -66,9 +76,9 @@ class NovelReader extends Component {
     const { fetchNovelText, clearNovelText, novelText, novelId } = this.props;
     if (!novelText || !novelText.text) {
       clearNovelText(novelId);
-      InteractionManager.runAfterInteractions(() => {
-        fetchNovelText(novelId);
-      });
+      fetchNovelText(novelId);
+    } else if (novelText.embeddedImagesIncomplete) {
+      fetchNovelText(novelId, true);
     }
   }
 
@@ -80,19 +90,11 @@ class NovelReader extends Component {
     } = this.props;
     const { parsedNovelText: prevParsedNovelText } = prevProps;
     if (parsedNovelText && !prevParsedNovelText) {
-      let index;
-      if (
-        savedPageIndex != null &&
-        savedPageIndex > 0 &&
-        savedPageIndex < parsedNovelText.length
-      ) {
-        index = savedPageIndex;
-      } else {
-        index =
-          novelReadingDirection === READING_DIRECTION_TYPES.RIGHT_TO_LEFT
-            ? parsedNovelText.length - 1
-            : 0;
-      }
+      const index = resolveInitialNovelPageIndex({
+        parsedNovelText,
+        savedPageIndex,
+        novelReadingDirection,
+      });
       this.setState({ index });
     }
   }
@@ -100,9 +102,7 @@ class NovelReader extends Component {
   handleOnRetry = () => {
     const { fetchNovelText, clearNovelText, novelId } = this.props;
     clearNovelText(novelId);
-    InteractionManager.runAfterInteractions(() => {
-      fetchNovelText(novelId);
-    });
+    fetchNovelText(novelId);
   };
 
   handleOnIndexChange = (index) => {
@@ -174,10 +174,9 @@ class NovelReader extends Component {
       theme,
     } = this.props;
     const { index, showHeader } = this.state;
+    const hasCachedText = Boolean(novelText && novelText.text);
     const isLoading =
-      !novelText ||
-      !novelText.loaded ||
-      novelText.loading ||
+      (!hasCachedText && (!novelText || !novelText.loaded || novelText.loading)) ||
       (parsedNovelText && index === null);
     const isErrorOrEmpty =
       !isLoading &&

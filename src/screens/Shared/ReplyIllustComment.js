@@ -72,14 +72,17 @@ class ReplyIllustComment extends Component {
     if (result !== prevResult && result.success) {
       const { navigateFrom, illustId } = route.params;
       navigation.dispatch(
-        CommonActions.navigate({
-          name: navigateFrom.name,
-          key: navigateFrom.key,
-          params: {
+        CommonActions.navigate(
+          navigateFrom.name,
+          {
             reload: true,
             fromId: illustId,
           },
-        }),
+          {
+            merge: true,
+            pop: true,
+          },
+        ),
       );
     }
   }

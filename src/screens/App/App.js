@@ -1,28 +1,37 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   StyleSheet,
   StatusBar,
   Platform,
   Dimensions,
+  Linking,
   AppState,
   NativeModules,
 } from 'react-native';
+import {
+  isExpBuild,
+  parseTestTarget,
+  setupExpMockEnvironment,
+  navigateToTestScreen,
+} from '../../common/helpers/expTestHarness';
 import { useSelector } from 'react-redux';
 import {
   NavigationContainer,
   DefaultTheme as NavigationDefaultTheme,
   DarkTheme as NavigationDarkTheme,
-  useLinking,
 } from '@react-navigation/native';
 import { getStateFromPath } from '@react-navigation/core';
-import analytics from '@react-native-firebase/analytics';
+import {
+  disableFirebaseCollectionIfUnconfigured,
+  logScreenView,
+} from '../../common/helpers/firebase';
 import {
   DefaultTheme as PaperDefaultTheme,
-  DarkTheme as PaperDarkTheme,
+  MD3DarkTheme as PaperDarkTheme,
   Provider as PaperProvider,
 } from 'react-native-paper';
-import SplashScreen from 'react-native-splash-screen';
+import BootSplash from 'react-native-bootsplash';
 import FlashMessage from 'react-native-flash-message';
 import AppNavigator from '../../navigations/AppNavigator';
 import AuthNavigator from '../../navigations/AuthNavigator';
@@ -40,19 +49,20 @@ const styles = StyleSheet.create({
 });
 
 const getActiveRouteName = (state) => {
-  const route = state.routes[state.index];
+  if (!state || !state.routes || state.routes.length === 0) {
+    return '';
+  }
+  const route = state.routes[state.index || 0];
 
-  if (route.state) {
+  if (route && route.state) {
     // Dive into nested navigators
     return getActiveRouteName(route.state);
   }
 
-  return route.name;
+  return route ? route.name : '';
 };
 
-const App = () => {
-  const [initialState, setInitialState] = useState();
-  const [navigationIsReady, setNavigationIsReady] = useState(false);
+const App = ({ testTarget }) => {
   const [, forceUpdate] = useState(0);
   const rehydrated = useSelector((state) => state.auth.rehydrated);
   const user = useSelector((state) => state.auth.user);
@@ -64,81 +74,64 @@ const App = () => {
   const routeNameRef = useRef();
   const prevRehydrated = usePrevious(rehydrated);
 
-  const { getInitialState } = useLinking(navigationRef, {
-    prefixes: [
-      'https://www.pixiv.net/en',
-      'https://www.pixiv.net',
-      'http://www.pixiv.net',
-      'http://www.pixiv.net/en',
-      'https://touch.pixiv.net',
-      'pixiv://',
-    ],
-    config: {
-      [SCREENS.Detail]: 'artworks/:illustId',
-      [SCREENS.NovelDetail]: 'novel/show.php',
-      [SCREENS.UserDetail]: 'users/:uid',
-      // workaround to handle deep link to one screen with multiple path
-      [`${SCREENS.Detail}-1`]: 'illusts/:illustId',
-      [`${SCREENS.Detail}-2`]: 'member_illust.php',
-      [`${SCREENS.NovelDetail}-1`]: 'novels/:novelId',
-      [`${SCREENS.UserDetail}-1`]: 'member.php',
-      [SCREENS.Login]: 'account/login',
-    },
-    getStateFromPath: (path, options) => {
-      const state = getStateFromPath(path, options);
-      const newRoutes = [...state.routes];
-      // eslint-disable-next-line prefer-destructuring
-      newRoutes[0].name = newRoutes[0].name.split('-')[0];
-      let routes;
-      if (user) {
-        routes = [
-          {
-            name: SCREENS.Main, // Load tab navigation first
-          },
-          ...newRoutes,
-        ];
-      } else {
-        routes = newRoutes;
-      }
-      return {
-        ...state,
-        routes,
-      };
-    },
-  });
-
-  useEffect(() => {
-    Promise.race([
-      getInitialState(),
-      new Promise((resolve) =>
-        // Timeout in 150ms if `getInitialState` doesn't resolve
-        // Workaround for https://github.com/facebook/react-native/issues/25675
-        setTimeout(resolve, 150),
-      ),
-    ])
-      .catch((e) => {
-        console.error('Error getting initial state ', e);
-      })
-      .then((state) => {
-        if (state !== undefined) {
-          setInitialState(state);
+  const linking = useMemo(
+    () => ({
+      prefixes: [
+        'https://www.pixiv.net/en',
+        'https://www.pixiv.net',
+        'http://www.pixiv.net',
+        'http://www.pixiv.net/en',
+        'https://touch.pixiv.net',
+        'pixiv://',
+        ...(isExpBuild() ? ['pxview-exp://'] : []),
+      ],
+      config: {
+        screens: {
+          [SCREENS.Detail]: 'artworks/:illustId',
+          [SCREENS.NovelDetail]: 'novel/show.php',
+          [SCREENS.UserDetail]: 'users/:uid',
+          // workaround to handle deep link to one screen with multiple path
+          [`${SCREENS.Detail}-1`]: 'illusts/:illustId',
+          [`${SCREENS.Detail}-2`]: 'member_illust.php',
+          [`${SCREENS.NovelDetail}-1`]: 'novels/:novelId',
+          [`${SCREENS.UserDetail}-1`]: 'member.php',
+          [SCREENS.Login]: 'account/login',
+        },
+      },
+      getStateFromPath: (path, options) => {
+        const state = getStateFromPath(path, options);
+        if (!state || !state.routes || state.routes.length === 0) {
+          return state;
         }
-
-        setNavigationIsReady(true);
-      });
-  }, [getInitialState]);
+        const newRoutes = [...state.routes];
+        newRoutes[0].name = newRoutes[0].name.split('-')[0];
+        let routes;
+        if (user) {
+          routes = [
+            {
+              name: SCREENS.Main, // Load tab navigation first
+            },
+            ...newRoutes,
+          ];
+        } else {
+          routes = newRoutes;
+        }
+        return {
+          ...state,
+          routes,
+        };
+      },
+    }),
+    [user],
+  );
 
   useEffect(() => {
-    if (rehydrated && navigationIsReady) {
-      const state = navigationRef.current.getRootState();
-      // Save the initial route name
-      routeNameRef.current = getActiveRouteName(state);
-    }
-  }, [rehydrated, navigationIsReady]);
+    disableFirebaseCollectionIfUnconfigured();
+  }, []);
 
   useEffect(() => {
     if (!prevRehydrated && rehydrated) {
-      SplashScreen.hide();
+      BootSplash.hide({ fade: true }).catch(() => {});
     }
   }, [prevRehydrated, rehydrated]);
 
@@ -191,16 +184,53 @@ const App = () => {
     };
   }, [themeName]);
 
+  useEffect(() => {
+    if (!isExpBuild()) return;
+
+    const handleUrl = (url) => {
+      const target = parseTestTarget(null, url);
+      if (target && navigationRef.current) {
+        setupExpMockEnvironment(null, target);
+        navigateToTestScreen(navigationRef.current, target);
+      }
+    };
+
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl(url);
+    });
+
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      if (url) handleUrl(url);
+    });
+
+    return () => {
+      if (sub && typeof sub.remove === 'function') {
+        sub.remove();
+      }
+    };
+  }, [testTarget]);
   const handleOnNavigationStateChange = (state) => {
-    const previousRouteName = routeNameRef.current;
-    const currentRouteName = getActiveRouteName(state);
-    if (previousRouteName !== currentRouteName) {
-      analytics().logScreenView({
-        screen_name: currentRouteName,
-        screen_class: currentRouteName,
-      });
+    try {
+      const previousRouteName = routeNameRef.current;
+      const currentRouteName = getActiveRouteName(state);
+      if (previousRouteName !== currentRouteName && currentRouteName) {
+        logScreenView(currentRouteName, currentRouteName);
+      }
+      routeNameRef.current = currentRouteName;
+    } catch (e) {}
+  };
+
+  const handleOnReady = () => {
+    if (navigationRef.current) {
+      const state = navigationRef.current.getRootState();
+      if (state) {
+        routeNameRef.current = getActiveRouteName(state);
+      }
+      if (isExpBuild() && testTarget) {
+        setupExpMockEnvironment(null, testTarget);
+        navigateToTestScreen(navigationRef.current, testTarget);
+      }
     }
-    routeNameRef.current = currentRouteName;
   };
 
   let renderComponent;
@@ -222,41 +252,44 @@ const App = () => {
         ? PaperDarkTheme.colors.surface
         : globalStyleVariables.PRIMARY_COLOR,
   };
-  if (themeName === THEME_TYPES.DARK) {
-    theme = {
-      ...PaperDarkTheme,
-      ...NavigationDarkTheme,
-      colors: {
-        ...PaperDarkTheme.colors,
-        ...NavigationDarkTheme.colors,
-        ...extraColorsConfig,
-      },
-    };
-  } else {
-    theme = {
-      ...PaperDefaultTheme,
-      ...NavigationDefaultTheme,
-      colors: {
-        ...PaperDefaultTheme.colors,
-        ...NavigationDefaultTheme.colors,
-        ...extraColorsConfig,
-      },
-    };
-  }
-  if (!rehydrated || !navigationIsReady) {
+  const paperTheme =
+    themeName === THEME_TYPES.DARK ? PaperDarkTheme : PaperDefaultTheme;
+  const navTheme =
+    themeName === THEME_TYPES.DARK
+      ? NavigationDarkTheme
+      : NavigationDefaultTheme;
+
+  theme = {
+    ...navTheme,
+    ...paperTheme,
+    fonts: {
+      ...navTheme.fonts,
+      ...paperTheme.fonts,
+    },
+    colors: {
+      ...navTheme.colors,
+      ...paperTheme.colors,
+      ...extraColorsConfig,
+    },
+  };
+  if (!rehydrated && !(isExpBuild() && testTarget)) {
     renderComponent = <Loader />;
-  } else if (user) {
+  } else if (user || (isExpBuild() && testTarget)) {
     renderComponent = <AppNavigator initialRouteName={initialRouteName} />;
   } else {
     renderComponent = <AuthNavigator />;
   }
+
   return (
     <PaperProvider theme={theme}>
-      {(!rehydrated || !navigationIsReady) && <Loader />}
-      {rehydrated && navigationIsReady && (
+      {!rehydrated && !(isExpBuild() && testTarget) ? (
+        <Loader />
+      ) : (
         <NavigationContainer
           ref={navigationRef}
-          initialState={initialState}
+          linking={linking}
+          fallback={<Loader />}
+          onReady={handleOnReady}
           theme={theme}
           onStateChange={handleOnNavigationStateChange}
         >
@@ -272,7 +305,6 @@ const App = () => {
                   ? PaperDarkTheme.colors.surface
                   : 'rgb(33,123,178)'
               }
-              // translucent
               animated
             />
             {renderComponent}
@@ -287,3 +319,4 @@ const App = () => {
 };
 
 export default App;
+

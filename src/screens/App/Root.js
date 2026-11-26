@@ -1,5 +1,6 @@
 /* eslint react/prefer-stateless-function:0 */
 import 'react-native-gesture-handler'; // https://github.com/kmagiera/react-native-gesture-handler/issues/320
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { Component } from 'react';
 import { AppRegistry } from 'react-native';
 import { enableScreens } from 'react-native-screens';
@@ -11,7 +12,11 @@ import { LocalizationProvider } from '../../components/Localization';
 import Loader from '../../components/Loader';
 import i18n from '../../common/helpers/i18n';
 import configureStore from '../../common/store/configureStore';
-// GLOBAL.XMLHttpRequest = GLOBAL.originalXMLHttpRequest || GLOBAL.XMLHttpRequest;
+import {
+  isExpBuild,
+  parseTestTarget,
+  setupExpMockEnvironment,
+} from '../../common/helpers/expTestHarness';
 
 const { store, persistor } = configureStore();
 
@@ -47,18 +52,29 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// console.disableYellowBox = true;
-
 class Root extends Component {
+  constructor(props) {
+    super(props);
+    if (isExpBuild()) {
+      const testTarget = parseTestTarget(props);
+      if (testTarget) {
+        setupExpMockEnvironment(store, testTarget);
+      }
+    }
+  }
+
   render() {
+    const testTarget = isExpBuild() ? parseTestTarget(this.props) : null;
     return (
       <Provider store={store}>
         <LocalizationProvider i18n={i18n}>
-          <SafeAreaProvider>
-            <PersistGate loading={<Loader />} persistor={persistor}>
-              <App />
-            </PersistGate>
-          </SafeAreaProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <SafeAreaProvider>
+              <PersistGate loading={<Loader />} persistor={persistor}>
+                <App testTarget={testTarget} />
+              </PersistGate>
+            </SafeAreaProvider>
+          </GestureHandlerRootView>
         </LocalizationProvider>
       </Provider>
     );

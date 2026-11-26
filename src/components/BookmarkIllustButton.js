@@ -17,9 +17,10 @@ class BookmarkIllustButton extends Component {
     bookmarkIllust: PropTypes.func.isRequired,
     unbookmarkIllust: PropTypes.func.isRequired,
     openModal: PropTypes.func.isRequired,
+    render: PropTypes.func,
   };
 
-  handleOnPress = () => {
+  handleBookmarkAction = () => {
     const {
       item,
       loading,
@@ -42,6 +43,20 @@ class BookmarkIllustButton extends Component {
     }
   };
 
+  handleOnPress = () => {
+    const { loading, actionType } = this.props;
+    if (loading) return;
+    if (this.bookmarkButtonRef && this.bookmarkButtonRef.handleOnPress) {
+      this.bookmarkButtonRef.handleOnPress();
+    } else {
+      if (actionType === LIKE_BUTTON_ACTION_TYPES.EDIT_LIKE) {
+        this.handleOnLongPress();
+      } else {
+        this.handleBookmarkAction();
+      }
+    }
+  };
+
   handleOnLongPress = () => {
     const { item, loading, openModal } = this.props;
     if (!loading) {
@@ -53,13 +68,37 @@ class BookmarkIllustButton extends Component {
   };
 
   render() {
-    const { item, size, actionType } = this.props;
+    const { item, size, actionType, render } = this.props;
+    if (typeof render === 'function') {
+      return render({
+        item,
+        size,
+        actionType,
+        onPress: this.handleOnPress,
+        onLongPress: this.handleOnLongPress,
+        renderButton: () => (
+          <BookmarkButton
+            ref={(ref) => {
+              this.bookmarkButtonRef = ref;
+            }}
+            item={item}
+            size={size}
+            actionType={actionType}
+            onPress={this.handleBookmarkAction}
+            onLongPress={this.handleOnLongPress}
+          />
+        ),
+      });
+    }
     return (
       <BookmarkButton
+        ref={(ref) => {
+          this.bookmarkButtonRef = ref;
+        }}
         item={item}
         size={size}
         actionType={actionType}
-        onPress={this.handleOnPress}
+        onPress={this.handleBookmarkAction}
         onLongPress={this.handleOnLongPress}
       />
     );

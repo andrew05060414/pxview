@@ -40,7 +40,7 @@ class ImagesViewer extends Component {
       routes: imagesWithDirection.map((image) => ({
         key: image.toString(),
       })),
-      hideHeader: true,
+      hideHeader: false,
     };
   }
 

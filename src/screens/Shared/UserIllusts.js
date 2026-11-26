@@ -1,5 +1,4 @@
 import React, { Component } from 'react';
-import { InteractionManager } from 'react-native';
 import { connect } from 'react-redux';
 import IllustList from '../../components/IllustList';
 import * as userIllustsActionCreators from '../../common/actions/userIllusts';
@@ -15,9 +14,7 @@ class UserIllusts extends Component {
     } = this.props;
     if (!userIllusts || !userIllusts.items) {
       clearUserIllusts(userId);
-      InteractionManager.runAfterInteractions(() => {
-        fetchUserIllusts(userId);
-      });
+      fetchUserIllusts(userId);
     }
   }
 

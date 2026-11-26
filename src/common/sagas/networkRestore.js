@@ -1,4 +1,9 @@
 import { put, select, take } from 'redux-saga/effects';
+import { refreshAccessToken } from '../actions/auth';
+import {
+  AUTH_LOGOUT,
+  AUTH_REFRESH_ACCESS_TOKEN,
+} from '../constants/actionTypes';
 import { fetchRecommendedIllusts } from '../actions/recommendedIllusts';
 import { fetchRecommendedNovels } from '../actions/recommendedNovels';
 import { fetchRecommendedMangas } from '../actions/recommendedMangas';
@@ -28,7 +33,21 @@ export const NETWORK_SAGA_OPTIONS = {
  * Lists that loaded successfully are not re-fetched.
  */
 function* handleNetworkRestore() {
-  const state = yield select();
+  let state = yield select();
+
+  const refreshToken = state?.auth?.user?.refreshToken;
+  if (refreshToken && state?.auth?.needsTokenRefresh) {
+    yield put(refreshAccessToken(refreshToken));
+    const authResult = yield take([
+      AUTH_REFRESH_ACCESS_TOKEN.SUCCESS,
+      AUTH_REFRESH_ACCESS_TOKEN.FAILURE,
+      AUTH_LOGOUT.SUCCESS,
+    ]);
+    if (authResult.type !== AUTH_REFRESH_ACCESS_TOKEN.SUCCESS) {
+      return;
+    }
+    state = yield select();
+  }
 
   if (state.recommendedIllusts && state.recommendedIllusts.error) {
     yield put(fetchRecommendedIllusts(undefined, undefined, true));

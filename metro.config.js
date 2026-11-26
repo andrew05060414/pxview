@@ -1,36 +1,11 @@
+const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
+
 /**
- * Metro configuration for React Native
- * https://github.com/facebook/react-native
+ * Metro configuration
+ * https://reactnative.dev/docs/metro
  *
- * @format
+ * @type {import('@react-native/metro-config').MetroConfig}
  */
-const path = require('path');
+const config = {};
 
-let createExclusionList;
-try {
-  createExclusionList = require('metro-config/src/defaults/exclusionList');
-} catch (error) {
-  createExclusionList = require('metro-config/src/defaults/blacklist');
-}
-
-const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const nestedWorktreesDir = path
-  .resolve(__dirname, '.worktrees')
-  .replace(/\\/g, '/');
-const nestedWorktreesPattern = new RegExp(
-  `^${escapeRegExp(nestedWorktreesDir)}/.*`,
-);
-
-module.exports = {
-  transformer: {
-    getTransformOptions: async () => ({
-      transform: {
-        experimentalImportSupport: false,
-        inlineRequires: false,
-      },
-    }),
-  },
-  resolver: {
-    blacklistRE: createExclusionList([nestedWorktreesPattern]),
-  },
-};
+module.exports = mergeConfig(getDefaultConfig(__dirname), config);

@@ -3,17 +3,15 @@ import {
   StyleSheet,
   Text,
   View,
-  InteractionManager,
   Platform,
   LayoutAnimation,
   UIManager,
   DeviceEventEmitter,
 } from 'react-native';
 import { connect } from 'react-redux';
-import { withTheme } from 'react-native-paper';
-import analytics from '@react-native-firebase/analytics';
+import { withTheme, FAB } from 'react-native-paper';
 import Share from 'react-native-share';
-import ActionButton from 'react-native-action-button';
+import { logEvent } from '../../common/helpers/firebase';
 import { AndroidBackHandler } from 'react-navigation-backhandler';
 import enhanceSaveImage from '../../components/HOC/enhanceSaveImage';
 import withWindowWidth from '../../components/withWindowWidth';
@@ -63,6 +61,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  fab: {
+    position: 'absolute',
+    right: 30,
+    bottom: 30,
+    backgroundColor: '#fff',
+  },
 });
 
 class Detail extends Component {
@@ -91,27 +95,25 @@ class Detail extends Component {
       addBrowsingHistoryIllusts,
       fetchIllustDetail,
     } = this.props;
-    InteractionManager.runAfterInteractions(() => {
-      if (this.detailView) {
-        this.setState({ mounting: false });
-      }
-      if (isFromDeepLink) {
-        fetchIllustDetail(illustId);
-        analytics().logEvent(`Screen_${SCREENS.Detail}`, {
-          id: illustId.toString(),
-          fromDeepLink: true,
-        });
-      } else {
-        this.masterListUpdateListener = DeviceEventEmitter.addListener(
-          'masterListUpdate',
-          this.handleOnMasterListUpdate,
-        );
-        addBrowsingHistoryIllusts(item.id);
-        analytics().logEvent(`Screen_${SCREENS.Detail}`, {
-          id: item.id.toString(),
-        });
-      }
-    });
+    if (this.detailView) {
+      this.setState({ mounting: false });
+    }
+    if (isFromDeepLink) {
+      fetchIllustDetail(illustId);
+      logEvent(`Screen_${SCREENS.Detail}`, {
+        id: illustId.toString(),
+        fromDeepLink: true,
+      });
+    } else {
+      this.masterListUpdateListener = DeviceEventEmitter.addListener(
+        'masterListUpdate',
+        this.handleOnMasterListUpdate,
+      );
+      if (item && item.id) { addBrowsingHistoryIllusts(item.id); }
+      logEvent(`Screen_${SCREENS.Detail}`, {
+        id: item ? item.id.toString() : '',
+      });
+    }
   }
 
   componentDidUpdate(prevProps) {
@@ -193,13 +195,11 @@ class Detail extends Component {
       setParams({
         index,
       });
-      InteractionManager.runAfterInteractions(() => {
-        analytics().logEvent(`Screen_${SCREENS.Detail}`, {
-          id: items[index].id.toString(),
-          fromSwipe: true,
-        });
-        addBrowsingHistoryIllusts(items[index].id);
+      logEvent(`Screen_${SCREENS.Detail}`, {
+        id: items[index].id.toString(),
+        fromSwipe: true,
       });
+      addBrowsingHistoryIllusts(items[index].id);
     }
   };
 
@@ -436,11 +436,6 @@ class Detail extends Component {
     );
   }
 
-  renderBookmarkButtonIcon = () => {
-    const { item } = this.props;
-    return <BookmarkIllustButton item={item} />;
-  };
-
   render() {
     const { item, isMuteUser, i18n, navigation, theme, route } = this.props;
     const {
@@ -460,11 +455,16 @@ class Detail extends Component {
         >
           {this.renderMainContent()}
           {isActionButtonVisible && item && (
-            <ActionButton
-              buttonColor="rgba(255,255,255,1)"
-              bgColor="red"
-              renderIcon={this.renderBookmarkButtonIcon}
-              fixNativeFeedbackRadius
+            <BookmarkIllustButton
+              item={item}
+              render={({ onPress, onLongPress, renderButton }) => (
+                <FAB
+                  style={styles.fab}
+                  icon={renderButton}
+                  onPress={onPress}
+                  onLongPress={onLongPress}
+                />
+              )}
             />
           )}
           <DetailInfoModal
@@ -529,14 +529,18 @@ export default withWindowWidth(
             const {
               illust_id: illustIdFromQS,
               illustId,
+              id: idParam,
               items,
               index,
               parentListKey,
-            } = props.route.params;
-            const id = parseInt(illustIdFromQS || illustId, 0);
+            } = props.route?.params || {};
+            const rawId = illustIdFromQS ?? illustId ?? idParam;
+            const parsedId =
+              rawId != null && rawId !== '' ? parseInt(rawId, 10) : NaN;
+            const id = Number.isNaN(parsedId) ? undefined : parsedId;
             return {
               illustId: id || item?.id,
-              illustDetail: state.illustDetail[id], // get illustDetail from api if load from deep link
+              illustDetail: id ? state.illustDetail[id] : undefined, // get illustDetail from api if load from deep link
               item,
               isMuteUser,
               isFromDeepLink: !!id,

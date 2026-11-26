@@ -3,7 +3,7 @@ import { StyleSheet, View, ScrollView, Alert } from 'react-native';
 import { connect } from 'react-redux';
 import { useScrollToTop } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Icon } from 'react-native-elements';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { withTheme } from 'react-native-paper';
 // import CookieManager from 'react-native-cookies';
 import { connectLocalization } from '../../components/Localization';
@@ -216,11 +216,10 @@ class MyPage extends Component {
             key={item.id}
             title={i18n[item.title]}
             left={({ color }) => (
-              <Icon
+              <FontAwesome
                 name={item.icon}
-                type={item.type}
                 color={color}
-                size={item.size}
+                size={item.size || 24}
               />
             )}
             onPress={() => this.handleOnPressListItem(item)}

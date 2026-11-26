@@ -3,11 +3,10 @@ import {
   View,
   SafeAreaView,
   StyleSheet,
-  InteractionManager,
-} from 'react-native';
+  } from 'react-native';
 import { connect } from 'react-redux';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import ActionButton from 'react-native-action-button';
+import { FAB } from 'react-native-paper';
 import OverlaySpinner from 'react-native-loading-spinner-overlay';
 import IllustCommentReplies from '../../containers/IllustCommentReplies';
 import enhancePostComment from '../../components/HOC/enhancePostComment';
@@ -23,9 +22,11 @@ const styles = StyleSheet.create({
   viewMoreButtonContainer: {
     marginTop: 10,
   },
-  textInput: {
-    flex: 1,
-    margin: 10,
+  fab: {
+    position: 'absolute',
+    right: 30,
+    bottom: 30,
+    backgroundColor: '#fff',
   },
 });
 
@@ -39,9 +40,7 @@ class IllustComments extends Component {
     } = this.props;
     if (!illustComments || !illustComments.items) {
       clearIllustComments(illustId);
-      InteractionManager.runAfterInteractions(() => {
-        fetchIllustComments(illustId);
-      });
+      fetchIllustComments(illustId);
     }
   }
 
@@ -186,10 +185,9 @@ class IllustComments extends Component {
           </View>
         )}
         {!isFeatureInDetailPage && (
-          <ActionButton
-            buttonColor="#fff"
-            renderIcon={this.renderCommentButtonIcon}
-            fixNativeFeedbackRadius
+          <FAB
+            style={styles.fab}
+            icon={this.renderCommentButtonIcon}
             onPress={this.handleOnPressCommentButton}
           />
         )}

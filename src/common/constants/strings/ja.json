@@ -323,5 +323,12 @@
   "collectionRulesTitle": "スマート分類ルール",
   "collectionTasteTitle": "AI 嗜好・スタイル分析",
   "collectionTasteGenerate": "嗜好まとめを生成",
-  "collectionTasteGenerating": "嗜好を分析中..."
+  "collectionTasteGenerating": "嗜好を分析中...",
+  "backupRestoreFromFile": "ファイルからバックアップを復元",
+  "backupRestoreFromFileDescription": "システムファイルから backup.json を選択して復元",
+  "backupChooseFile": "ファイルを選択",
+  "backupError": "バックアップ操作に失敗しました",
+  "backupInvalidFile": "バックアップファイルの形式が正しくありません",
+  "collectionExportError": "ブックマークのエクスポートに失敗しました",
+  "sessionExpiredRelogin": "セッションの有効期限が切れました。再度ログインしてください"
 }

@@ -11,6 +11,58 @@ import {
   extractJsonContent,
   buildClassificationMessages,
 } from '../helpers/llmClient';
+import {
+  getBookmarkItemKey,
+  getClassificationForItem,
+} from '../helpers/bookmarkItemKey';
+
+export const normalizeClassificationResults = (results, batch) => {
+  if (!Array.isArray(results) || !Array.isArray(batch)) {
+    return [];
+  }
+  const byCompositeKey = {};
+  const byRawId = {};
+  batch.forEach((item) => {
+    const key = getBookmarkItemKey(item);
+    if (key) {
+      byCompositeKey[key] = item;
+    }
+    if (item && item.id != null) {
+      const rawId = String(item.id);
+      if (!byRawId[rawId]) {
+        byRawId[rawId] = [];
+      }
+      byRawId[rawId].push(item);
+    }
+  });
+
+  const normalized = [];
+  results.forEach((entry) => {
+    if (!entry || entry.id == null || !entry.category) {
+      return;
+    }
+    const returnedId = String(entry.id).trim();
+    const category = String(entry.category).trim();
+    if (!returnedId || !category) {
+      return;
+    }
+    if (byCompositeKey[returnedId]) {
+      normalized.push({
+        id: getBookmarkItemKey(byCompositeKey[returnedId]),
+        category,
+      });
+      return;
+    }
+    const rawMatches = byRawId[returnedId];
+    if (rawMatches && rawMatches.length === 1) {
+      normalized.push({
+        id: getBookmarkItemKey(rawMatches[0]),
+        category,
+      });
+    }
+  });
+  return normalized;
+};
 
 export const getAiSettings = (state) => state.aiSettings;
 export const getBookmarkItems = (state) => state.bookmarkLibrary.items;
@@ -43,7 +95,7 @@ export function* handleClassifyBookmarks() {
     }
 
     const unclassified = allItems.filter(
-      (item) => !existingMappings[String(item.id)],
+      (item) => !getClassificationForItem(existingMappings, item, bookmarkItems),
     );
     if (!unclassified.length) {
       yield put(classifySuccess());
@@ -58,9 +110,12 @@ export function* handleClassifyBookmarks() {
       const batch = unclassified.slice(i, i + batchSize);
       const messages = buildClassificationMessages(batch, categories);
       const response = yield call(sendChatRequest, aiSettings, messages);
-      const results = extractJsonContent(response);
+      const results = normalizeClassificationResults(
+        extractJsonContent(response),
+        batch,
+      );
 
-      if (Array.isArray(results) && results.length) {
+      if (results.length) {
         yield put(classifyBatch(results));
       }
 

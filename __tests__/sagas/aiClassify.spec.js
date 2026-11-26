@@ -1,6 +1,7 @@
 import { call, put, select, delay } from 'redux-saga/effects';
 import {
   handleClassifyBookmarks,
+  normalizeClassificationResults,
   getAiSettings,
   getBookmarkItems,
   getClassificationsState,
@@ -128,5 +129,43 @@ describe('aiClassify saga', () => {
       }),
     );
     expect(gen.next().done).toBe(true);
+  });
+
+  test('separates same-id illust and novel classifications and drops ambiguous raw matches', () => {
+    const illustItem = {
+      id: '123',
+      type: 'illust',
+      title: 'Art 123',
+      tags: [],
+      userName: 'U1',
+    };
+    const novelItem = {
+      id: '123',
+      type: 'novel',
+      title: 'Novel 123',
+      tags: [],
+      userName: 'U2',
+    };
+    const uniqueNovel = {
+      id: '456',
+      type: 'novel',
+      title: 'Unique Novel',
+      tags: [],
+      userName: 'U3',
+    };
+    const normalized = normalizeClassificationResults(
+      [
+        { id: 'illust:123', category: '风景' },
+        { id: 'novel:123', category: '恋爱' },
+        { id: '456', category: '日常' },
+        { id: '123', category: 'AmbiguousShouldBeIgnored' },
+      ],
+      [illustItem, novelItem, uniqueNovel],
+    );
+    expect(normalized).toEqual([
+      { id: 'illust:123', category: '风景' },
+      { id: 'novel:123', category: '恋爱' },
+      { id: 'novel:456', category: '日常' },
+    ]);
   });
 });

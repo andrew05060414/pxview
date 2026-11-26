@@ -1,5 +1,4 @@
 import React, { Component } from 'react';
-import { InteractionManager } from 'react-native';
 import { connect } from 'react-redux';
 import NovelList from '../../components/NovelList';
 import * as userNovelsActionCreators from '../../common/actions/userNovels';
@@ -10,9 +9,7 @@ class UserNovels extends Component {
     const { userNovels, userId, fetchUserNovels, clearUserNovels } = this.props;
     if (!userNovels || !userNovels.items) {
       clearUserNovels(userId);
-      InteractionManager.runAfterInteractions(() => {
-        fetchUserNovels(userId);
-      });
+      fetchUserNovels(userId);
     }
   }
 

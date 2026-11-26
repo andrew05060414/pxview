@@ -9,7 +9,7 @@ class PXImage extends PureComponent {
         source={{
           uri,
           headers: {
-            referer: 'http://www.pixiv.net',
+            referer: 'https://www.pixiv.net',
           },
         }}
         style={style}

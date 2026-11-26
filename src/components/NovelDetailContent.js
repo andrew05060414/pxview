@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { View, StyleSheet, ScrollView, InteractionManager } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { connect } from 'react-redux';
 import { withTheme } from 'react-native-paper';
 import TagBottomSheet from './TagBottomSheet';
@@ -40,10 +40,8 @@ class NovelDetailContent extends Component {
   }
 
   componentDidMount() {
-    InteractionManager.runAfterInteractions(() => {
-      this.setState({
-        isMounted: true,
-      });
+    this.setState({
+      isMounted: true,
     });
   }
 

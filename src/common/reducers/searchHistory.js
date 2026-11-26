@@ -34,11 +34,17 @@ export default function searchHistory(
         ...state,
         items: [],
       };
-    case SEARCH_HISTORY.RESTORE:
+    case SEARCH_HISTORY.RESTORE: {
+      const restored = action.payload && action.payload.state;
+      const validItems =
+        restored && Array.isArray(restored.items)
+          ? restored.items.filter((item) => typeof item === 'string')
+          : state.items;
       return {
         ...state,
-        ...action.payload.state,
+        items: validItems,
       };
+    }
     default:
       return state;
   }

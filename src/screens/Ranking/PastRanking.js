@@ -1,10 +1,10 @@
 import React, { Component } from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
+import { StyleSheet, View, ScrollView, Platform } from 'react-native';
 import { connect } from 'react-redux';
 import { withTheme, Text } from 'react-native-paper';
 import moment from 'moment';
 import camelCase from 'lodash.camelcase';
-import DatePicker from 'react-native-datepicker';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import RankingList from './RankingList';
 import NovelRankingList from './NovelRankingList';
@@ -69,12 +69,21 @@ const styles = StyleSheet.create({
     flex: 1,
     borderColor: 'gray',
     borderWidth: 1,
+    height: 42,
+    justifyContent: 'center',
   },
-  dateInput: {
-    borderWidth: 0,
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    height: 42,
   },
-  dateTouchBody: {
-    height: null,
+  datePickerText: {
+    padding: 10,
+  },
+  datePickerIcon: {
+    paddingLeft: 5,
   },
 });
 
@@ -101,6 +110,7 @@ class PastRanking extends Component {
     }
     this.state = {
       isOpenRankingModeBottomSheet: false,
+      showDatePicker: !!props.initialDatePickerVisible,
       date: moment().subtract(2, 'days').format('YYYY-MM-DD'),
       mode,
     };
@@ -119,8 +129,32 @@ class PastRanking extends Component {
     this.handleOnCancelRankingModeBottomSheet();
   };
 
-  handleOnDateChange = (date) => {
-    this.setState({ date });
+  openDatePicker = () => {
+    if (Platform.OS === 'android' && DateTimePickerAndroid) {
+      DateTimePickerAndroid.open({
+        value: moment(this.state.date, 'YYYY-MM-DD').toDate(),
+        onChange: this.handleOnDateChange,
+        mode: 'date',
+        minimumDate: new Date(2007, 8, 13),
+        maximumDate: new Date(),
+      });
+    } else {
+      this.setState({ showDatePicker: true });
+    }
+  };
+
+  handleOnDateChange = (event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      this.setState({ showDatePicker: false });
+    }
+    if (event && event.type === 'set' && selectedDate) {
+      this.setState({
+        date: moment(selectedDate).format('YYYY-MM-DD'),
+        showDatePicker: false,
+      });
+    } else if (event && event.type === 'dismissed') {
+      this.setState({ showDatePicker: false });
+    }
   };
 
   mapRankingString = (ranking) => {
@@ -140,7 +174,7 @@ class PastRanking extends Component {
 
   render() {
     const { user, i18n, route, rankingMode, rankingType, theme } = this.props;
-    const { date, mode, isOpenRankingModeBottomSheet } = this.state;
+    const { date, mode, isOpenRankingModeBottomSheet, showDatePicker } = this.state;
     const selectedRankingMode =
       rankingType === RANKING_TYPES.MANGA ? mode.replace('_manga', '') : mode;
     return (
@@ -162,34 +196,32 @@ class PastRanking extends Component {
               />
             </View>
           </PXTouchable>
-          <DatePicker
+          <PXTouchable
             style={styles.datePicker}
-            customStyles={{
-              dateInput: styles.dateInput,
-              dateTouchBody: styles.dateTouchBody,
-              dateText: {
-                color: theme.colors.text,
-              },
-              btnTextConfirm: {
-                height: 20,
-                color: globalStyleVariables.PRIMARY_COLOR,
-              },
-              btnTextCancel: {
-                height: 20,
-                color: '#000',
-              },
-            }}
-            date={date}
-            mode="date"
-            placeholder="select date"
-            format="YYYY-MM-DD"
-            minDate="2007-09-13"
-            maxDate={new Date()}
-            confirmBtnText={i18n.ok}
-            cancelBtnText={i18n.cancel}
-            showIcon
-            onDateChange={this.handleOnDateChange}
-          />
+            onPress={this.openDatePicker}
+          >
+            <View style={styles.datePickerButton}>
+              <Text style={[styles.datePickerText, { color: theme.colors.text }]}>
+                {date}
+              </Text>
+              <Icon
+                name="calendar"
+                size={16}
+                style={styles.datePickerIcon}
+                color={theme.colors.text}
+              />
+            </View>
+          </PXTouchable>
+          {showDatePicker && (
+            <DateTimePicker
+              value={moment(date, 'YYYY-MM-DD').toDate()}
+              mode="date"
+              display="default"
+              minimumDate={new Date(2007, 8, 13)}
+              maximumDate={new Date()}
+              onChange={this.handleOnDateChange}
+            />
+          )}
         </View>
         {rankingType === RANKING_TYPES.NOVEL ? (
           <NovelRankingList

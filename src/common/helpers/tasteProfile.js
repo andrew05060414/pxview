@@ -1,3 +1,5 @@
+import { getClassificationForItem } from './bookmarkItemKey';
+
 const itemValues = (items) =>
   Array.isArray(items) ? items : Object.values(items || {});
 
@@ -57,7 +59,7 @@ export const buildTasteProfile = (items, classificationMap = {}) => {
     }
 
     // Category
-    const cat = classificationMap[String(item.id)];
+    const cat = getClassificationForItem(classificationMap, item);
     if (cat) {
       catCounts[cat] = (catCounts[cat] || 0) + 1;
     }

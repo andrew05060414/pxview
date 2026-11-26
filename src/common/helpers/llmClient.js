@@ -1,4 +1,5 @@
-import RNFetchBlob from 'rn-fetch-blob';
+import RNFetchBlob from 'react-native-blob-util';
+import { getBookmarkItemKey } from './bookmarkItemKey';
 
 const DEFAULT_TIMEOUT_MS = 60000;
 const DEFAULT_MAX_BATCH = 40;
@@ -65,22 +66,23 @@ export const sendChatRequest = async (
 };
 
 // Prompt contract for P5 auto-classification: the model must answer with a
-// JSON array of {id, category}.
+// JSON array of {id, category} preserving each item's composite key when present.
 export const buildClassificationMessages = (items, categories) => {
-  const lines = items
-    .slice(0, DEFAULT_MAX_BATCH)
-    .map(
-      (item) =>
-        `${item.id} | ${item.title} | ${(item.tags || []).join(',')} | ${
-          item.userName
-        }`,
-    );
+  const sliced = items.slice(0, DEFAULT_MAX_BATCH);
+  const sampleId =
+    (sliced[0] && getBookmarkItemKey(sliced[0])) || 'illust:123';
+  const lines = sliced.map(
+    (item) =>
+      `${getBookmarkItemKey(item)} | ${item.title} | ${(item.tags || []).join(
+        ',',
+      )} | ${item.userName}`,
+  );
   return [
     {
       role: 'system',
       content: `You classify pixiv works. Assign each work exactly one category from this list: ${categories.join(
         ', ',
-      )}. Respond ONLY with a JSON array like [{"id":"123","category":"category name"}].`,
+      )}. Respond ONLY with a JSON array like [{"id":"${sampleId}","category":"category name"}] using the exact id token before the first |.`,
     },
     {
       role: 'user',

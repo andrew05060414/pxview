@@ -1,3 +1,4 @@
+import { REHYDRATE } from 'redux-persist';
 import reducer, {
   DEFAULT_CATEGORIES,
 } from '../../src/common/reducers/classifications';
@@ -67,5 +68,59 @@ describe('classifications reducer', () => {
     state = reducer(state, clearClassifications());
     expect(state.items).toEqual({});
     expect(state.categories).toEqual(DEFAULT_CATEGORIES);
+  });
+
+  test('REHYDRATE migrates unambiguous legacy numeric keys and drops colliding illust/novel keys', () => {
+    const state = reducer(initial, {
+      type: REHYDRATE,
+      payload: {
+        classifications: {
+          items: {
+            100: '风景',
+            200: '恋爱',
+            300: '冲突旧分类',
+            'illust:300': '风景',
+          },
+        },
+        bookmarkLibrary: {
+          items: {
+            'illust:100': { id: '100', type: 'illust' },
+            'novel:200': { id: '200', type: 'novel' },
+            'illust:300': { id: '300', type: 'illust' },
+            'novel:300': { id: '300', type: 'novel' },
+          },
+        },
+      },
+    });
+    expect(state.items).toEqual({
+      'illust:100': '风景',
+      'novel:200': '恋爱',
+      'illust:300': '风景',
+    });
+  });
+
+  test('REHYDRATE migrates real v5 numeric-keyed bookmarkLibrary items and preserves existing composite keys', () => {
+    const state = reducer(initial, {
+      type: REHYDRATE,
+      payload: {
+        classifications: {
+          items: {
+            100: '风景',
+            200: '恋爱',
+            'illust:100': '已有分类',
+          },
+        },
+        bookmarkLibrary: {
+          items: {
+            100: { id: '100', type: 'illust' },
+            200: { id: '200', type: 'novel' },
+          },
+        },
+      },
+    });
+    expect(state.items).toEqual({
+      'illust:100': '已有分类',
+      'novel:200': '恋爱',
+    });
   });
 });

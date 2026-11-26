@@ -323,5 +323,12 @@
   "collectionRulesTitle": "智慧規則",
   "collectionTasteTitle": "AI 審美與口味畫像",
   "collectionTasteGenerate": "生成口味畫像總結",
-  "collectionTasteGenerating": "正在分析審美偏好..."
+  "collectionTasteGenerating": "正在分析審美偏好...",
+  "backupRestoreFromFile": "從檔案選擇並還原備份",
+  "backupRestoreFromFileDescription": "透過系統檔案選擇器讀取 backup.json 還原資料",
+  "backupChooseFile": "選擇檔案",
+  "backupError": "備份操作失敗，請重試",
+  "backupInvalidFile": "備份檔案格式無效",
+  "collectionExportError": "匯出收藏失敗，請重試",
+  "sessionExpiredRelogin": "登入狀態已失效，請重新登入"
 }

@@ -6,7 +6,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { connect } from 'react-redux';
-import RNFetchBlob from 'rn-fetch-blob';
+import RNFetchBlob from 'react-native-blob-util';
 import { unzip } from 'react-native-zip-archive';
 import UgoiraView from './UgoiraView';
 import PXCacheImage from './PXCacheImage';
@@ -78,7 +78,7 @@ class UgoiraViewTouchable extends Component {
           key: zipUrl,
           path: downloadPath,
         }).fetch('GET', zipUrl, {
-          referer: 'http://www.pixiv.net',
+          referer: 'https://www.pixiv.net',
         });
         try {
           this.setState({

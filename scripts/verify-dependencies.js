@@ -117,7 +117,7 @@ function verify() {
   dependencyFields.forEach((field) => {
     if (!sameMap(manifest[field], lockRoot[field])) {
       errors.push(
-        `${field} 与 package-lock.json 根 entry 不一致；请使用 npm ci --legacy-peer-deps 验证或重新生成锁文件。`,
+        `${field} 与 package-lock.json 根 entry 不一致；请使用 npm ci 验证或重新生成锁文件。`,
       );
     }
   });
@@ -132,7 +132,7 @@ function verify() {
   );
 
   if (!fs.existsSync(nodeModulesPath)) {
-    errors.push('node_modules 不存在；请先运行 npm ci --legacy-peer-deps。');
+    errors.push('node_modules 不存在；请先运行 npm ci。');
     return errors;
   }
 

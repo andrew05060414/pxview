@@ -1,4 +1,3 @@
-/** @jest-environment jsdom */
 import { NOVEL_RANKING_LANGUAGES } from '../../src/common/constants';
 import {
   clearLanguage,
@@ -7,13 +6,14 @@ import {
 import { getPreferredNovelRankingLanguage } from '../../src/common/reducers/novelRankingSettings';
 
 jest.mock('../../src/common/sagas', () => function* rootSaga() {});
-jest.mock('redux-enhancer-react-native-appstate', () => () => (createStore) =>
+jest.mock('../../src/common/store/appStateEnhancer', () => () => (createStore) =>
   createStore);
 jest.mock('react-native-offline', () => ({
   createNetworkMiddleware: () => () => (next) => next,
 }));
-jest.mock('@react-native-community/async-storage', () => ({
-  getAllKeys: (callback) => callback(null, []),
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getAllKeys: () => Promise.resolve([]),
+  removeMany: () => Promise.resolve(),
 }));
 jest.mock('redux-persist-filesystem-storage', () => {
   const values = new Map();
