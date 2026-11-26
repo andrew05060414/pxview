@@ -126,7 +126,7 @@ const CollectionExportSection = ({ i18n }) => {
       <Button
         mode="outlined"
         disabled={isEmpty}
-        color={globalStyleVariables.PRIMARY_COLOR}
+        textColor={globalStyleVariables.PRIMARY_COLOR}
         style={styles.button}
         onPress={() => handleOnPressExport('csv')}
       >
@@ -135,7 +135,7 @@ const CollectionExportSection = ({ i18n }) => {
       <Button
         mode="outlined"
         disabled={isEmpty}
-        color={globalStyleVariables.PRIMARY_COLOR}
+        textColor={globalStyleVariables.PRIMARY_COLOR}
         style={styles.button}
         onPress={() => handleOnPressExport('json')}
       >
@@ -145,7 +145,6 @@ const CollectionExportSection = ({ i18n }) => {
         <Button
           disabled
           mode="text"
-          color={theme.colors.disabled}
           style={styles.button}
         >
           {i18n.collectionExportEmpty}

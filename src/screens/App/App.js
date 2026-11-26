@@ -27,8 +27,8 @@ import {
   logScreenView,
 } from '../../common/helpers/firebase';
 import {
-  DefaultTheme as PaperDefaultTheme,
-  MD3DarkTheme as PaperDarkTheme,
+  MD2LightTheme as PaperDefaultTheme,
+  MD2DarkTheme as PaperDarkTheme,
   Provider as PaperProvider,
 } from 'react-native-paper';
 import BootSplash from 'react-native-bootsplash';
@@ -127,6 +127,10 @@ const App = ({ testTarget }) => {
 
   useEffect(() => {
     disableFirebaseCollectionIfUnconfigured();
+  }, []);
+
+  useEffect(() => {
+    BootSplash.hide({ fade: true }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -237,6 +241,7 @@ const App = ({ testTarget }) => {
   let theme;
   const extraColorsConfig = {
     primary: globalStyleVariables.PRIMARY_COLOR,
+    accent: globalStyleVariables.PRIMARY_COLOR,
     activeTint:
       themeName === THEME_TYPES.DARK
         ? '#000000'
@@ -263,8 +268,8 @@ const App = ({ testTarget }) => {
     ...navTheme,
     ...paperTheme,
     fonts: {
-      ...navTheme.fonts,
       ...paperTheme.fonts,
+      ...navTheme.fonts,
     },
     colors: {
       ...navTheme.colors,
@@ -281,7 +286,7 @@ const App = ({ testTarget }) => {
   }
 
   return (
-    <PaperProvider theme={theme}>
+    <PaperProvider theme={theme} settings={{ rippleEffectEnabled: false }}>
       {!rehydrated && !(isExpBuild() && testTarget) ? (
         <Loader />
       ) : (

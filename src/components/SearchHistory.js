@@ -10,13 +10,14 @@ import {
   removeSearchHistory,
   clearSearchHistory,
 } from '../common/actions/searchHistory';
-import { globalStyles, globalStyleVariables } from '../styles';
+import { globalStyles } from '../styles';
 
 const styles = StyleSheet.create({
   listItemContainer: {
     padding: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   searchHistoryContainer: {
     padding: 10,
@@ -27,7 +28,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   searchHistoryText: {
-    width: globalStyleVariables.getWindowWidth() - 45,
+    flex: 1,
+    marginRight: 12,
   },
 });
 

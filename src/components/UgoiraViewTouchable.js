@@ -12,6 +12,7 @@ import UgoiraView from './UgoiraView';
 import PXCacheImage from './PXCacheImage';
 import Loader from './Loader';
 import OverlayPlayIcon from './OverlayPlayIcon';
+import withWindowWidth from './withWindowWidth';
 import * as ugoiraMetaActionCreators from '../common/actions/ugoiraMeta';
 import { globalStyleVariables } from '../styles';
 
@@ -144,15 +145,11 @@ class UgoiraViewTouchable extends Component {
   };
 
   render() {
-    const { item, ugoiraMeta } = this.props;
+    const { item, ugoiraMeta, windowWidth } = this.props;
     const { ugoiraPath, isDownloadingZip, isStartPlaying, paused } = this.state;
-    const width =
-      item.width > globalStyleVariables.getWindowWidth()
-        ? globalStyleVariables.getWindowWidth()
-        : item.width;
-    const height = Math.floor(
-      (globalStyleVariables.getWindowWidth() * item.height) / item.width,
-    );
+    const winW = windowWidth || globalStyleVariables.getWindowWidth();
+    const width = item.width > winW ? winW : item.width;
+    const height = Math.floor((winW * item.height) / item.width);
     return (
       <TouchableWithoutFeedback
         onPress={this.fetchUgoiraMetaOrToggleAnimation}
@@ -162,7 +159,7 @@ class UgoiraViewTouchable extends Component {
           style={[
             styles.imageContainer,
             {
-              width: globalStyleVariables.getWindowWidth(),
+              width: winW,
               height,
             },
           ]}
@@ -199,10 +196,12 @@ class UgoiraViewTouchable extends Component {
   }
 }
 
-export default connect((state, props) => {
-  const { ugoiraMeta } = state;
-  const { item } = props;
-  return {
-    ugoiraMeta: ugoiraMeta[item.id],
-  };
-}, ugoiraMetaActionCreators)(UgoiraViewTouchable);
+export default withWindowWidth(
+  connect((state, props) => {
+    const { ugoiraMeta } = state;
+    const { item } = props;
+    return {
+      ugoiraMeta: ugoiraMeta[item.id],
+    };
+  }, ugoiraMetaActionCreators)(UgoiraViewTouchable),
+);

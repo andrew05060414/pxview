@@ -1,19 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { Dimensions } from 'react-native';
 
-// Re-renders the wrapped (usually class) component with a `windowWidth` prop
-// whenever the window resizes — e.g. folding/unfolding a foldable — so grids
-// re-layout immediately instead of waiting for a manual refresh.
+// Re-renders the wrapped (usually class) component with `windowWidth` and
+// `windowHeight` props whenever the window resizes — e.g. folding/unfolding a
+// foldable — so grids and detail panes re-layout immediately instead of waiting
+// for a manual refresh.
 const withWindowWidth = (WrappedComponent) => {
   const WithWindowWidth = (props) => {
-    const [windowWidth, setWindowWidth] = useState(
-      Dimensions.get('window').width,
-    );
+    const [windowDimensions, setWindowDimensions] = useState(() => {
+      const initial = Dimensions.get('window');
+      return {
+        width: initial.width,
+        height: initial.height,
+      };
+    });
 
     useEffect(() => {
       const handleChange = ({ window }) => {
         if (window) {
-          setWindowWidth(window.width);
+          setWindowDimensions({
+            width: window.width,
+            height: window.height,
+          });
         }
       };
       const subscription = Dimensions.addEventListener('change', handleChange);
@@ -30,7 +38,8 @@ const withWindowWidth = (WrappedComponent) => {
       <WrappedComponent
         // eslint-disable-next-line react/jsx-props-no-spreading
         {...props}
-        windowWidth={windowWidth}
+        windowWidth={windowDimensions.width}
+        windowHeight={windowDimensions.height}
       />
     );
   };

@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { View, Image } from 'react-native';
+import withWindowWidth from './withWindowWidth';
 import { globalStyleVariables } from '../styles';
 
 const haveImagesChanged = (images, prevImages) => {
@@ -106,16 +107,17 @@ class UgoiraView extends Component {
   };
 
   render() {
-    const { images, width, height, resizeMode } = this.props;
+    const { images, width, height, resizeMode, windowWidth } = this.props;
     const { imageIndex } = this.state;
     if (!images || !images.length) {
       return null;
     }
+    const winW = windowWidth || globalStyleVariables.getWindowWidth();
     const currentFrame = images[imageIndex] || images[0];
     return (
       <View
         style={{
-          width: globalStyleVariables.getWindowWidth(),
+          width: winW,
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
@@ -137,4 +139,4 @@ class UgoiraView extends Component {
   }
 }
 
-export default UgoiraView;
+export default withWindowWidth(UgoiraView);

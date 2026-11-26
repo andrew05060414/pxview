@@ -200,7 +200,7 @@ const CollectionSearchSection = ({ navigation }) => {
           <Button
             mode="text"
             compact
-            color={globalStyleVariables.PRIMARY_COLOR}
+            textColor={globalStyleVariables.PRIMARY_COLOR}
             onPress={() => setShowFilters(!showFilters)}
           >
             {showFilters
@@ -211,7 +211,7 @@ const CollectionSearchSection = ({ navigation }) => {
             <Button
               mode="contained"
               compact
-              color={globalStyleVariables.PRIMARY_COLOR}
+              buttonColor={globalStyleVariables.PRIMARY_COLOR}
               loading={isAiSearching}
               disabled={isAiSearching}
               onPress={handleOnPressAiSearch}

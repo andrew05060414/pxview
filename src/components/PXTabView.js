@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Platform, Dimensions } from 'react-native';
+import { StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { TabView, TabBar } from 'react-native-tab-view';
 import { useTheme } from 'react-native-paper';
 import { globalStyleVariables } from '../styles';
@@ -25,7 +25,8 @@ const PXTabView = ({
   ...restProps
 }) => {
   const theme = useTheme();
-  const initialLayout = { width: Dimensions.get('window').width };
+  const { width: windowWidth } = useWindowDimensions();
+  const initialLayout = { width: windowWidth };
 
   const handleRenderTabBar = (props) => {
     if (renderTabBar) {
@@ -64,7 +65,10 @@ const PXTabView = ({
 
   return (
     <TabView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      style={[
+        styles.container,
+        { width: '100%', backgroundColor: theme.colors.background },
+      ]}
       navigationState={navigationState}
       renderScene={renderScene}
       onIndexChange={onIndexChange}

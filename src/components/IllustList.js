@@ -84,13 +84,14 @@ export class IllustList extends Component {
   };
 
   renderItem = ({ item, index }) => {
-    const { hideBookmarkButton } = this.props;
+    const { hideBookmarkButton, windowWidth } = this.props;
     return (
       <IllustItem
         key={item.id}
         illustId={item.id}
         index={index}
         numColumns={this.getNumColumns()}
+        windowWidth={windowWidth}
         hideBookmarkButton={hideBookmarkButton}
         onPressItem={() => this.handleOnPressItem(item, index)}
       />
@@ -195,7 +196,7 @@ export class IllustList extends Component {
                 : items || []
             }
             numColumns={this.getNumColumns()}
-            extraData={this.getNumColumns()}
+            extraData={`${this.getNumColumns()}-${Math.round(this.props.windowWidth || 0)}`}
             keyExtractor={(item) => item.id.toString()}
             listKey={listKey}
             renderItem={this.renderItem}

@@ -22,6 +22,7 @@ import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 import { connectLocalization } from '../components/Localization';
 import PXTouchable from '../components/PXTouchable';
 import Separator from '../components/Separator';
+import withWindowWidth from '../components/withWindowWidth';
 import { BOOKMARK_TYPES } from '../common/constants';
 import { globalStyleVariables } from '../styles';
 
@@ -45,9 +46,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  tagsContainer: {
-    maxHeight: globalStyleVariables.getWindowHeight() - 300,
   },
   newTagContainer: {
     padding: 10,
@@ -291,7 +289,13 @@ class BookmarkModal extends Component {
                     <Icon name="plus" size={20} color={theme.colors.text} />
                   </PXTouchable>
                 </View>
-                <View style={styles.tagsContainer}>
+                <View
+                  style={{
+                    maxHeight:
+                      (this.props.windowHeight ||
+                        globalStyleVariables.getWindowHeight()) - 300,
+                  }}
+                >
                   <FlatList
                     data={tags}
                     keyExtractor={(item) => item.name}
@@ -359,4 +363,6 @@ class BookmarkModal extends Component {
   }
 }
 
-export default withTheme(connectLocalization(BookmarkModal));
+export default withWindowWidth(
+  withTheme(connectLocalization(BookmarkModal)),
+);

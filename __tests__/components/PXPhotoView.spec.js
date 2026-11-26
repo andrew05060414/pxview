@@ -6,6 +6,7 @@ jest.mock('react-native', () => ({
   },
   Dimensions: {
     get: jest.fn(() => ({ width: 375, height: 812 })),
+    addEventListener: jest.fn(() => ({ remove: jest.fn() })),
   },
   Platform: {
     OS: 'android',
@@ -20,7 +21,7 @@ jest.mock('react-native-zoom-toolkit', () => ({
 }));
 
 import React from 'react';
-import PXPhotoView from '../../src/components/PXPhotoView';
+import { PXPhotoView } from '../../src/components/PXPhotoView';
 
 describe('PXPhotoView component', () => {
   it('instantiates with default props and initial unzoomed state', () => {

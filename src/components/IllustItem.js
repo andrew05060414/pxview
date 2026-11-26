@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { PropTypes } from 'prop-types';
 import { connect } from 'react-redux';
-import { MD3DarkTheme as DarkTheme } from 'react-native-paper';
+import { MD2DarkTheme as DarkTheme } from 'react-native-paper';
 import PXTouchable from './PXTouchable';
 import PXImage from './PXImage';
 import OverlayImagePages from './OverlayImagePages';
@@ -47,15 +47,29 @@ class IllustItem extends Component {
       isHighlight: prevIsHighlight,
       isMute: prevIsMute,
       isShowLikeCount: prevIsShowLikeCount,
+      numColumns: prevNumColumns,
+      windowWidth: prevWindowWidth,
+      parentContainerMargin: prevParentContainerMargin,
     } = this.props;
-    const { item, isHighlight, isMute, isShowLikeCount } = nextProps;
+    const {
+      item,
+      isHighlight,
+      isMute,
+      isShowLikeCount,
+      numColumns,
+      windowWidth,
+      parentContainerMargin,
+    } = nextProps;
     // console.log(item.id, (prevItem.is_bookmarked !== item.is_bookmarked) || (prevItem.user.is_followed !== item.user.is_followed));
     return (
       prevItem.is_bookmarked !== item.is_bookmarked ||
       prevItem.user.is_followed !== item.user.is_followed ||
       prevIsHighlight !== isHighlight ||
       prevIsMute !== isMute ||
-      prevIsShowLikeCount !== isShowLikeCount
+      prevIsShowLikeCount !== isShowLikeCount ||
+      prevNumColumns !== numColumns ||
+      prevWindowWidth !== windowWidth ||
+      prevParentContainerMargin !== parentContainerMargin
     );
   }
 
@@ -72,8 +86,16 @@ class IllustItem extends Component {
       isMute,
       hideBookmarkButton,
       isShowLikeCount,
+      windowWidth,
     } = this.props;
+    const currentWindowWidth =
+      windowWidth || globalStyleVariables.getWindowWidth();
     const imageWidthOffset = isHighlight ? HIGHLIGHT_BORDER_WIDTH * 2 + 1 : 1;
+    const cellSize =
+      (currentWindowWidth - parentContainerMargin * 2) / numColumns - 1;
+    const imageSize =
+      (currentWindowWidth - parentContainerMargin * 2) / numColumns -
+      imageWidthOffset;
     return (
       <PXTouchable
         style={[
@@ -81,14 +103,8 @@ class IllustItem extends Component {
             marginRight: index % numColumns < numColumns - 1 ? 1 : 0,
             marginBottom: 1,
             backgroundColor: (DarkTheme && DarkTheme.colors && DarkTheme.colors.surface) || '#121212',
-            width:
-              (globalStyleVariables.getWindowWidth() - parentContainerMargin * 2) /
-                numColumns -
-              1,
-            height:
-              (globalStyleVariables.getWindowWidth() - parentContainerMargin * 2) /
-                numColumns -
-              1,
+            width: cellSize,
+            height: cellSize,
           },
           containerStyle,
           isHighlight && styles.highlight,
@@ -105,16 +121,8 @@ class IllustItem extends Component {
               style={[
                 {
                   resizeMode: 'cover',
-                  width:
-                    (globalStyleVariables.getWindowWidth() -
-                      parentContainerMargin * 2) /
-                      numColumns -
-                    imageWidthOffset,
-                  height:
-                    (globalStyleVariables.getWindowWidth() -
-                      parentContainerMargin * 2) /
-                      numColumns -
-                    imageWidthOffset,
+                  width: imageSize,
+                  height: imageSize,
                 },
                 imageStyle,
               ]}

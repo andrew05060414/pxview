@@ -12,6 +12,7 @@ import PXCacheImageTouchable from './PXCacheImageTouchable';
 import UgoiraViewTouchable from './UgoiraViewTouchable';
 import TagBottomSheet from './TagBottomSheet';
 import OverlayMutedIndicator from './OverlayMutedIndicator';
+import withWindowWidth from './withWindowWidth';
 import * as searchHistoryActionCreators from '../common/actions/searchHistory';
 import { makeGetTagsWithStatus } from '../common/selectors';
 import { SEARCH_TYPES, SCREENS } from '../common/constants';
@@ -97,8 +98,9 @@ class IllustDetailContent extends Component {
       route: prevRoute,
       isVisible,
       isMounted,
+      windowWidth: prevWindowWidth,
     } = this.props;
-    const { item, tags, isMuteUser, route } = nextProps;
+    const { item, tags, isMuteUser, route, windowWidth } = nextProps;
     const {
       isInitState: prevIsInitState,
       isScrolling: prevIsScrolling,
@@ -128,7 +130,8 @@ class IllustDetailContent extends Component {
       isMuteUser !== prevIsMuteUser ||
       route !== prevRoute ||
       isVisible !== prevIsVisible ||
-      isMounted !== prevIsMounted
+      isMounted !== prevIsMounted ||
+      windowWidth !== prevWindowWidth
     ) {
       return true;
     }
@@ -238,7 +241,9 @@ class IllustDetailContent extends Component {
       theme,
       onPressImage,
       onLongPressImage,
+      windowWidth,
     } = this.props;
+    const currentWidth = windowWidth || globalStyleVariables.getWindowWidth();
     const isMultiImages = illustItem.page_count > 1;
     const isMute = tags.some((t) => t.isMute) || isMuteUser;
     if (isMute) {
@@ -260,7 +265,7 @@ class IllustDetailContent extends Component {
       <PXCacheImageTouchable
         key={item.image_urls.medium}
         uri={item.image_urls.medium}
-        initWidth={globalStyleVariables.getWindowHeight()}
+        initWidth={currentWidth}
         initHeight={200}
         style={styles.multiImageContainer}
         imageStyle={styles.image}
@@ -292,7 +297,13 @@ class IllustDetailContent extends Component {
   };
 
   render() {
-    const { item, navigation, highlightTags, muteTags } = this.props;
+    const {
+      item,
+      navigation,
+      highlightTags,
+      muteTags,
+      windowWidth,
+    } = this.props;
     const {
       imagePageNumber,
       isScrolling,
@@ -304,18 +315,20 @@ class IllustDetailContent extends Component {
     if (!isMounted) {
       return null;
     }
+    const currentWidth = windowWidth || globalStyleVariables.getWindowWidth();
     return (
       <View
         key={item.id}
         style={[
           styles.container,
-          { width: globalStyleVariables.getWindowWidth() },
+          { width: currentWidth },
         ]}
       >
         <FlatList
           data={item.page_count > 1 ? item.meta_pages : [item]}
           keyExtractor={(page) => page.image_urls.large}
           renderItem={this.renderItem}
+          extraData={currentWidth}
           removeClippedSubviews={false}
           ListFooterComponent={this.renderFooter}
           onScroll={this.handleOnScroll}
@@ -342,16 +355,18 @@ class IllustDetailContent extends Component {
   }
 }
 
-export default withTheme(
-  connect(() => {
-    const getTagsWithStatus = makeGetTagsWithStatus();
-    return (state, props) => ({
-      highlightTags: state.highlightTags.items,
-      muteTags: state.muteTags.items,
-      isMuteUser: state.muteUsers.items.some(
-        (m) => m.id === props.item.user.id,
-      ),
-      tags: getTagsWithStatus(state, props),
-    });
-  }, searchHistoryActionCreators)(IllustDetailContent),
+export default withWindowWidth(
+  withTheme(
+    connect(() => {
+      const getTagsWithStatus = makeGetTagsWithStatus();
+      return (state, props) => ({
+        highlightTags: state.highlightTags.items,
+        muteTags: state.muteTags.items,
+        isMuteUser: state.muteUsers.items.some(
+          (m) => m.id === props.item.user.id,
+        ),
+        tags: getTagsWithStatus(state, props),
+      });
+    }, searchHistoryActionCreators)(IllustDetailContent),
+  ),
 );

@@ -31,6 +31,7 @@ import PXBottomSheetButton from '../../components/PXBottomSheetButton';
 import PXBottomSheetCancelButton from '../../components/PXBottomSheetCancelButton';
 import HeaderMenuButton from '../../components/HeaderMenuButton';
 import Loader from '../../components/Loader';
+import withWindowWidth from '../../components/withWindowWidth';
 import * as userDetailActionCreators from '../../common/actions/userDetail';
 import * as userIllustsActionCreators from '../../common/actions/userIllusts';
 import * as userMangasActionCreators from '../../common/actions/userMangas';
@@ -54,7 +55,8 @@ const styles = StyleSheet.create({
   avatarContainer: {
     position: 'absolute',
     bottom: -(avatarSize / 2),
-    width: globalStyleVariables.getWindowWidth(),
+    left: 0,
+    right: 0,
     alignItems: 'center',
   },
   profileContainer: {
@@ -369,7 +371,8 @@ class UserDetail extends Component {
   };
 
   renderProfile = (detail) => {
-    const { i18n, theme } = this.props;
+    const { i18n, theme, windowWidth } = this.props;
+    const currentWidth = windowWidth || globalStyleVariables.getWindowWidth();
     return (
       <View>
         <View style={styles.coverOuterContainer}>
@@ -378,7 +381,7 @@ class UserDetail extends Component {
               uri={detail.user.profile_image_urls.medium}
               style={{
                 resizeMode: 'cover',
-                width: globalStyleVariables.getWindowWidth(),
+                width: currentWidth,
                 height: 100,
                 backgroundColor: 'transparent',
               }}
@@ -659,63 +662,65 @@ class UserDetail extends Component {
   }
 }
 
-export default withTheme(
-  connectLocalization(
-    connect(
-      () => {
-        const getUserDetailPageItem = makeGetUserDetailPageItems();
-        return (state, props) => {
-          const {
-            auth,
-            userDetail,
-            userIllusts,
-            userMangas,
-            userNovels,
-            userBookmarkIllusts,
-            userBookmarkNovels,
-            muteUsers,
-          } = state;
-          const userId =
-            props.userId ||
-            props.route.params.userId ||
-            parseInt(props.route.params.id || props.route.params.uid, 10);
-          const {
-            userDetailItem,
-            userIllustsItems,
-            userMangasItems,
-            userNovelsItems,
-            userBookmarkIllustsItems,
-            userBookmarkNovelsItems,
-          } = getUserDetailPageItem(state, props);
-          const isMuteUser = muteUsers.items.some((m) => m.id === userId);
-          return {
-            authUser: auth.user,
-            userDetail: userDetail[userId],
-            userIllusts: userIllusts[userId],
-            userMangas: userMangas[userId],
-            userNovels: userNovels[userId],
-            userBookmarkIllusts: userBookmarkIllusts[userId],
-            userBookmarkNovels: userBookmarkNovels[userId],
-            userDetailItem,
-            userIllustsItems,
-            userMangasItems,
-            userNovelsItems,
-            userBookmarkIllustsItems,
-            userBookmarkNovelsItems,
-            userId,
-            isMuteUser,
+export default withWindowWidth(
+  withTheme(
+    connectLocalization(
+      connect(
+        () => {
+          const getUserDetailPageItem = makeGetUserDetailPageItems();
+          return (state, props) => {
+            const {
+              auth,
+              userDetail,
+              userIllusts,
+              userMangas,
+              userNovels,
+              userBookmarkIllusts,
+              userBookmarkNovels,
+              muteUsers,
+            } = state;
+            const userId =
+              props.userId ||
+              props.route.params.userId ||
+              parseInt(props.route.params.id || props.route.params.uid, 10);
+            const {
+              userDetailItem,
+              userIllustsItems,
+              userMangasItems,
+              userNovelsItems,
+              userBookmarkIllustsItems,
+              userBookmarkNovelsItems,
+            } = getUserDetailPageItem(state, props);
+            const isMuteUser = muteUsers.items.some((m) => m.id === userId);
+            return {
+              authUser: auth.user,
+              userDetail: userDetail[userId],
+              userIllusts: userIllusts[userId],
+              userMangas: userMangas[userId],
+              userNovels: userNovels[userId],
+              userBookmarkIllusts: userBookmarkIllusts[userId],
+              userBookmarkNovels: userBookmarkNovels[userId],
+              userDetailItem,
+              userIllustsItems,
+              userMangasItems,
+              userNovelsItems,
+              userBookmarkIllustsItems,
+              userBookmarkNovelsItems,
+              userId,
+              isMuteUser,
+            };
           };
-        };
-      },
-      {
-        ...userDetailActionCreators,
-        ...userIllustsActionCreators,
-        ...userMangasActionCreators,
-        ...userNovelsActionCreators,
-        ...userBookmarkIllustsActionCreators,
-        ...userBookmarkNovelsActionCreators,
-        ...muteUsersActionCreators,
-      },
-    )(UserDetail),
+        },
+        {
+          ...userDetailActionCreators,
+          ...userIllustsActionCreators,
+          ...userMangasActionCreators,
+          ...userNovelsActionCreators,
+          ...userBookmarkIllustsActionCreators,
+          ...userBookmarkNovelsActionCreators,
+          ...muteUsersActionCreators,
+        },
+      )(UserDetail),
+    ),
   ),
 );

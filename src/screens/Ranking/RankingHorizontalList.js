@@ -22,7 +22,11 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   image: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
     resizeMode: 'contain',
   },
   sliderContainer: {
@@ -126,6 +130,7 @@ class RankingHorizontalList extends Component {
           illustId={item.id}
           index={index}
           numColumns={columns}
+          windowWidth={windowWidth}
           onPressItem={() => this.handleOnPressItem(item)}
         />
       </View>
@@ -139,10 +144,11 @@ class RankingHorizontalList extends Component {
       rankingType,
       i18n,
       theme,
+      windowWidth,
     } = this.props;
-    const sliderWidth = globalStyleVariables.getWindowWidth();
-    const itemWidth =
-      globalStyleVariables.getWindowWidth() / 3 + ITEM_HORIZONTAL_PADDING * 2;
+    const currentWidth = windowWidth ?? globalStyleVariables.getWindowWidth();
+    const columns = getResponsiveGridColumns(currentWidth);
+    const itemWidth = currentWidth / columns + ITEM_HORIZONTAL_PADDING * 2;
     return (
       <View style={styles.container}>
         <View style={styles.titleContainer}>
@@ -171,7 +177,7 @@ class RankingHorizontalList extends Component {
             keyExtractor={(item) => item.id.toString()}
             showsHorizontalScrollIndicator={false}
             snapToInterval={itemWidth}
-            decelerationRate={0.9}
+            decelerationRate="fast"
           />
         )}
       </View>

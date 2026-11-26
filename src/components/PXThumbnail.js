@@ -4,7 +4,7 @@ import PXImage from './PXImage';
 import { globalStyleVariables } from '../styles';
 
 const PXThumbnail = (props) => {
-  const { uri, size, style, ...otherProps } = props;
+  const { uri, size = 30, style, ...otherProps } = props;
   return (
     <View
       style={{
@@ -30,10 +30,6 @@ const PXThumbnail = (props) => {
       />
     </View>
   );
-};
-
-PXThumbnail.defaultProps = {
-  size: 30,
 };
 
 export default PXThumbnail;

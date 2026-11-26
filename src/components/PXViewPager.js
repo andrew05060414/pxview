@@ -3,6 +3,7 @@ import { View, Platform, FlatList } from 'react-native';
 import { withTheme } from 'react-native-paper';
 import ViewPager from 'react-native-pager-view';
 import Loader from './Loader';
+import withWindowWidth from './withWindowWidth';
 import { globalStyles, globalStyleVariables } from '../styles';
 
 const LIST_WINDOW_SIZE = 3;
@@ -65,8 +66,10 @@ class PXViewPager extends Component {
       onEndReached,
       viewPagerRef,
       theme,
+      windowWidth,
     } = this.props;
     const { isMounted } = this.state;
+    const currentWidth = windowWidth || globalStyleVariables.getWindowWidth();
     if (Platform.OS === 'android') {
       if (!isMounted) {
         return <Loader />;
@@ -78,7 +81,7 @@ class PXViewPager extends Component {
           initialPage={index}
           style={[
             globalStyles.container,
-            { backgroundColor: theme.colors.background },
+            { width: '100%', backgroundColor: theme.colors.background },
           ]}
           onPageSelected={this.handleOnAndroidViewPagerPageSelected}
         >
@@ -92,6 +95,7 @@ class PXViewPager extends Component {
         data={items}
         keyExtractor={keyExtractor}
         renderItem={renderContent}
+        extraData={currentWidth}
         scrollEventThrottle={16}
         onMomentumScrollEnd={this.handleOnIOSViewPagerPageSelected}
         onEndReached={onEndReached}
@@ -104,8 +108,8 @@ class PXViewPager extends Component {
         debug={false}
         maxToRenderPerBatch={LIST_WINDOW_SIZE}
         getItemLayout={(data, i) => ({
-          length: globalStyleVariables.getWindowWidth(),
-          offset: globalStyleVariables.getWindowWidth() * i,
+          length: currentWidth,
+          offset: currentWidth * i,
           index: i,
         })}
       />
@@ -113,4 +117,4 @@ class PXViewPager extends Component {
   }
 }
 
-export default withTheme(PXViewPager);
+export default withWindowWidth(withTheme(PXViewPager));

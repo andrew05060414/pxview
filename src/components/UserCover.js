@@ -1,5 +1,11 @@
 import React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Text,
+  Platform,
+  useWindowDimensions,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import PXThumbnailTouchable from './PXThumbnailTouchable';
 import PXTouchable from './PXTouchable';
@@ -9,7 +15,6 @@ import { globalStyleVariables } from '../styles';
 
 const styles = StyleSheet.create({
   avatarContainer: {
-    height: (globalStyleVariables.getDrawerWidth() * 9) / 16,
     backgroundColor: globalStyleVariables.PRIMARY_COLOR,
     justifyContent: 'center',
     alignItems: 'center',
@@ -46,8 +51,17 @@ const UserCover = ({
   onPressAvatar,
   onPressChangeTheme,
   themeName,
-}) => (
-  <View style={styles.avatarContainer}>
+}) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const drawerWidth =
+    Math.floor(windowWidth) - (Platform.OS === 'android' ? 56 : 64);
+  return (
+    <View
+      style={[
+        styles.avatarContainer,
+        { height: (drawerWidth * 9) / 16 },
+      ]}
+    >
     <PXThumbnailTouchable
       key={user.profile_image_urls.px_170x170}
       uri={user.profile_image_urls.px_170x170}
@@ -70,13 +84,14 @@ const UserCover = ({
         hitSlop={{ top: 20, left: 20, bottom: 20, right: 20 }}
       >
         <Icon
-          name={themeName === THEME_TYPES.DARK ? 'md-sunny' : 'md-moon'}
+          name={themeName === THEME_TYPES.DARK ? 'sunny' : 'moon'}
           size={24}
           color="#fff"
         />
       </PXTouchable>
     </View>
   </View>
-);
+  );
+};
 
 export default UserCover;

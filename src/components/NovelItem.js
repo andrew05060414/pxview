@@ -11,8 +11,19 @@ class NovelItem extends Component {
       isHighlight: prevIsHighlight,
       isMute: prevIsMute,
       isShowLikeCount: prevIsShowLikeCount,
+      gridView: prevGridView,
+      numColumns: prevNumColumns,
+      windowWidth: prevWindowWidth,
     } = this.props;
-    const { item, isHighlight, isMute, isShowLikeCount } = nextProps;
+    const {
+      item,
+      isHighlight,
+      isMute,
+      isShowLikeCount,
+      gridView,
+      numColumns,
+      windowWidth,
+    } = nextProps;
     // console.log(
     //   item.id,
     //   prevItem.is_bookmarked !== item.is_bookmarked ||
@@ -23,7 +34,10 @@ class NovelItem extends Component {
       prevItem.user.is_followed !== item.user.is_followed ||
       prevIsHighlight !== isHighlight ||
       prevIsMute !== isMute ||
-      prevIsShowLikeCount !== isShowLikeCount
+      prevIsShowLikeCount !== isShowLikeCount ||
+      prevGridView !== gridView ||
+      prevNumColumns !== numColumns ||
+      prevWindowWidth !== windowWidth
     );
   }
 

@@ -218,6 +218,7 @@ class NovelReader extends Component {
             fontSize={fontSize}
             lineHeight={lineHeight}
             windowWidth={this.props.windowWidth}
+            windowHeight={this.props.windowHeight}
             onIndexChange={this.handleOnIndexChange}
             onPressPageLink={this.handleOnPressPageLink}
             onToggleHeader={this.handleToggleHeader}

@@ -104,7 +104,7 @@ const AISettings = ({ i18n }) => {
       <View style={styles.button}>
         <Button
           mode="contained"
-          color={globalStyleVariables.PRIMARY_COLOR}
+          buttonColor={globalStyleVariables.PRIMARY_COLOR}
           onPress={handleOnPressTestConnection}
           loading={isTesting}
           disabled={isTesting}
@@ -115,7 +115,7 @@ const AISettings = ({ i18n }) => {
       <View style={styles.button}>
         <Button
           mode="outlined"
-          color={globalStyleVariables.PRIMARY_COLOR}
+          textColor={globalStyleVariables.PRIMARY_COLOR}
           onPress={handleOnPressSave}
         >
           {i18n.save}

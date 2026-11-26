@@ -166,7 +166,7 @@ class PastRanking extends Component {
     <PXBottomSheetButton
       key={ranking}
       onPress={() => this.handleOnPressRankingMode(rankingMode)}
-      iconName="md-funnel"
+      iconName="funnel"
       iconType="ionicon"
       text={this.mapRankingString(ranking)}
     />

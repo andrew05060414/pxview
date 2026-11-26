@@ -3,7 +3,7 @@ import PXTouchable from './PXTouchable';
 import PXThumbnail from './PXThumbnail';
 
 const PXThumbnailTouchable = (props) => {
-  const { uri, size, style, thumbnailStyle, onPress, ...otherProps } = props;
+  const { uri, size = 30, style, thumbnailStyle, onPress, ...otherProps } = props;
   return (
     <PXTouchable
       style={[
@@ -20,10 +20,6 @@ const PXThumbnailTouchable = (props) => {
       <PXThumbnail uri={uri} size={size} style={thumbnailStyle} />
     </PXTouchable>
   );
-};
-
-PXThumbnailTouchable.defaultProps = {
-  size: 30,
 };
 
 export default PXThumbnailTouchable;

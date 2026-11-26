@@ -106,6 +106,7 @@ class RelatedIllusts extends Component {
                   illustId={item.id}
                   index={index}
                   numColumns={illustColumns}
+                  windowWidth={windowWidth}
                   onPressItem={() => this.handleOnPressItem(item, index)}
                 />
               );

@@ -28,15 +28,12 @@ const PXSnackbar = () => {
       visible={isShowSnackbar}
       onDismiss={handleOnDismiss}
       duration={500}
-      action={{
-        onPress: () => {
-          toggleSnackbar(false);
-        },
-      }}
       theme={{
+        isV3: false,
         colors: {
           surface: '#fff',
           onSurface: '#424242',
+          accent: '#fff',
         },
       }}
       style={{

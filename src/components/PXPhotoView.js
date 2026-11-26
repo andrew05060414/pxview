@@ -2,18 +2,13 @@ import React, { PureComponent, createRef } from 'react';
 import { StyleSheet, Image } from 'react-native';
 import PropTypes from 'prop-types';
 import { ResumableZoom } from 'react-native-zoom-toolkit';
+import withWindowWidth from './withWindowWidth';
 import { globalStyleVariables } from '../styles';
 
 const styles = StyleSheet.create({
   container: {
-    width: globalStyleVariables.getWindowWidth(),
-    height: globalStyleVariables.getWindowHeight(),
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  photo: {
-    width: globalStyleVariables.getWindowWidth(),
-    height: globalStyleVariables.getWindowHeight(),
   },
 });
 
@@ -86,17 +81,23 @@ class PXPhotoView extends PureComponent {
       onViewTap,
       minScale,
       maxScale,
+      windowWidth,
+      windowHeight,
       ...restProps
     } = this.props;
     const { isZoomed } = this.state;
+    const winW = windowWidth || globalStyleVariables.getWindowWidth();
+    const winH = windowHeight || globalStyleVariables.getWindowHeight();
+    const sizeStyle = { width: winW, height: winH };
 
     return (
       <ResumableZoom
+        key={`zoom-${Math.round(winW)}x${Math.round(winH)}`}
         ref={this.zoomRef}
         minScale={minScale}
         maxScale={maxScale}
         panEnabled={isZoomed}
-        style={[styles.container, style]}
+        style={[styles.container, sizeStyle, style]}
         onTap={this.handleTap}
         onGestureEnd={this.handleGestureEnd}
         onPinchEnd={this.handleGestureEnd}
@@ -111,7 +112,7 @@ class PXPhotoView extends PureComponent {
             },
           }}
           resizeMode="contain"
-          style={styles.photo}
+          style={sizeStyle}
           onLoad={this.handleOnLoad}
           // eslint-disable-next-line react/jsx-props-no-spreading
           {...restProps}
@@ -121,4 +122,5 @@ class PXPhotoView extends PureComponent {
   }
 }
 
-export default PXPhotoView;
+export { PXPhotoView };
+export default withWindowWidth(PXPhotoView);
