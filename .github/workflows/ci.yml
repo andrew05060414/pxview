@@ -7,9 +7,73 @@ on:
   push:
     branches:
       - main
+  schedule:
+    # Daily nightly full native build check (03:15 EST / 08:15 UTC)
+    - cron: "15 8 * * *"
   workflow_dispatch:
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    name: Detect Native Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      android: ${{ steps.filter.outputs.android }}
+      ios: ${{ steps.filter.outputs.ios }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed paths
+        id: filter
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "schedule" ] || [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "android=true" >> "$GITHUB_OUTPUT"
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          diff_files=""
+          if [ -n "$BASE_REF" ]; then
+            git fetch origin "$BASE_REF"
+            diff_files="$(git diff --name-only "origin/$BASE_REF...HEAD")"
+          elif [ -n "$PUSH_BEFORE" ] && ! [[ "$PUSH_BEFORE" =~ ^0+$ ]] && git merge-base --is-ancestor "$PUSH_BEFORE" HEAD 2>/dev/null; then
+            diff_files="$(git diff --name-only "$PUSH_BEFORE...HEAD")"
+          else
+            echo "android=true" >> "$GITHUB_OUTPUT"
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          android=false
+          ios=false
+          shared_native_re='^(package\.json|package-lock\.json|react-native\.config\.js|app\.json|firebase\.json|babel\.config\.js|metro\.config\.js|\.github/workflows/ci\.yml)$'
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            if [[ "$file" =~ ^android/ ]] || [[ "$file" =~ ^scripts/.*android ]] || [[ "$file" =~ $shared_native_re ]]; then
+              android=true
+            fi
+            if [[ "$file" =~ ^ios/ ]] || [[ "$file" =~ ^scripts/.*ios ]] || [[ "$file" =~ $shared_native_re ]]; then
+              ios=true
+            fi
+          done <<< "$diff_files"
+
+          echo "android=$android" >> "$GITHUB_OUTPUT"
+          echo "ios=$ios" >> "$GITHUB_OUTPUT"
+          echo "Detected native build triggers: android=$android, ios=$ios"
+
   jest:
     name: Jest & Dependency Gate
     runs-on: ubuntu-latest
@@ -35,6 +99,8 @@ jobs:
 
   android-release:
     name: Android Release APK
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -82,6 +148,8 @@ jobs:
 
   ios-simulator:
     name: iOS Simulator Build
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
     runs-on: macos-15
     timeout-minutes: 60
     steps:
