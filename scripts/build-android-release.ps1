@@ -18,12 +18,21 @@ $keyAlias = if ($env:PXVIEW_KEY_ALIAS) { $env:PXVIEW_KEY_ALIAS } else { 'android
 $keyPassword = if ($env:PXVIEW_KEY_PASSWORD) { $env:PXVIEW_KEY_PASSWORD } else { 'android' }
 
 Set-Location "$repoRoot\android"
-& .\gradlew.bat assembleRelease --no-daemon `
-  "-PreactNativeArchitectures=$archs" `
-  "-PPXVIEWR_RELEASE_STORE_FILE=$keystorePath" `
-  "-PPXVIEWR_RELEASE_STORE_PASSWORD=$keystorePassword" `
-  "-PPXVIEWR_RELEASE_KEY_ALIAS=$keyAlias" `
+$buildSlot = if ($env:BUILD_SLOT_PATH) { $env:BUILD_SLOT_PATH } else { 'D:\Andrew\Code\tools\build-slot.js' }
+$gradleArgs = @(
+  'assembleRelease',
+  '--no-daemon',
+  "-PreactNativeArchitectures=$archs",
+  "-PPXVIEWR_RELEASE_STORE_FILE=$keystorePath",
+  "-PPXVIEWR_RELEASE_STORE_PASSWORD=$keystorePassword",
+  "-PPXVIEWR_RELEASE_KEY_ALIAS=$keyAlias",
   "-PPXVIEWR_RELEASE_KEY_PASSWORD=$keyPassword"
+)
+if (-not $env:CI -and (Test-Path $buildSlot) -and (Get-Command node -ErrorAction SilentlyContinue)) {
+  & node $buildSlot --queue compile -- .\gradlew.bat @gradleArgs
+} else {
+  & .\gradlew.bat @gradleArgs
+}
 if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }
