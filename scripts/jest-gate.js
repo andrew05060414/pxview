@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { runWithBuildSlot } = require('./with-build-slot');
 
 const baselinePath = path.resolve(__dirname, '../tests/jest-baseline.json');
 if (!fs.existsSync(baselinePath)) {
@@ -22,10 +22,10 @@ console.log('Running Jest baseline gate...');
 const isWindows = process.platform === 'win32';
 const npxCmd = isWindows ? 'npx.cmd' : 'npx';
 
-const jestRun = spawnSync(
-  npxCmd,
-  ['jest', '--json', '--outputFile=' + outputFile],
-  { stdio: 'inherit', shell: true }
+const jestRun = runWithBuildSlot(
+  'test',
+  [npxCmd, 'jest', '--json', '--outputFile=' + outputFile],
+  { stdio: 'inherit' }
 );
 
 if (!fs.existsSync(outputFile)) {
